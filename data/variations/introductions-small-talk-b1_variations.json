@@ -1,0 +1,132 @@
+[
+  {
+    "id": 1,
+    "cefr_level": "B1",
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hi! How's it going?\nB: Good, thanks! I’m Alex. Nice to meet you.\nA: Nice to meet you too! I’m Jamie. I was just about to grab some coffee.\nB: Oh really? I love coffee! Where do you usually go?\nA: There’s a nice place around the corner. Do you want to join me?\nB: Sure, I’d love to! What do you usually get?"
+  },
+  {
+    "id": 2,
+    "cefr_level": "B1",
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "What do you think?",
+      "Let’s figure it out",
+      "It sounds like a plan"
+    ],
+    "dialogue": "A: Hey, we have a problem with the project.\nB: Oh no! What do you think we should do?\nA: Let’s figure it out together. I think we need more time.\nB: Yes, I agree. Can we ask the manager for an extension?\nA: That sounds like a plan. I’ll talk to her this afternoon.\nB: Great! I’ll prepare the details we need."
+  },
+  {
+    "id": 3,
+    "cefr_level": "B1",
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "We need to decide",
+      "What do you think?",
+      "It’s now or never"
+    ],
+    "dialogue": "A: We need to decide on the venue for the event.\nB: Right! What do you think about the park?\nA: I like it, but it might rain tomorrow.\nB: True. It’s now or never! Should we choose the indoor place instead?\nA: Yes, let’s do that. I’ll call them right now!\nB: Good idea! We can’t wait too long."
+  },
+  {
+    "id": 4,
+    "cefr_level": "B1",
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "grammar_focus": "simple present + modals",
+    "chunk_focus": [
+      "I see your point",
+      "However, I think",
+      "Let’s agree to disagree"
+    ],
+    "dialogue": "A: I think we should start the meeting earlier.\nB: I see your point, but I believe later is better.\nA: However, I think we’ll lose time if we wait.\nB: I understand, but some people may be late.\nA: That’s true. Let’s agree to disagree for now.\nB: Okay, maybe we can find a middle ground."
+  },
+  {
+    "id": 5,
+    "cefr_level": "B1",
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "grammar_focus": "simple present + modals",
+    "chunk_focus": [
+      "Could you please",
+      "I would appreciate it",
+      "If you don’t mind"
+    ],
+    "dialogue": "A: Excuse me, could you please help me?\nB: Sure! What do you need?\nA: I would appreciate it if you could show me how to use this printer.\nB: No problem! If you don’t mind, I’ll show you right now.\nA: That would be great! Thanks a lot.\nB: You’re welcome! Let’s get started."
+  },
+  {
+    "id": 6,
+    "cefr_level": "B1",
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "grammar_focus": "simple past + present perfect",
+    "chunk_focus": [
+      "I was confused",
+      "I didn’t mean to",
+      "Let’s clear this up"
+    ],
+    "dialogue": "A: Hi! I wanted to follow up about our last conversation.\nB: Oh, sure! What’s up?\nA: I was confused about the deadlines you mentioned.\nB: I didn’t mean to confuse you! Let’s clear this up now.\nA: Yes, please. What’s the actual date?\nB: It’s next Friday. I hope that helps!"
+  },
+  {
+    "id": 7,
+    "cefr_level": "B1",
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "grammar_focus": "simple future + modals",
+    "chunk_focus": [
+      "What time should we meet?",
+      "I think it’s best",
+      "Let’s stick to that"
+    ],
+    "dialogue": "A: So, what time should we meet tomorrow?\nB: How about 10 AM?\nA: I think it’s best to meet earlier, maybe 9?\nB: Okay, let’s stick to that! Where should we go?\nA: Let’s meet at the café on Main Street.\nB: Sounds good! I’ll see you there."
+  },
+  {
+    "id": 8,
+    "cefr_level": "B1",
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "grammar_focus": "simple present + modals",
+    "chunk_focus": [
+      "Do you have any advice?",
+      "I’m not sure what to do",
+      "That’s a good idea"
+    ],
+    "dialogue": "A: Hey, do you have any advice for my presentation?\nB: Sure! What’s the topic?\nA: I’m not sure what to do about the visuals.\nB: I think you should keep them simple.\nA: That’s a good idea. I’ll focus on key points.\nB: Exactly! And practice a lot."
+  },
+  {
+    "id": 9,
+    "cefr_level": "B1",
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "grammar_focus": "simple present + modals",
+    "chunk_focus": [
+      "Which one do you prefer?",
+      "They both have their pros and cons",
+      "In my opinion"
+    ],
+    "dialogue": "A: I’m thinking about two job offers. Which one do you prefer?\nB: Hmm, they both have their pros and cons.\nA: Right? One has a higher salary.\nB: Yes, but the other has better benefits.\nA: In my opinion, the benefits are more important.\nB: I agree! It’s a tough choice, though."
+  },
+  {
+    "id": 10,
+    "cefr_level": "B1",
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "To sum up",
+      "What’s next?",
+      "I’ll follow up with you"
+    ],
+    "dialogue": "A: To sum up, we agreed on the new schedule.\nB: Yes, that sounds good! What’s next?\nA: I’ll follow up with you next week.\nB: Great! I’ll prepare the materials we need.\nA: Perfect. Let’s keep in touch!\nB: Absolutely! Have a nice day!"
+  }
+]

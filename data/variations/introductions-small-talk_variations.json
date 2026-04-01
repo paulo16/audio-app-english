@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hey! How's it going? \nB: Not too bad! Just trying to get through the day. You? \nA: Same here. I was just about to grab a coffee. \nB: Oh, nice! I could use one of those. \nA: By the way, I’m Alex. Nice to meet you! \nB: I’m Jamie. Nice to meet you too!"
+  },
+  {
+    "id": 2,
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "chunk_focus": [
+      "Let’s figure this out",
+      "What do you think?",
+      "I get where you’re coming from"
+    ],
+    "dialogue": "A: So, we've got this issue with the project. Let’s figure this out. \nB: Yeah, I get where you’re coming from. What do you think we should do? \nA: Maybe we could break it down into smaller tasks? \nB: That could work. We just need to stay on top of deadlines. \nA: Exactly! If we keep communication open, we’ll be golden."
+  },
+  {
+    "id": 3,
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "chunk_focus": [
+      "We need to decide",
+      "It’s now or never",
+      "What do you say?"
+    ],
+    "dialogue": "A: Alright, we need to decide on the venue for the meeting. \nB: Yeah, it’s now or never if we want to book it! \nA: How about the downtown conference center? \nB: Sounds good, but do we have time to check it out? \nA: Not really. So, what do you say? Just go for it? \nB: Let’s do it!"
+  },
+  {
+    "id": 4,
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "chunk_focus": [
+      "I see your point",
+      "That’s not how I see it",
+      "Respectfully"
+    ],
+    "dialogue": "A: I really think we should go with the new design. \nB: I see your point, but that’s not how I see it. \nA: Respectfully, I think the old one has more character. \nB: True, but the new one is more modern. \nA: I get that, but do we really want to lose our brand’s identity? \nB: Fair enough, maybe we can find a middle ground."
+  },
+  {
+    "id": 5,
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "chunk_focus": [
+      "Could you do me a favor?",
+      "If it’s not too much trouble",
+      "I’d really appreciate it"
+    ],
+    "dialogue": "A: Hey, could you do me a favor? \nB: Sure, what’s up? \nA: If it’s not too much trouble, could you help me with the report? \nB: Absolutely! I’d really appreciate it if you could send me the data first. \nA: Of course! I’ll send it over right away. Thanks a ton!"
+  },
+  {
+    "id": 6,
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "chunk_focus": [
+      "I just wanted to clarify",
+      "It seems there was a mix-up",
+      "No hard feelings"
+    ],
+    "dialogue": "A: Hey, I just wanted to clarify our earlier conversation. \nB: Oh, really? What’s up? \nA: It seems there was a mix-up about the deadline. \nB: I see. I thought we agreed on next week. \nA: No hard feelings, but it’s actually due Friday. \nB: Got it! Thanks for clearing that up."
+  },
+  {
+    "id": 7,
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "chunk_focus": [
+      "What’s the plan?",
+      "Are we still on?",
+      "Let’s not keep putting it off"
+    ],
+    "dialogue": "A: So, what’s the plan for tomorrow? \nB: Are we still on for that meeting at 10? \nA: Yeah, let’s not keep putting it off. \nB: Sounds good! Do you want to grab breakfast first? \nA: Sure, let’s meet at the diner at nine then. \nB: Perfect! I’ll see you there."
+  },
+  {
+    "id": 8,
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "chunk_focus": [
+      "Do you have any tips?",
+      "What would you suggest?",
+      "I could really use your insight"
+    ],
+    "dialogue": "A: Hey, do you have any tips for dealing with stressful situations? \nB: Absolutely! What would you suggest? \nA: I could really use your insight. I find myself getting overwhelmed. \nB: Try taking short breaks. It really helps clear your mind. \nA: That’s a good idea! I’ll definitely give it a shot."
+  },
+  {
+    "id": 9,
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "chunk_focus": [
+      "On one hand",
+      "On the other hand",
+      "What do you think?"
+    ],
+    "dialogue": "A: So, I’m torn between two job offers. \nB: Really? What are they? \nA: On one hand, one is closer to home, but it pays less. \nB: And on the other hand? \nA: The other one is a bit further but offers a better salary. \nB: What do you think? Which matters more to you? \nA: Honestly, I’m leaning towards the closer one."
+  },
+  {
+    "id": 10,
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "chunk_focus": [
+      "To wrap things up",
+      "Let’s touch base next week",
+      "Keep me in the loop"
+    ],
+    "dialogue": "A: To wrap things up, we’ve got our tasks clear. \nB: Right! Let’s touch base next week to check progress. \nA: Sounds good. I’ll keep you in the loop about any changes. \nB: Great! Thanks for the meeting. \nA: No problem! Talk soon."
+  }
+]

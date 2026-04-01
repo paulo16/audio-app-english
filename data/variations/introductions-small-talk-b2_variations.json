@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "cefr_level": "B2",
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "How's it going?",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hey there! How's it going?\nB: Not too bad! Just busy with work. Nice to meet you, by the way.\nA: Nice to meet you too! What do you do for a living?\nB: I'm a graphic designer. How about you?\nA: I work in marketing. So, what do you think of this event?\nB: It’s pretty interesting! I was just about to check out the keynote speaker."
+  },
+  {
+    "id": 2,
+    "cefr_level": "B2",
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "grammar_focus": "conditional sentences + modal verbs",
+    "chunk_focus": [
+      "What do you think?",
+      "If we don't act now..."
+    ],
+    "dialogue": "A: So, we have a bit of a situation with the project deadline. What do you think?\nB: I believe we need to prioritize our tasks. If we don't act now, we might fall behind.\nA: That’s true. Should we delegate some tasks?\nB: Yes, I think that could lighten our load. Who should take on what?\nA: Perhaps you could handle the presentation? I can manage the report.\nB: Sounds like a plan! Let’s get to it."
+  },
+  {
+    "id": 3,
+    "cefr_level": "B2",
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "grammar_focus": "simple past + future simple",
+    "chunk_focus": [
+      "We need to decide",
+      "It's now or never"
+    ],
+    "dialogue": "A: We need to decide on the venue for the meeting, and time is running out.\nB: I know! It's now or never. Which option looks better?\nA: I think the downtown location would work, but it’s a bit pricier.\nB: True, but the other option is far and might delay people.\nA: Exactly. Let’s go with downtown then. I'll book it!\nB: Great! I’ll send out the invites."
+  },
+  {
+    "id": 4,
+    "cefr_level": "B2",
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "grammar_focus": "present perfect + reported speech",
+    "chunk_focus": [
+      "I see your point",
+      "That being said"
+    ],
+    "dialogue": "A: I really think we should go with the blue design for the logo.\nB: I see your point, but I’ve heard that green is more trendy right now.\nA: That being said, blue has always been our brand color.\nB: True, but times change, and we need to adapt.\nA: Maybe we could try a combination of both?\nB: That sounds like a compromise I can get behind."
+  },
+  {
+    "id": 5,
+    "cefr_level": "B2",
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "grammar_focus": "modal verbs + present perfect continuous",
+    "chunk_focus": [
+      "Could you please",
+      "I would really appreciate it"
+    ],
+    "dialogue": "A: Could you please help me with this report?\nB: Sure! What do you need?\nA: I’ve been trying to gather the data, but I’m a bit stuck. I would really appreciate it if you could lend a hand.\nB: No problem! I can take a look. When do you need it by?\nA: Ideally, by Friday. Does that work for you?\nB: Absolutely! Let’s tackle it together."
+  },
+  {
+    "id": 6,
+    "cefr_level": "B2",
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "grammar_focus": "past perfect + future perfect",
+    "chunk_focus": [
+      "I thought you meant",
+      "It turns out that"
+    ],
+    "dialogue": "A: I wanted to clarify our last conversation about the budget.\nB: Ah, I thought you meant the original figures!\nA: It turns out that I was referring to the revised proposal. My mistake!\nB: No worries. So, what’s the new plan?\nA: I think we should allocate more for marketing. What do you think?\nB: That makes sense. Let’s adjust that."
+  },
+  {
+    "id": 7,
+    "cefr_level": "B2",
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "grammar_focus": "future continuous + present simple",
+    "chunk_focus": [
+      "Are we still on for",
+      "Let’s make sure to"
+    ],
+    "dialogue": "A: Are we still on for the meeting tomorrow?\nB: Yes, absolutely! What time is good for you?\nA: How about 10 AM? Let’s make sure to cover everything on the agenda.\nB: That works! I’ll bring the updated figures.\nA: Perfect! I’ll prepare the presentation. Looking forward to it.\nB: Same here! It should be a productive session."
+  },
+  {
+    "id": 8,
+    "cefr_level": "B2",
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "grammar_focus": "conditional sentences + past simple",
+    "chunk_focus": [
+      "What do you suggest?",
+      "If I were you"
+    ],
+    "dialogue": "A: I’m thinking about switching jobs. What do you suggest?\nB: If I were you, I would really weigh the pros and cons.\nA: That’s true. I’ve been feeling a bit stuck.\nB: Have you thought about what you want in your next role?\nA: Yes, more creativity and flexibility.\nB: Then go for it! You deserve to be happy at work."
+  },
+  {
+    "id": 9,
+    "cefr_level": "B2",
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "grammar_focus": "comparative structures + modals",
+    "chunk_focus": [
+      "Which one do you prefer?",
+      "On the other hand"
+    ],
+    "dialogue": "A: I’m torn between the two job offers. Which one do you prefer?\nB: Honestly, the first one seems more stable.\nA: I agree, but the second one has better growth opportunities. On the other hand, it’s a startup.\nB: True, but sometimes startups can be quite dynamic.\nA: Exactly! It’s a tough choice.\nB: Maybe list out the pros and cons for both?"
+  },
+  {
+    "id": 10,
+    "cefr_level": "B2",
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "grammar_focus": "present perfect + simple future",
+    "chunk_focus": [
+      "To summarize",
+      "Let’s touch base again"
+    ],
+    "dialogue": "A: To summarize our discussion, we’ll focus on the marketing strategy first.\nB: Agreed! So, what’s our next step?\nA: I will draft the plan and share it by the end of the week.\nB: And I’ll gather the data we need. Let’s touch base again on Monday.\nA: Sounds good! I’m looking forward to it.\nB: Me too! Let’s make it happen."
+  }
+]

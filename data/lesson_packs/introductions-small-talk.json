@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Meeting a New Neighbor",
+    "objective": "Practice introducing oneself and discussing local interests.",
+    "estimated_minutes": 5,
+    "dialogue": "A: Hey there! I'm Alex, I just moved in next door. \nB: Hi Alex! I'm Jamie. Welcome to the neighborhood! How are you finding it so far? \nA: Thanks! It's been great, but I haven't explored much yet. Any recommendations? \nB: Oh, absolutely! You should check out the park down the street. It’s perfect for jogging or just hanging out. \nA: That sounds nice! I love being outdoors. Are there any good coffee shops nearby? \nB: Yeah, there's a cute little café just around the corner called The Daily Grind. They have the best lattes! \nA: Awesome! I’m a total coffee addict. Do you go there often? \nB: I do! It’s a great spot to work or meet friends. Plus, they have live music on Fridays. \nA: That’s cool! I definitely need to check that out. So, what do you do for fun around here? \nB: I’m really into hiking. There are some beautiful trails about a half hour away. You hike? \nA: Sometimes! I’d love to join you if you ever go. \nB: For sure! Let’s exchange numbers and plan a hike sometime. \nA: Great idea! I’m looking forward to it."
+  },
+  {
+    "title": "Catching Up with an Old Friend",
+    "objective": "Revisit past connections and share life updates.",
+    "estimated_minutes": 5,
+    "dialogue": "A: Hey! Is that you, Sarah? \nB: Wow, Mark! It’s been ages! How have you been? \nA: I know, right? I’ve been doing well, just busy with work. How about you? \nB: Same here! I started a new job last year. It’s challenging, but I love it. \nA: That’s awesome! What are you doing now? \nB: I’m a graphic designer at a marketing firm. It’s really creative work. \nA: Sounds like a great fit for you! I remember how artistic you were back in school. \nB: Thanks! I still draw in my spare time. What about you? Still in finance? \nA: Yeah, I am. I’ve been managing a small team now, which is a big change. \nB: That’s exciting! Are you enjoying the leadership role? \nA: Mostly! It’s rewarding, but it can be stressful too. \nB: I get that. Balancing work and personal life can be tough. \nA: Definitely! By the way, do you still play soccer? \nB: I do! I’m on a local league team. You should come watch a game sometime! \nA: I’d love to! Let’s catch up more over coffee soon. \nB: Absolutely! Let’s make it happen."
+  },
+  {
+    "title": "Networking at a Conference",
+    "objective": "Develop skills for professional small talk and networking.",
+    "estimated_minutes": 5,
+    "dialogue": "A: Hi, I’m Chris. Nice to meet you! \nB: Hi, Chris! I’m Taylor. Great to meet you too! Are you enjoying the conference? \nA: Yeah, it's been really insightful. I attended a session on digital marketing this morning. How about you? \nB: I went to the one on AI trends. Super fascinating stuff! \nA: That sounds interesting! AI is such a hot topic right now. \nB: It really is! So, what do you do? \nA: I work in marketing for a tech startup. We focus on social media strategies. \nB: Nice! Social media is crucial these days. Do you have a favorite platform? \nA: I’m a big fan of Instagram. It really helps build brand identity. What about you? \nB: I prefer LinkedIn for networking. It’s great for connecting with professionals. \nA: Agreed! I’ve made some solid connections there. Have you found any potential partners at the conference? \nB: A few! I’m hoping to collaborate with some companies on a project. \nA: That sounds promising! Let’s exchange cards and keep in touch. \nB: Definitely! It was great talking to you."
+  },
+  {
+    "title": "Dinner Party Introductions",
+    "objective": "Practice introducing oneself and making small talk in social settings.",
+    "estimated_minutes": 5,
+    "dialogue": "A: Hi there! I’m Rachel, nice to meet you! \nB: Hi Rachel! I’m Tom. So glad to meet you! How do you know the host? \nA: I went to college with Sarah. We’ve kept in touch since. How about you? \nB: I work with her at the nonprofit. She’s such a great person. \nA: Absolutely! I love her energy. What do you do at the nonprofit? \nB: I’m a program coordinator. We focus on community outreach. It’s really fulfilling work. \nA: That sounds amazing! I’m in education, so I can appreciate that. \nB: Oh really? What do you teach? \nA: I teach high school English. It can be tough, but it’s rewarding when students connect with literature. \nB: I can imagine! Any favorite authors you like to teach? \nA: Definitely! I love introducing my students to authors like Toni Morrison. Her work is powerful. \nB: Great choice! I think literature can really open up discussions. \nA: For sure! So, what do you like to do for fun outside of work? \nB: I’m a big fan of hiking and trying out new restaurants. How about you? \nA: Same here! There’s a great Thai place nearby I’ve been dying to try. \nB: Let’s swap recommendations later!"
+  },
+  {
+    "title": "Chatting at the Gym",
+    "objective": "Engage in light conversation while discussing fitness and hobbies.",
+    "estimated_minutes": 5,
+    "dialogue": "A: Hey! I see you here often. I’m Mike. \nB: Hi Mike! I’m Lisa. Yeah, I try to come at least three times a week. \nA: Same here! What’s your favorite workout? \nB: I love weightlifting, but I also mix in some cardio. How about you? \nA: I’m more into running. I just signed up for a half marathon next month! \nB: That’s awesome! I’ve been thinking about doing one too. How’s the training going? \nA: It’s tough, but I’m getting there. I usually run with a friend, which helps. \nB: That’s a good idea! Running with someone can keep you motivated. \nA: Exactly! By the way, do you do any group classes? \nB: Occasionally. I really enjoy yoga for flexibility. It’s a nice change of pace. \nA: I should try that! I could use some stretching after my runs. \nB: Definitely! It helps a lot. What do you do outside of the gym? \nA: I love cooking and trying new recipes. How about you? \nB: I’m into photography! I like capturing nature and landscapes. \nA: That sounds fun! Maybe we can go for a run and then do a photo walk sometime. \nB: I’d love that!"
+  }
+]

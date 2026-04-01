@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environnement
+.env
+
+# Données générées (audios & sessions utilisateur)
+data/lesson_audio/
+data/podcast_audio/
+user_conversations/audio/
+user_conversations/sessions/
+
+# VS Code
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
