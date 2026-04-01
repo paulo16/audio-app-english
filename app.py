@@ -16,14 +16,19 @@ load_dotenv()
 
 
 def _cfg(key, default=""):
-    """Read config from st.secrets (Streamlit Cloud) then os.environ (.env local)."""
+    """Read config: .env / os.environ first (local), then st.secrets (Streamlit Cloud)."""
+    # os.environ is populated by load_dotenv() locally — always prefer it
+    env_val = os.getenv(key)
+    if env_val is not None:
+        return env_val
+    # Fallback: Streamlit Cloud secrets (no .env file on cloud)
     try:
         val = st.secrets.get(key)
         if val is not None:
             return str(val)
     except Exception:
         pass
-    return os.getenv(key, default)
+    return default
 
 
 OPENROUTER_API_KEY = _cfg("OPENROUTER_API_KEY")
@@ -315,6 +320,93 @@ USER_INTERESTS = [
     "Manga & Anime",
 ]
 
+STORY_DIR = os.path.join(DATA_DIR, "stories")
+STORY_AUDIO_DIR = os.path.join(DATA_DIR, "story_audio")
+
+STORY_CATEGORIES = {
+    "🏯 Manga & Anime": [
+        "Epic samurai clan war — betrayal and redemption",
+        "Young ninja discovers a forbidden bloodline power",
+        "Fantasy kingdom torn apart by a dragon god awakening",
+        "Rival pirates racing for a legendary lost island",
+        "Magical academy — the outcast student saves the world",
+        "Post-apocalyptic Japan — last warriors vs machine empire",
+        "Demon hunter falls in love with the demon queen",
+    ],
+    "👑 Rois & Empires": [
+        "The rise and fall of the Roman Empire's greatest emperor",
+        "A Viking king unites the warring Norse clans",
+        "The last Aztec emperor fights Spanish conquistadors",
+        "A Tang dynasty empress seizes the Dragon Throne",
+        "The Mongol warlord who conquered half the world",
+        "Medieval French king builds the most powerful court in Europe",
+        "An African king defends his gold kingdom from European invaders",
+    ],
+    "🌍 Pays & Nations": [
+        "The birth of the United States — 13 colonies rise up",
+        "Japan's transformation from samurai era to industrial power",
+        "Brazil — from Portuguese colony to vast independent nation",
+        "South Korea's rise from rubble to tech superpower",
+        "Cuba's revolution — poverty, cigars and Cold War tension",
+        "The founding of Israel — a nation born from conflict",
+        "India gains independence — Gandhi's non-violent revolution",
+    ],
+    "🏛️ Présidents & Leaders": [
+        "Abraham Lincoln — saving the Union during Civil War",
+        "Nelson Mandela — 27 years in prison to president",
+        "John F. Kennedy — the assassination no one forgets",
+        "Napoleon Bonaparte — from Corsican soldier to Emperor of Europe",
+        "Winston Churchill — Britain alone against Hitler",
+        "Cleopatra — the queen who seduced two Roman generals",
+        "George Washington — the reluctant first president",
+    ],
+    "📜 Documentaires historiques": [
+        "The construction of the Great Pyramid of Giza",
+        "The Black Death — how the plague reshaped medieval Europe",
+        "The Space Race — USA vs USSR in the cosmos",
+        "The Silk Road — merchants, spies and empires connected",
+        "Titanic — the night the unsinkable ship sank",
+        "World War II resistance — secret agents behind enemy lines",
+        "The Cold War — spies, nukes and the Berlin Wall",
+    ],
+    "⚔️ Guerres & Batailles": [
+        "D-Day — soldiers storm the beaches of Normandy",
+        "The Battle of Thermopylae — 300 Spartans vs a million Persians",
+        "Stalingrad — the brutal winter battle that turned WWII",
+        "The American Civil War — brothers against brothers",
+        "The Crusades — knights march to the Holy Land",
+        "The Hundred Years' War — Joan of Arc leads France",
+        "The Battle of Waterloo — Napoleon's final defeat",
+    ],
+    "🔬 Sciences & Découvertes": [
+        "Marie Curie — the woman who discovered radioactivity",
+        "The race to decode DNA — Watson, Crick and Rosalind Franklin",
+        "The Apollo 11 moon landing — 8 days to eternity",
+        "Charles Darwin's voyage on the Beagle — evolution discovered",
+        "Nikola Tesla vs Edison — the war of currents",
+        "The discovery of penicillin — a mold that saved millions",
+        "Einstein's theory of relativity — rewriting physics forever",
+    ],
+    "🌿 Nature & Exploration": [
+        "Ernest Shackleton — trapped in Antarctic ice for 634 days",
+        "Christopher Columbus — three ships and an impossible gamble",
+        "Marco Polo — from Venice to the court of Kublai Khan",
+        "James Cook — mapping the Pacific and finding Australia",
+        "The Amazon rainforest — secrets of the world's lungs",
+        "Deep ocean — scientists descend to the darkest trench on Earth",
+        "Lewis and Clark — crossing untamed America to the Pacific",
+    ],
+}
+
+STORY_NARRATOR_VOICES = {
+    "Alloy (neutre)": "alloy",
+    "Echo (masculin)": "echo",
+    "Onyx (grave masculin)": "onyx",
+    "Nova (féminin)": "nova",
+    "Shimmer (doux féminin)": "shimmer",
+    "Fable (narrateur)": "fable",
+}
+
 
 def ensure_directories():
     for path in [
@@ -327,6 +419,8 @@ def ensure_directories():
         AUDIO_DIR,
         PODCAST_DIR,
         PODCAST_AUDIO_DIR,
+        STORY_DIR,
+        STORY_AUDIO_DIR,
     ]:
         os.makedirs(path, exist_ok=True)
 
@@ -1483,6 +1577,162 @@ def render_lessons_page():
                                 st.rerun()
 
 
+# ── Story persistence ─────────────────────────────────────────────────────────
+
+
+def story_path(story_id):
+    return os.path.join(STORY_DIR, f"{story_id}.json")
+
+
+def list_saved_stories():
+    if not os.path.isdir(STORY_DIR):
+        return []
+    stories = []
+    for fname in sorted(os.listdir(STORY_DIR), reverse=True):
+        if fname.endswith(".json"):
+            try:
+                with open(os.path.join(STORY_DIR, fname), "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                stories.append(data)
+            except Exception:
+                pass
+    return stories
+
+
+def load_story(story_id):
+    path = story_path(story_id)
+    if not os.path.exists(path):
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_story(story_data):
+    with open(story_path(story_data["id"]), "w", encoding="utf-8") as f:
+        json.dump(story_data, f, ensure_ascii=False, indent=2)
+
+
+def story_chapter_audio_path(story_id, chapter_num):
+    return os.path.join(STORY_AUDIO_DIR, f"{story_id}-ch{chapter_num}.wav")
+
+
+def load_story_chapter_audio(story_id, chapter_num):
+    path = story_chapter_audio_path(story_id, chapter_num)
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def save_story_chapter_audio(story_id, chapter_num, audio_bytes):
+    path = story_chapter_audio_path(story_id, chapter_num)
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+
+
+# ── Story audio generation ────────────────────────────────────────────────────
+
+
+def concatenate_wav_bytes(wav_bytes_list):
+    """Merge multiple WAV byte arrays (same format) into one."""
+    if not wav_bytes_list:
+        return None
+    if len(wav_bytes_list) == 1:
+        return wav_bytes_list[0]
+    all_pcm = []
+    for wb in wav_bytes_list:
+        buf = io.BytesIO(wb)
+        try:
+            with wave.open(buf, "rb") as wf:
+                all_pcm.append(wf.readframes(wf.getnframes()))
+        except Exception:
+            pass
+    if not all_pcm:
+        return wav_bytes_list[0]
+    return pcm16_to_wav_bytes(b"".join(all_pcm))
+
+
+def generate_narrator_tts(text, voice=TTS_VOICE):
+    """Single-narrator TTS for long text — chunks and concatenates WAV output."""
+    chunks = split_text_for_tts(text, max_chars=900)
+    wav_parts = []
+    for chunk in chunks:
+        audio_bytes, _mime, err = text_to_speech_openrouter(chunk, voice=voice)
+        if err:
+            return None, None, err
+        if audio_bytes:
+            wav_parts.append(audio_bytes)
+    if not wav_parts:
+        return None, None, "Aucun audio généré."
+    combined = concatenate_wav_bytes(wav_parts)
+    return combined, "audio/wav", None
+
+
+# ── Story AI generation ───────────────────────────────────────────────────────
+
+
+def generate_story_ai(topic, category, num_chapters=4, cefr_level="B2"):
+    cefr = CEFR_DESCRIPTORS.get(cefr_level, CEFR_DESCRIPTORS["B2"])
+    prompt = f"""You are a master storyteller writing in natural American English.
+
+Write a complete story with exactly {num_chapters} chapters on this topic:
+"{topic}"
+Category: {category}
+
+Target reading level: {cefr_level} — {cefr['label']}
+Language calibration for {cefr_level}:
+{cefr['english']}
+
+Requirements:
+- Each chapter is 350-500 words of compelling narrative prose (NOT dialogue-heavy).
+- Strong narrative arc: establish the world/characters → rising conflict → climax → resolution.
+- Vivid descriptions, sensory details, and American English idioms calibrated to {cefr_level}.
+- 8-12 vocabulary highlights (words/phrases from the story representative of {cefr_level}).
+- A concise 2-sentence summary suitable for a cover blurb.
+- A short image generation prompt (10-15 words, vivid, cinematic) for a cover illustration.
+
+Return ONLY a valid JSON object with this exact schema (no markdown, no comments):
+{{
+  "title": "A compelling title",
+  "category": "{category}",
+  "summary": "Two sentence cover blurb.",
+  "cover_prompt": "cinematic anime oil painting, samurai at sunset, sakura, dramatic sky",
+  "vocabulary": ["word or phrase", "..."],
+  "chapters": [
+    {{
+      "number": 1,
+      "title": "Chapter 1: The [chapter subtitle]",
+      "content": "Full chapter text here..."
+    }}
+  ]
+}}"""
+
+    messages = [{"role": "user", "content": prompt}]
+    text, err = openrouter_chat(messages, CHAT_MODEL, temperature=0.75, max_tokens=6000)
+    if err:
+        return None, err
+    data = extract_json_from_text(text)
+    if data is None or not isinstance(data, dict):
+        return None, "La génération de l'histoire n'a pas retourné un JSON valide."
+    if "chapters" not in data or not isinstance(data["chapters"], list):
+        return None, "Structure JSON invalide — champ 'chapters' manquant."
+    data["id"] = str(uuid.uuid4())[:8]
+    data["created_at"] = now_iso()
+    data["cefr_level"] = cefr_level
+    return data, None
+
+
+def _cover_image_url(cover_prompt):
+    """Build a Pollinations.ai URL for the story cover image."""
+    try:
+        from urllib.parse import quote
+
+        encoded = quote(cover_prompt)
+        return f"https://image.pollinations.ai/prompt/{encoded}?width=800&height=300&nologo=true"
+    except Exception:
+        return None
+
+
 def _collect_tracks_for_slug(slug, theme_label):
     """Return all WAV audio tracks on disk for a given theme slug (all levels)."""
     if not os.path.isdir(LESSON_AUDIO_DIR):
@@ -1597,6 +1847,256 @@ buildOrd();renderList();play(0);
 </body>
 </html>"""
     st_components.html(player_html, height=height, scrolling=False)
+
+
+# ── Stories page ──────────────────────────────────────────────────────────────
+
+
+def render_stories_page():
+    st.header("📖 Histoires en anglais — écoute & immersion")
+    st.write(
+        "Génère des histoires complètes en anglais américain sur les thèmes qui te passionnent. "
+        "Lis, écoute, et immerge-toi dans le récit."
+    )
+
+    # ── Sidebar-style controls ────────────────────────────────────────────────
+    col_left, col_right = st.columns([1, 2])
+
+    with col_left:
+        st.subheader("Nouvelle histoire")
+
+        category = st.selectbox(
+            "Catégorie",
+            list(STORY_CATEGORIES.keys()),
+            key="story-cat",
+        )
+
+        suggestions = STORY_CATEGORIES[category]
+        use_suggestion = st.toggle(
+            "Utiliser un sujet suggéré", value=True, key="story-use-sug"
+        )
+
+        if use_suggestion:
+            topic = st.selectbox("Sujet", suggestions, key="story-sug-pick")
+        else:
+            topic = st.text_input(
+                "Ton propre sujet",
+                placeholder="ex: The story of Genghis Khan...",
+                key="story-custom-topic",
+            )
+
+        num_chapters = st.slider("Nombre de chapitres", 3, 6, 4, key="story-chapters")
+
+        cefr_level = st.radio(
+            "Niveau",
+            ["B1", "B2", "C1", "C2"],
+            index=1,
+            horizontal=True,
+            key="story-cefr",
+        )
+        badge = CEFR_DESCRIPTORS[cefr_level]["badge"]
+        st.caption(f"{badge} — vocabulaire et style adaptés à ce niveau.")
+
+        narrator_label = st.selectbox(
+            "Voix narrateur",
+            list(STORY_NARRATOR_VOICES.keys()),
+            index=5,  # Fable
+            key="story-voice",
+        )
+        narrator_voice = STORY_NARRATOR_VOICES[narrator_label]
+
+        if st.button(
+            "✨ Générer l'histoire",
+            key="story-gen-btn",
+            use_container_width=True,
+            type="primary",
+        ):
+            if not topic or not topic.strip():
+                st.warning("Entre un sujet pour générer l'histoire.")
+            else:
+                with st.spinner(
+                    f"Génération de l'histoire ({num_chapters} chapitres, niveau {cefr_level})..."
+                ):
+                    story_data, err = generate_story_ai(
+                        topic.strip(), category, num_chapters, cefr_level
+                    )
+                if err:
+                    st.error(f"Erreur génération: {err}")
+                else:
+                    existing_titles = [
+                        s["title"].strip().lower() for s in list_saved_stories()
+                    ]
+                    if story_data["title"].strip().lower() in existing_titles:
+                        st.error(
+                            f"Une histoire intitulée **{story_data['title']}** existe déjà. Supprime-la ou choisis un autre sujet."
+                        )
+                    else:
+                        save_story(story_data)
+                        st.session_state["story_active_id"] = story_data["id"]
+                        st.success("Histoire générée !")
+                        st.rerun()
+
+        # ── Saved stories list ────────────────────────────────────────────────
+        st.divider()
+        st.subheader("Histoires sauvegardées")
+        saved = list_saved_stories()
+        if not saved:
+            st.caption("Aucune histoire générée pour l'instant.")
+        else:
+            for s in saved:
+                _cefr = s.get("cefr_level", "")
+                label = f"{s.get('category','')[:2]} {s['title']}" + (
+                    f" [{_cefr}]" if _cefr else ""
+                )
+                if st.button(
+                    label, key=f"story-load-{s['id']}", use_container_width=True
+                ):
+                    st.session_state["story_active_id"] = s["id"]
+                    st.rerun()
+
+    # ── Story display ─────────────────────────────────────────────────────────
+    with col_right:
+        active_id = st.session_state.get("story_active_id")
+        if not active_id:
+            st.info("Génère ou sélectionne une histoire pour l'afficher ici.")
+            # Show category teaser images
+            st.markdown("---")
+            cols = st.columns(4)
+            teasers = [
+                ("🏯", "Manga & Anime", "Epic battles, destiny & honor"),
+                ("👑", "Rois & Empires", "Rise and fall of great rulers"),
+                ("🌍", "Pays & Nations", "How civilizations were born"),
+                ("📜", "Documentaires", "History's greatest events"),
+            ]
+            for i, (em, name, desc) in enumerate(teasers):
+                with cols[i]:
+                    st.markdown(
+                        f"<div style='text-align:center;padding:16px;background:#1e1e2e;"
+                        f"border-radius:12px;'>"
+                        f"<div style='font-size:2.5em'>{em}</div>"
+                        f"<div style='font-weight:bold;color:#cba6f7;margin:4px 0'>{name}</div>"
+                        f"<div style='font-size:.8em;color:#a6adc8'>{desc}</div></div>",
+                        unsafe_allow_html=True,
+                    )
+            return
+
+        story = load_story(active_id)
+        if not story:
+            st.error("Histoire introuvable.")
+            return
+
+        # ── Cover card ────────────────────────────────────────────────────────
+        cover_url = _cover_image_url(story.get("cover_prompt", story["title"]))
+        if cover_url:
+            try:
+                st.image(cover_url, use_container_width=True)
+            except Exception:
+                pass
+
+        cat_icon = story.get("category", "")[:2]
+        story_cefr = story.get("cefr_level", "")
+        story_badge = CEFR_DESCRIPTORS.get(story_cefr, {}).get("badge", "")
+        st.markdown(
+            f"<h2 style='margin-top:8px'>{cat_icon} {story['title']}"
+            f"{'&nbsp;&nbsp;<span style=\"font-size:.65em\">' + story_badge + '</span>' if story_badge else ''}</h2>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<p style='color:#a6adc8;font-style:italic'>{story.get('summary','')}</p>",
+            unsafe_allow_html=True,
+        )
+
+        # Vocabulary highlights
+        vocab = story.get("vocabulary", [])
+        if vocab:
+            with st.expander("📚 Vocabulaire clé"):
+                cols_v = st.columns(3)
+                for i, word in enumerate(vocab):
+                    with cols_v[i % 3]:
+                        st.markdown(f"`{word}`")
+
+        st.divider()
+
+        # Delete story button
+        if st.button("🗑️ Supprimer cette histoire", key=f"story-del-{active_id}"):
+            path = story_path(active_id)
+            if os.path.exists(path):
+                os.remove(path)
+            # Remove audio files
+            for ch in story.get("chapters", []):
+                ap = story_chapter_audio_path(active_id, ch["number"])
+                if os.path.exists(ap):
+                    os.remove(ap)
+            st.session_state.pop("story_active_id", None)
+            st.rerun()
+
+        # ── Chapters ─────────────────────────────────────────────────────────
+        for chapter in story.get("chapters", []):
+            ch_num = chapter["number"]
+            ch_title = chapter["title"]
+            ch_content = chapter["content"]
+
+            st.subheader(ch_title)
+            st.write(ch_content)
+
+            audio_key = f"story-audio-{active_id}-{ch_num}"
+
+            # Load from disk if not in session_state
+            if audio_key not in st.session_state:
+                cached = load_story_chapter_audio(active_id, ch_num)
+                if cached:
+                    st.session_state[audio_key] = cached
+
+            if audio_key in st.session_state:
+                st.audio(st.session_state[audio_key], format="audio/wav")
+                c1, c2 = st.columns([1, 1])
+                with c1:
+                    if st.button(
+                        "🔄 Régénérer audio",
+                        key=f"story-regen-{active_id}-{ch_num}",
+                        use_container_width=True,
+                    ):
+                        with st.spinner(f"Régénération chapitre {ch_num}..."):
+                            ab, _mime, err = generate_narrator_tts(
+                                ch_content, voice=narrator_voice
+                            )
+                        if err:
+                            st.error(f"Erreur TTS: {err}")
+                        else:
+                            save_story_chapter_audio(active_id, ch_num, ab)
+                            st.session_state[audio_key] = ab
+                            st.rerun()
+                with c2:
+                    if st.button(
+                        "🗑️ Supprimer audio",
+                        key=f"story-del-audio-{active_id}-{ch_num}",
+                        use_container_width=True,
+                    ):
+                        ap = story_chapter_audio_path(active_id, ch_num)
+                        if os.path.exists(ap):
+                            os.remove(ap)
+                        st.session_state.pop(audio_key, None)
+                        st.rerun()
+            else:
+                if st.button(
+                    f"🔊 Générer audio — {ch_title}",
+                    key=f"story-gen-audio-{active_id}-{ch_num}",
+                    use_container_width=True,
+                ):
+                    with st.spinner(
+                        f"Synthèse vocale chapitre {ch_num} ({narrator_voice})..."
+                    ):
+                        ab, _mime, err = generate_narrator_tts(
+                            ch_content, voice=narrator_voice
+                        )
+                    if err:
+                        st.error(f"Erreur TTS: {err}")
+                    else:
+                        save_story_chapter_audio(active_id, ch_num, ab)
+                        st.session_state[audio_key] = ab
+                        st.rerun()
+
+            st.divider()
 
 
 def render_playlist_page():
@@ -2146,6 +2646,7 @@ def main():
         [
             "Accueil",
             "Lecons (Ecoute)",
+            "Histoires",
             "Playlist",
             "Podcasts",
             "Pratique avec l'IA",
@@ -2163,6 +2664,8 @@ def main():
         render_home()
     elif page == "Lecons (Ecoute)":
         render_lessons_page()
+    elif page == "Histoires":
+        render_stories_page()
     elif page == "Playlist":
         render_playlist_page()
     elif page == "Podcasts":
