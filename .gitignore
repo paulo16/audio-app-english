@@ -9,14 +9,17 @@ __pycache__/
 dist/
 build/
 
-# Environnement
+# Secrets locaux (ne jamais commiter)
 .env
+.streamlit/secrets.toml
 
-# Données générées (audios & sessions utilisateur)
-data/lesson_audio/
-data/podcast_audio/
+# Sessions utilisateur (données personnelles)
 user_conversations/audio/
 user_conversations/sessions/
+
+# Garder les audios générés dans git pour le déploiement cloud
+# data/lesson_audio/ → suivi par git
+# data/podcast_audio/ → suivi par git
 
 # VS Code
 .vscode/

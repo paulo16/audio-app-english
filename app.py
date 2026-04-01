@@ -14,25 +14,37 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-YOUR_SITE_URL = os.getenv("YOUR_SITE_URL", "http://localhost:8501")
 
-STT_MODEL = os.getenv("OPENROUTER_STT_MODEL", "google/gemini-2.5-flash")
-CHAT_MODEL = os.getenv("OPENROUTER_CHAT_MODEL", "openai/gpt-4o-mini")
-EVAL_MODEL = os.getenv("OPENROUTER_EVAL_MODEL", "openai/gpt-4o")
-TTS_MODEL = os.getenv("OPENROUTER_TTS_MODEL", "openai/gpt-4o-audio-preview")
-TTS_VOICE = os.getenv("OPENROUTER_TTS_VOICE", "alloy")
-TTS_AUDIO_FORMAT = os.getenv("OPENROUTER_TTS_AUDIO_FORMAT", "pcm16")
-TTS_PCM_SAMPLE_RATE = int(os.getenv("OPENROUTER_TTS_PCM_SAMPLE_RATE", "24000"))
+def _cfg(key, default=""):
+    """Read config from st.secrets (Streamlit Cloud) then os.environ (.env local)."""
+    try:
+        val = st.secrets.get(key)
+        if val is not None:
+            return str(val)
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+
+OPENROUTER_API_KEY = _cfg("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+YOUR_SITE_URL = _cfg("YOUR_SITE_URL", "http://localhost:8501")
+
+STT_MODEL = _cfg("OPENROUTER_STT_MODEL", "google/gemini-2.5-flash")
+CHAT_MODEL = _cfg("OPENROUTER_CHAT_MODEL", "openai/gpt-4o-mini")
+EVAL_MODEL = _cfg("OPENROUTER_EVAL_MODEL", "openai/gpt-4o")
+TTS_MODEL = _cfg("OPENROUTER_TTS_MODEL", "openai/gpt-4o-audio-preview")
+TTS_VOICE = _cfg("OPENROUTER_TTS_VOICE", "alloy")
+TTS_AUDIO_FORMAT = _cfg("OPENROUTER_TTS_AUDIO_FORMAT", "pcm16")
+TTS_PCM_SAMPLE_RATE = int(_cfg("OPENROUTER_TTS_PCM_SAMPLE_RATE", "24000"))
 TTS_FALLBACK_MODELS = [
     item.strip()
-    for item in os.getenv("OPENROUTER_TTS_FALLBACK_MODELS", "").split(",")
+    for item in _cfg("OPENROUTER_TTS_FALLBACK_MODELS", "").split(",")
     if item.strip()
 ]
 TTS_FALLBACK_VOICES = [
     item.strip()
-    for item in os.getenv("OPENROUTER_TTS_FALLBACK_VOICES", "").split(",")
+    for item in _cfg("OPENROUTER_TTS_FALLBACK_VOICES", "").split(",")
     if item.strip()
 ]
 
