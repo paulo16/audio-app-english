@@ -60,5 +60,37 @@
       "repetitions": 0,
       "last_result": null
     }
+  },
+  {
+    "id": "98f6e2a2",
+    "term": "deep dive",
+    "created_at": "2026-04-01T22:04:21Z",
+    "translation": "plongée approfondie",
+    "part_of_speech": "noun phrase",
+    "explanation": "A 'deep dive' refers to an in-depth exploration or analysis of a particular topic or issue. It is often used in professional or academic contexts to indicate a thorough investigation that goes beyond surface-level understanding.",
+    "examples": [
+      {
+        "text": "The team conducted a deep dive into the market trends to inform their strategy.",
+        "audio_path": null
+      },
+      {
+        "text": "During the meeting, we took a deep dive into the project's challenges and potential solutions.",
+        "audio_path": null
+      },
+      {
+        "text": "Her presentation provided a deep dive into the environmental impacts of plastic waste.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [],
+    "level": "C1",
+    "srs": {
+      "next_review": "2026-04-01T22:04:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
   }
 ]

@@ -2428,10 +2428,13 @@ def save_vocab(entries):
         json.dump(entries, f, ensure_ascii=False, indent=2)
 
 
-def _srs_update(entry, passed: bool):
+def _srs_update_rated(entry, rating: int):
     """
-    Apply a minimal SM-2-like update to an SRS entry.
-    Fields: interval (days), ease (float), repetitions (int), next_review (ISO str).
+    SM-2-style update with 4 ratings:
+      0 = À revoir  — interval=1, reps reset, ease -0.20
+      1 = Difficile — short boost,     reps+1, ease -0.15
+      2 = Bien      — standard SM-2,   reps+1
+      3 = Facile    — bigger boost,    reps+1, ease +0.15
     """
     from datetime import timedelta
 
@@ -2439,7 +2442,15 @@ def _srs_update(entry, passed: bool):
     interval = entry.get("interval", 1)
     reps = entry.get("repetitions", 0)
 
-    if passed:
+    if rating == 0:  # Again
+        interval = 1
+        reps = 0
+        ease = max(1.3, ease - 0.2)
+    elif rating == 1:  # Hard
+        interval = max(1, round(interval * 1.2)) if reps > 1 else 1
+        reps += 1
+        ease = max(1.3, ease - 0.15)
+    elif rating == 2:  # Good
         if reps == 0:
             interval = 1
         elif reps == 1:
@@ -2447,11 +2458,15 @@ def _srs_update(entry, passed: bool):
         else:
             interval = round(interval * ease)
         reps += 1
-        ease = max(1.3, ease + 0.1)
-    else:
-        interval = 1
-        reps = 0
-        ease = max(1.3, ease - 0.2)
+    else:  # rating == 3, Easy
+        if reps == 0:
+            interval = 3
+        elif reps == 1:
+            interval = 7
+        else:
+            interval = round(interval * ease * 1.3)
+        reps += 1
+        ease = min(4.0, ease + 0.15)
 
     next_review = (datetime.utcnow() + timedelta(days=interval)).isoformat() + "Z"
     entry.update(
@@ -2463,6 +2478,11 @@ def _srs_update(entry, passed: bool):
         }
     )
     return entry
+
+
+def _srs_update(entry, passed: bool):
+    """Legacy 2-button wrapper — maps pass/fail to rating 2/0."""
+    return _srs_update_rated(entry, rating=2 if passed else 0)
 
 
 def get_due_cards(entries):
@@ -2546,6 +2566,45 @@ def evaluate_vocab_usage(term: str, context_explanation: str, user_text: str):
 
 
 # ── Vocabulary page ───────────────────────────────────────────────────────────
+
+
+def _save_review_audio(entry_id: str, audio_bytes: bytes) -> str:
+    """Persist flashcard review audio and return the file path."""
+    os.makedirs(VOCAB_AUDIO_DIR, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(VOCAB_AUDIO_DIR, f"{entry_id}_{ts}.wav")
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def evaluate_reverse_flashcard(term: str, user_text: str):
+    """Check whether the user correctly identified the term from its definition."""
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a strict but encouraging English teacher.",
+        },
+        {
+            "role": "user",
+            "content": (
+                f"The correct answer was the English word/expression: \u00ab{term}\u00bb\n"
+                f"The learner said or wrote: \u00ab{user_text}\u00bb\n\n"
+                "Did the learner produce the correct term or a very close equivalent? "
+                'Reply ONLY with valid JSON: {"correct": true/false, "score": 0-100, "feedback": "brief feedback in French"}'
+            ),
+        },
+    ]
+    raw, err = openrouter_chat(messages, EVAL_MODEL, temperature=0.1, max_tokens=150)
+    if err:
+        return None, err
+    try:
+        cleaned = re.sub(
+            r"^```[a-z]*\n?|```$", "", raw.strip(), flags=re.MULTILINE
+        ).strip()
+        return json.loads(cleaned), None
+    except json.JSONDecodeError:
+        return None, f"R\u00e9ponse JSON invalide: {raw[:200]}"
 
 
 def render_vocabulary_page():
@@ -2638,6 +2697,7 @@ def render_vocabulary_page():
                                 "repetitions": 0,
                                 "last_result": None,
                             },
+                            "review_history": [],
                         }
                         entries.append(entry)
                         save_vocab(entries)
@@ -2666,6 +2726,15 @@ def render_vocabulary_page():
     # ── Tab 2 : Flashcards SRS ────────────────────────────────────────────────
     with tab_flash:
         st.subheader("Flashcards — répétition espacée")
+
+        flash_mode_label = st.radio(
+            "Mode",
+            ["🔤 Normal (terme → phrase)", "🔁 Inversé (définition → terme)"],
+            horizontal=True,
+            key="flash-mode-radio",
+        )
+        is_reverse = "Inversé" in flash_mode_label
+
         entries = load_vocab()
         due = get_due_cards(entries)
 
@@ -2690,38 +2759,53 @@ def render_vocabulary_page():
                 )
             return
 
-        # Pick current card from session state
+        mode_key = f"flash_mode_{is_reverse}"
         if (
             "flash_idx" not in st.session_state
             or st.session_state.get("flash_due_count") != total_due
+            or st.session_state.get("flash_mode_key") != mode_key
         ):
             st.session_state["flash_idx"] = 0
             st.session_state["flash_due_count"] = total_due
+            st.session_state["flash_mode_key"] = mode_key
             st.session_state["flash_revealed"] = False
             st.session_state["flash_eval_result"] = None
-            st.session_state["flash_user_audio"] = None
+            st.session_state["flash_user_audio_bytes"] = None
+            st.session_state["flash_user_audio_path"] = None
 
         idx = st.session_state["flash_idx"] % total_due
         card = due[idx]
 
-        st.markdown(f"**Carte {idx+1} / {total_due}**")
+        st.markdown(f"**Carte {idx + 1} / {total_due}**")
         st.markdown("---")
 
-        # Show the term
-        st.markdown(f"## {card['term']}")
-        pos = card.get("part_of_speech", "")
-        level = card.get("level", "")
-        if pos or level:
-            st.caption(f"{pos}  ·  {level}")
-
-        st.markdown(
-            "*Utilise ce mot/cette expression dans une phrase à voix haute, puis envoie ton audio.*"
-        )
+        # Card face
+        if not is_reverse:
+            st.markdown(f"## {card['term']}")
+            pos = card.get("part_of_speech", "")
+            level = card.get("level", "")
+            if pos or level:
+                st.caption(f"{pos}  ·  {level}")
+            st.markdown(
+                "*Utilise ce mot/cette expression dans une phrase à voix haute.*"
+            )
+        else:
+            st.markdown("### Quel est le mot ou l'expression décrit ci-dessous ?")
+            st.markdown(f"> {card.get('explanation', '')}")
+            synonyms = card.get("synonyms", [])
+            if synonyms:
+                st.caption(
+                    f"Indices — synonymes / expressions proches : {', '.join(synonyms)}"
+                )
+            st.markdown("*Prononce le terme / chunk correspondant en audio.*")
 
         # Audio recorder
-        user_audio = st.audio_input("🎤 Enregistre ta phrase", key=f"flash-mic-{idx}")
-        if user_audio:
-            st.session_state["flash_user_audio"] = user_audio.read()
+        user_audio_widget = st.audio_input(
+            "🎤 Enregistre ta réponse",
+            key=f"flash-mic-{idx}-{is_reverse}",
+        )
+        if user_audio_widget:
+            st.session_state["flash_user_audio_bytes"] = user_audio_widget.read()
 
         col_submit, col_reveal, col_skip = st.columns(3)
 
@@ -2732,9 +2816,9 @@ def render_vocabulary_page():
                 type="primary",
                 use_container_width=True,
             ):
-                user_bytes = st.session_state.get("flash_user_audio")
+                user_bytes = st.session_state.get("flash_user_audio_bytes")
                 if not user_bytes:
-                    st.warning("Enregistre d'abord une phrase audio.")
+                    st.warning("Enregistre d'abord une réponse audio.")
                 else:
                     with st.spinner("Transcription & évaluation…"):
                         user_text, stt_err = transcribe_audio_with_openrouter(
@@ -2743,15 +2827,22 @@ def render_vocabulary_page():
                     if stt_err:
                         st.error(f"Transcription : {stt_err}")
                     else:
-                        eval_result, eval_err = evaluate_vocab_usage(
-                            card["term"],
-                            card.get("explanation", card.get("translation", "")),
-                            user_text,
-                        )
+                        if is_reverse:
+                            eval_result, eval_err = evaluate_reverse_flashcard(
+                                card["term"], user_text
+                            )
+                        else:
+                            eval_result, eval_err = evaluate_vocab_usage(
+                                card["term"],
+                                card.get("explanation", card.get("translation", "")),
+                                user_text,
+                            )
                         if eval_err:
                             st.error(f"Évaluation : {eval_err}")
                         else:
                             eval_result["user_text"] = user_text
+                            audio_path = _save_review_audio(card["id"], user_bytes)
+                            st.session_state["flash_user_audio_path"] = audio_path
                             st.session_state["flash_eval_result"] = eval_result
                             st.session_state["flash_revealed"] = True
 
@@ -2766,14 +2857,20 @@ def render_vocabulary_page():
                 st.session_state["flash_idx"] = idx + 1
                 st.session_state["flash_revealed"] = False
                 st.session_state["flash_eval_result"] = None
-                st.session_state["flash_user_audio"] = None
+                st.session_state["flash_user_audio_bytes"] = None
+                st.session_state["flash_user_audio_path"] = None
                 st.rerun()
 
         # Reveal zone
         if st.session_state.get("flash_revealed"):
             st.markdown("---")
-            st.markdown(f"**🇫🇷 Traduction :** {card.get('translation', '')}")
-            st.markdown(f"**📝 Explication :** {card.get('explanation', '')}")
+            if is_reverse:
+                st.markdown(f"**✅ Réponse :** `{card['term']}`")
+                st.markdown(f"**🇫🇷 Traduction :** {card.get('translation', '')}")
+            else:
+                st.markdown(f"**🇫🇷 Traduction :** {card.get('translation', '')}")
+                st.markdown(f"**📝 Explication :** {card.get('explanation', '')}")
+
             examples = card.get("examples", [])
             if examples:
                 st.markdown("**Exemples :**")
@@ -2784,89 +2881,65 @@ def render_vocabulary_page():
             eval_result = st.session_state.get("flash_eval_result")
             if eval_result:
                 user_text = eval_result.get("user_text", "")
-                st.markdown(f"**Ta phrase :** *{user_text}*")
                 score = eval_result.get("score", 0)
                 correct = eval_result.get("correct", False)
                 feedback = eval_result.get("feedback", "")
+                st.markdown(f"**Ta réponse :** *{user_text}*")
+                saved_path = st.session_state.get("flash_user_audio_path")
+                if saved_path and os.path.exists(saved_path):
+                    st.audio(saved_path, format="audio/wav")
                 if correct:
-                    st.success(f"✅ Correct ! Score : {score}/100\n\n{feedback}")
+                    st.success(f"✅ Correct ! Score : {score}/100 — {feedback}")
                 else:
-                    st.error(f"❌ À retravailler. Score : {score}/100\n\n{feedback}")
+                    st.error(f"❌ À retravailler. Score : {score}/100 — {feedback}")
 
-                col_ok, col_ko = st.columns(2)
-                with col_ok:
-                    if st.button(
-                        "👍 Je savais", key="flash-ok", use_container_width=True
-                    ):
-                        # Update SRS
-                        all_entries = load_vocab()
-                        for e in all_entries:
-                            if e["id"] == card["id"]:
-                                e["srs"] = _srs_update(e.get("srs", {}), passed=True)
-                                e["srs"]["last_result"] = "pass"
-                                break
-                        save_vocab(all_entries)
-                        st.session_state["flash_idx"] = idx + 1
-                        st.session_state["flash_revealed"] = False
-                        st.session_state["flash_eval_result"] = None
-                        st.session_state["flash_user_audio"] = None
-                        st.rerun()
-                with col_ko:
-                    if st.button(
-                        "👎 Je ne savais pas", key="flash-ko", use_container_width=True
-                    ):
-                        all_entries = load_vocab()
-                        for e in all_entries:
-                            if e["id"] == card["id"]:
-                                e["srs"] = _srs_update(e.get("srs", {}), passed=False)
-                                e["srs"]["last_result"] = "fail"
-                                break
-                        save_vocab(all_entries)
-                        st.session_state["flash_idx"] = idx + 1
-                        st.session_state["flash_revealed"] = False
-                        st.session_state["flash_eval_result"] = None
-                        st.session_state["flash_user_audio"] = None
-                        st.rerun()
-            else:
-                # No eval yet — manual self-assessment
-                if not st.session_state.get("flash_user_audio"):
-                    col_ok, col_ko = st.columns(2)
-                    with col_ok:
-                        if st.button(
-                            "👍 Je savais",
-                            key="flash-ok-noeval",
-                            use_container_width=True,
-                        ):
-                            all_entries = load_vocab()
-                            for e in all_entries:
-                                if e["id"] == card["id"]:
-                                    e["srs"] = _srs_update(
-                                        e.get("srs", {}), passed=True
-                                    )
-                                    e["srs"]["last_result"] = "pass"
-                                    break
-                            save_vocab(all_entries)
-                            st.session_state["flash_idx"] = idx + 1
-                            st.session_state["flash_revealed"] = False
-                            st.rerun()
-                    with col_ko:
-                        if st.button(
-                            "👎 Je ne savais pas",
-                            key="flash-ko-noeval",
-                            use_container_width=True,
-                        ):
-                            all_entries = load_vocab()
-                            for e in all_entries:
-                                if e["id"] == card["id"]:
-                                    e["srs"] = _srs_update(
-                                        e.get("srs", {}), passed=False
-                                    )
-                                    e["srs"]["last_result"] = "fail"
-                                    break
-                            save_vocab(all_entries)
-                            st.session_state["flash_idx"] = idx + 1
-                            st.session_state["flash_revealed"] = False
-                            st.rerun()
+            # 4-rating buttons
+            st.markdown("##### Comment tu t'en es sorti ?")
+            r0, r1, r2, r3 = st.columns(4)
+
+            def _apply_rating(rating: int, label: str):
+                _all = load_vocab()
+                _eval = st.session_state.get("flash_eval_result")
+                _ap = st.session_state.get("flash_user_audio_path")
+                for e in _all:
+                    if e["id"] == card["id"]:
+                        e["srs"] = _srs_update_rated(e.get("srs", {}), rating=rating)
+                        e["srs"]["last_result"] = label
+                        rev = {
+                            "date": now_iso(),
+                            "mode": "reverse" if is_reverse else "normal",
+                            "rating": rating,
+                            "rating_label": label,
+                            "user_text": _eval.get("user_text", "") if _eval else "",
+                            "score": _eval.get("score") if _eval else None,
+                            "audio_path": _ap,
+                        }
+                        if "review_history" not in e:
+                            e["review_history"] = []
+                        e["review_history"].append(rev)
+                        break
+                save_vocab(_all)
+                st.session_state["flash_idx"] = idx + 1
+                st.session_state["flash_revealed"] = False
+                st.session_state["flash_eval_result"] = None
+                st.session_state["flash_user_audio_bytes"] = None
+                st.session_state["flash_user_audio_path"] = None
+                st.rerun()
+
+            with r0:
+                if st.button("❌ À revoir", key="flash-r0", use_container_width=True):
+                    _apply_rating(0, "À revoir")
+            with r1:
+                if st.button("😬 Difficile", key="flash-r1", use_container_width=True):
+                    _apply_rating(1, "Difficile")
+            with r2:
+                if st.button(
+                    "✅ Bien", key="flash-r2", use_container_width=True, type="primary"
+                ):
+                    _apply_rating(2, "Bien")
+            with r3:
+                if st.button("🌟 Facile", key="flash-r3", use_container_width=True):
+                    _apply_rating(3, "Facile")
 
     # ── Tab 3 : History ───────────────────────────────────────────────────────
     with tab_hist:
@@ -2876,7 +2949,9 @@ def render_vocabulary_page():
             st.info("Aucun mot sauvegardé pour le moment.")
         else:
             search = st.text_input(
-                "🔎 Rechercher", placeholder="Filtrer par mot…", key="vocab-hist-search"
+                "🔎 Rechercher",
+                placeholder="Filtrer par mot…",
+                key="vocab-hist-search",
             )
             filtered = entries
             if search.strip():
@@ -2909,10 +2984,31 @@ def render_vocabulary_page():
                     for ex_item in entry.get("examples", []):
                         txt = ex_item["text"] if isinstance(ex_item, dict) else ex_item
                         st.markdown(f"- {txt}")
+
+                    # Review history with audio playback
+                    reviews = entry.get("review_history", [])
+                    if reviews:
+                        st.markdown(f"**Historique des révisions ({len(reviews)}) :**")
+                        for rev in reversed(reviews[-10:]):
+                            date_str = rev.get("date", "")[:16].replace("T", " ")
+                            mode_icon = "🔁" if rev.get("mode") == "reverse" else "🔤"
+                            label = rev.get("rating_label", "—")
+                            sc = rev.get("score")
+                            score_str = f"  ·  Score {sc}/100" if sc is not None else ""
+                            utxt = rev.get("user_text", "")
+                            st.caption(
+                                f"{mode_icon} {date_str}  ·  **{label}**{score_str}"
+                                + (f"  —  *{utxt}*" if utxt else "")
+                            )
+                            ap = rev.get("audio_path")
+                            if ap and os.path.exists(ap):
+                                st.audio(ap, format="audio/wav")
+
                     col_srs, col_del = st.columns([3, 1])
                     with col_srs:
                         st.caption(
-                            f"Répétitions : {reps}  ·  Intervalle : {srs.get('interval', 1)} j  ·  Facilité : {srs.get('ease', 2.5):.1f}  ·  Dernier résultat : {srs.get('last_result', '—')}"
+                            f"Répétitions : {reps}  ·  Intervalle : {srs.get('interval', 1)} j  ·  "
+                            f"Facilité : {srs.get('ease', 2.5):.1f}  ·  Dernier résultat : {srs.get('last_result', '—')}"
                         )
                     with col_del:
                         if st.button("🗑 Supprimer", key=f"vocab-del-{entry['id']}"):
