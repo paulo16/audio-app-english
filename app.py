@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import json
 import os
@@ -11,6 +12,7 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as st_components
 from dotenv import load_dotenv
+from streamlit_autorefresh import st_autorefresh
 
 load_dotenv()
 
@@ -322,6 +324,9 @@ USER_INTERESTS = [
 
 STORY_DIR = os.path.join(DATA_DIR, "stories")
 STORY_AUDIO_DIR = os.path.join(DATA_DIR, "story_audio")
+AI_LESSON_DIR = os.path.join(DATA_DIR, "ai_lessons")
+AI_LESSON_FILE = os.path.join(AI_LESSON_DIR, "lessons.json")
+AI_LESSON_AUDIO_DIR = os.path.join(DATA_DIR, "ai_lessons_audio")
 
 VOCAB_DIR = os.path.join(DATA_DIR, "vocabulary")
 VOCAB_FILE = os.path.join(VOCAB_DIR, "vocab.json")
@@ -411,6 +416,29 @@ STORY_NARRATOR_VOICES = {
     "Fable (narrateur)": "fable",
 }
 
+PRACTICE_DRILL_MODES = {
+    "Standard fluency": {
+        "key": "standard",
+        "description": "Natural conversation with implicit recasts.",
+    },
+    "Conversation stress": {
+        "key": "conversation_stress",
+        "description": "Short answers, quick turn-taking, and direct follow-ups.",
+    },
+    "No translation": {
+        "key": "no_translation",
+        "description": "English-only reformulation when a word is missing.",
+    },
+    "Tense switch": {
+        "key": "tense_switch",
+        "description": "Practice one tense target and reformulate across tenses.",
+    },
+    "Missing-word rescue": {
+        "key": "word_rescue",
+        "description": "Train paraphrasing instead of stopping when vocabulary is missing.",
+    },
+}
+
 
 def ensure_directories():
     for path in [
@@ -425,6 +453,8 @@ def ensure_directories():
         PODCAST_AUDIO_DIR,
         STORY_DIR,
         STORY_AUDIO_DIR,
+        AI_LESSON_DIR,
+        AI_LESSON_AUDIO_DIR,
         VOCAB_DIR,
         VOCAB_AUDIO_DIR,
     ]:
@@ -1007,7 +1037,10 @@ Return only valid JSON in this schema:
     return data, None
 
 
-def build_tutor_system_prompt(mode, theme, objective):
+def build_tutor_system_prompt(
+    mode, theme, objective, training_mode="standard", training_settings=None
+):
+    training_settings = training_settings or {}
     topic_instruction = (
         f"Current theme: {theme}. Keep the learner in-theme. If the learner drifts, gently redirect."
         if theme
@@ -1019,6 +1052,31 @@ def build_tutor_system_prompt(mode, theme, objective):
         else "Objective: improve fluency and naturalness."
     )
 
+    stress_reply_seconds = int(training_settings.get("stress_reply_seconds", 10))
+    target_tense = training_settings.get("target_tense", "present")
+    if training_mode == "conversation_stress":
+        training_instruction = (
+            "Training drill: CONVERSATION STRESS. Keep your replies short (1-2 sentences), "
+            f"ask direct follow-up questions, and maintain quick turn-taking. Target reply window: {stress_reply_seconds} seconds."
+        )
+    elif training_mode == "no_translation":
+        training_instruction = (
+            "Training drill: NO TRANSLATION. Keep everything in English. If the learner asks in French or gets stuck, "
+            "guide them to paraphrase in simple English without giving French translations."
+        )
+    elif training_mode == "tense_switch":
+        training_instruction = (
+            f"Training drill: TENSE SWITCH. Keep the learner anchored in {target_tense} tense, "
+            "then occasionally ask a short reformulation of the same idea in another tense."
+        )
+    elif training_mode == "word_rescue":
+        training_instruction = (
+            "Training drill: MISSING-WORD RESCUE. If the learner lacks a word, ask for paraphrase, synonym, "
+            "or description in English, and keep the conversation moving."
+        )
+    else:
+        training_instruction = "Training drill: STANDARD FLUENCY."
+
     return (
         "You are a friendly American English conversation partner for a B1 learner targeting C2. "
         "Speak like a real native American — casual, natural, with contractions and fillers (yeah, totally, I mean, you know, right?). "
@@ -1027,7 +1085,7 @@ def build_tutor_system_prompt(mode, theme, objective):
         "Example: learner says 'I goed to the store' → you reply 'Oh nice, you went to the store! What did you get?' — correction embedded, conversation continues. "
         "Your only job during the conversation is to keep talking naturally, ask follow-up questions, and model correct American English through your own speech. "
         "All detailed corrections and feedback are saved for the end-of-session evaluation — do NOT give them during the conversation. "
-        f"Mode: {mode}. {topic_instruction} {objective_instruction} "
+        f"Mode: {mode}. {topic_instruction} {objective_instruction} {training_instruction} "
         "Use natural chunking, rhythm, stress patterns, and fillers that American native speakers actually use."
     )
 
@@ -1053,7 +1111,10 @@ def choose_theme_with_ai():
     return choices[0]
 
 
-def new_session(mode, theme, objective):
+def new_session(
+    mode, theme, objective, training_mode="standard", training_settings=None
+):
+    training_settings = training_settings or {}
     session_id = (
         f"session-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
     )
@@ -1064,11 +1125,17 @@ def new_session(mode, theme, objective):
         "mode": mode,
         "theme": theme,
         "objective": objective,
+        "training_mode": training_mode,
+        "training_settings": training_settings,
         "messages": [
             {
                 "role": "system",
                 "content": build_tutor_system_prompt(
-                    mode=mode, theme=theme, objective=objective
+                    mode=mode,
+                    theme=theme,
+                    objective=objective,
+                    training_mode=training_mode,
+                    training_settings=training_settings,
                 ),
             }
         ],
@@ -1202,6 +1269,30 @@ def ext_from_mime(mime_type):
     return mapping.get((mime_type or "").lower(), "wav")
 
 
+def _parse_iso(iso_text):
+    if not iso_text:
+        return None
+    try:
+        return datetime.fromisoformat(str(iso_text).replace("Z", ""))
+    except Exception:
+        return None
+
+
+def _seconds_between_iso(start_iso, end_iso):
+    start_dt = _parse_iso(start_iso)
+    end_dt = _parse_iso(end_iso)
+    if not start_dt or not end_dt:
+        return None
+    return max(0, int((end_dt - start_dt).total_seconds()))
+
+
+def _seconds_since_iso(iso_text):
+    dt = _parse_iso(iso_text)
+    if not dt:
+        return 0
+    return max(0, int((datetime.utcnow() - dt).total_seconds()))
+
+
 def get_elapsed_seconds(session_data):
     """Return seconds elapsed since the session started."""
     started = session_data.get("started_at") or session_data.get("created_at")
@@ -1216,6 +1307,47 @@ def get_elapsed_seconds(session_data):
 
 def get_ai_reply(session_data, user_text, elapsed_seconds=0):
     messages = list(session_data["messages"])
+    training_mode = session_data.get("training_mode", "standard")
+    training_settings = session_data.get("training_settings", {})
+
+    if training_mode == "conversation_stress":
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "DRILL ACTIVE: Conversation stress. Reply in 1-2 short sentences max and always end with one direct question."
+                ),
+            }
+        )
+    elif training_mode == "tense_switch":
+        target_tense = training_settings.get("target_tense", "present")
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    f"DRILL ACTIVE: Tense switch. Keep the learner mostly in {target_tense} tense and occasionally ask a reformulation in another tense."
+                ),
+            }
+        )
+    elif training_mode == "no_translation":
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "DRILL ACTIVE: No translation. Keep the learner in English and push paraphrasing when vocabulary is missing."
+                ),
+            }
+        )
+    elif training_mode == "word_rescue":
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "DRILL ACTIVE: Missing-word rescue. If the learner lacks a word, coach circumlocution and keep flow."
+                ),
+            }
+        )
+
     if elapsed_seconds >= 200:
         messages.append(
             {
@@ -1241,6 +1373,28 @@ def evaluate_session(session_data):
     if not user_lines:
         return "Pas assez de contenu a evaluer.", None
 
+    training_mode = session_data.get("training_mode", "standard")
+    target_tense = session_data.get("training_settings", {}).get("target_tense", "-")
+    latencies = [
+        turn.get("response_latency_seconds")
+        for turn in session_data.get("turns", [])
+        if isinstance(turn.get("response_latency_seconds"), (int, float))
+    ]
+    avg_latency = round(sum(latencies) / len(latencies), 1) if latencies else None
+    slow_replies = sum(1 for v in latencies if v >= 8)
+    self_repair_pattern = r"\b(i mean|sorry|let me rephrase|or rather|what i mean is)\b"
+    self_repairs = sum(
+        1 for line in user_lines if re.search(self_repair_pattern, line.lower())
+    )
+
+    telemetry_lines = [
+        f"- Active training mode: {training_mode}",
+        f"- Target tense: {target_tense}",
+        f"- Average response latency (seconds): {avg_latency if avg_latency is not None else 'N/A'}",
+        f"- Number of slow replies (>=8s): {slow_replies}",
+        f"- Detected self-repair markers: {self_repairs}",
+    ]
+
     prompt = f"""
 Evaluate this learner's spoken English (B1 level aiming for C2 American English).
 
@@ -1249,11 +1403,20 @@ Give a score from 1 to 10 for:
 - Chunks/Vocabulary
 - Fluency
 - Naturalness
+- Tense consistency
+- Recovery strategy when missing words
 
 Then provide:
 1) Strong points
 2) Priority corrections (with corrected examples)
 3) What to practice next week
+4) Fluency drill metrics interpretation:
+   - Explain response latency pattern
+   - Explain tense consistency issues
+   - Explain if self-repair strategy is effective
+
+Session telemetry:
+{chr(10).join(telemetry_lines)}
 
 Conversation transcript (learner only):
 {chr(10).join(user_lines)}
@@ -1268,6 +1431,530 @@ Conversation transcript (learner only):
     if err:
         return None, err
     return text, None
+
+
+def load_ai_lessons():
+    if not os.path.exists(AI_LESSON_FILE):
+        return []
+    try:
+        with open(AI_LESSON_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_ai_lessons(lessons):
+    os.makedirs(AI_LESSON_DIR, exist_ok=True)
+    with open(AI_LESSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(lessons, f, ensure_ascii=False, indent=2)
+
+
+def _save_ai_lesson_example_audio(lesson_id: str, example_idx: int, audio_bytes: bytes):
+    os.makedirs(AI_LESSON_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(AI_LESSON_AUDIO_DIR, f"{lesson_id}_ex{example_idx}.wav")
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _recent_practice_sessions(limit=12):
+    sessions = [s for s in load_all_sessions() if s.get("mode") in {"guided", "free"}]
+    return sessions[:limit]
+
+
+def generate_ai_lessons_from_sessions(session_limit=12, lesson_count=4):
+    sessions = _recent_practice_sessions(limit=session_limit)
+    if not sessions:
+        return None, "Aucune session IA trouvee dans l'historique."
+
+    chunks = []
+    used_ids = []
+    for sess in reversed(sessions):
+        sid = sess.get("id", "unknown")
+        used_ids.append(sid)
+        theme = sess.get("theme", "General")
+        chunks.append(f"Session {sid} | Theme: {theme}")
+        for turn in sess.get("turns", [])[-10:]:
+            user_text = (turn.get("user_text") or "").strip()
+            ai_text = (turn.get("ai_text") or "").strip()
+            if user_text:
+                chunks.append(f"Learner: {user_text}")
+            if ai_text:
+                chunks.append(f"Partner: {ai_text}")
+        chunks.append("---")
+
+    transcript = "\n".join(chunks)
+    if len(transcript) > 16000:
+        transcript = transcript[-16000:]
+
+    prompt = f"""
+You are an expert American English speaking coach.
+
+Analyze the learner transcript below (B2 listening, around B1 speaking).
+Create exactly {lesson_count} practical lessons to improve daily conversation fluency.
+
+Return ONLY valid JSON array with this exact schema:
+[
+  {{
+    "focus": "short lesson title",
+    "concept": "what to study and why",
+    "common_mistakes": ["mistake pattern 1", "mistake pattern 2", "mistake pattern 3"],
+    "tips_to_remember": ["tip 1", "tip 2", "tip 3"],
+    "example_sentences": ["example 1", "example 2", "example 3", "example 4"],
+    "mini_task": {{
+      "instruction": "2-minute speaking task instruction",
+      "success_checklist": ["check 1", "check 2", "check 3"],
+      "target_time_seconds": 120
+    }}
+  }}
+]
+
+Transcript:
+{transcript}
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.35,
+        max_tokens=2600,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, list) or not data:
+        return None, "Generation invalide: JSON de lecons non reconnu."
+
+    lessons = []
+    for idx, item in enumerate(data[:lesson_count]):
+        if not isinstance(item, dict):
+            continue
+        lesson_id = f"ai-lesson-{datetime.utcnow().strftime('%Y%m%d')}-{idx+1}-{uuid.uuid4().hex[:4]}"
+        examples_raw = item.get("example_sentences") or []
+        examples = []
+        for ex in examples_raw[:6]:
+            if isinstance(ex, str) and ex.strip():
+                examples.append({"text": ex.strip(), "audio_path": None})
+
+        mini_task = (
+            item.get("mini_task") if isinstance(item.get("mini_task"), dict) else {}
+        )
+        lessons.append(
+            {
+                "id": lesson_id,
+                "created_at": now_iso(),
+                "source_session_ids": used_ids,
+                "focus": item.get("focus", f"Lesson {idx + 1}"),
+                "concept": item.get("concept", ""),
+                "common_mistakes": item.get("common_mistakes", []),
+                "tips_to_remember": item.get("tips_to_remember", []),
+                "examples": examples,
+                "mini_task": {
+                    "instruction": mini_task.get(
+                        "instruction", "Speak for 2 minutes on this topic."
+                    ),
+                    "success_checklist": mini_task.get("success_checklist", []),
+                    "target_time_seconds": int(
+                        mini_task.get("target_time_seconds", 120) or 120
+                    ),
+                },
+            }
+        )
+
+    if not lessons:
+        return None, "Aucune lecon exploitable n'a ete produite."
+
+    return lessons, None
+
+
+def evaluate_ai_lesson_mini_task(lesson, user_text):
+    if not user_text.strip():
+        return None, "Reponse vide."
+
+    concept = lesson.get("concept", "")
+    instruction = lesson.get("mini_task", {}).get("instruction", "")
+    checks = lesson.get("mini_task", {}).get("success_checklist", [])
+    checks_text = "\n".join(f"- {x}" for x in checks)
+
+    prompt = f"""
+You are an English speaking evaluator for a French-speaking learner.
+
+Lesson concept:
+{concept}
+
+Mini-task instruction:
+{instruction}
+
+Expected checklist:
+{checks_text}
+
+Learner answer:
+{user_text}
+
+Return ONLY valid JSON:
+{{
+  "score": 0,
+  "correct": false,
+  "feedback_fr": "brief French feedback",
+  "improved_answer": "short improved English answer"
+}}
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        EVAL_MODEL,
+        temperature=0.2,
+        max_tokens=350,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, dict):
+        return None, "Evaluation invalide: JSON non reconnu."
+    return data, None
+
+
+def render_ai_lessons_page():
+    st.header("Lecons basees sur vos echanges IA")
+    st.write(
+        "Ces lecons sont generees depuis vos conversations IA pour corriger vos vrais points faibles a l'oral."
+    )
+
+    voice_label = st.selectbox(
+        "Voix audio des exemples",
+        list(STORY_NARRATOR_VOICES.keys()),
+        index=0,
+        key="ai-lessons-voice",
+    )
+    lesson_voice = STORY_NARRATOR_VOICES.get(voice_label, "alloy")
+
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        session_limit = st.slider(
+            "Nombre de sessions IA a analyser",
+            min_value=3,
+            max_value=30,
+            value=12,
+            key="ai-lessons-session-limit",
+        )
+    with col_b:
+        lesson_count = st.slider(
+            "Nombre de lecons",
+            min_value=2,
+            max_value=8,
+            value=4,
+            key="ai-lessons-count",
+        )
+
+    if st.button(
+        "Generer / Regenerer mes lecons personnalisees",
+        type="primary",
+        use_container_width=True,
+        key="ai-lessons-generate",
+    ):
+        with st.spinner("Analyse des conversations et generation des lecons..."):
+            lessons, err = generate_ai_lessons_from_sessions(
+                session_limit=session_limit,
+                lesson_count=lesson_count,
+            )
+        if err:
+            st.error(f"Erreur generation lecons: {err}")
+        else:
+            save_ai_lessons(lessons)
+            st.success(f"{len(lessons)} lecon(s) personnalisee(s) creee(s).")
+            st.rerun()
+
+    lessons = load_ai_lessons()
+    if not lessons:
+        st.info(
+            "Aucune lecon personnalisee pour l'instant. Generez-les depuis vos echanges IA."
+        )
+        return
+
+    st.caption(f"{len(lessons)} lecon(s) disponible(s)")
+    for lesson in lessons:
+        lid = lesson.get("id", uuid.uuid4().hex[:8])
+        with st.expander(f"🎯 {lesson.get('focus', 'Lecon personnalisee')}"):
+            st.markdown(f"**Concept a etudier :** {lesson.get('concept', '')}")
+
+            mistakes = lesson.get("common_mistakes", [])
+            if mistakes:
+                st.markdown("**Points a corriger observes :**")
+                for m in mistakes:
+                    st.markdown(f"- {m}")
+
+            tips = lesson.get("tips_to_remember", [])
+            if tips:
+                st.markdown("**Tips a retenir :**")
+                for t in tips:
+                    st.markdown(f"- {t}")
+
+            examples = lesson.get("examples", [])
+            st.markdown("**Phrases d'exemple (avec audio) :**")
+            if not examples:
+                st.caption("Pas d'exemple disponible.")
+            if examples and st.button(
+                "🔊 Generer tous les audios des exemples",
+                key=f"ai-lesson-gen-all-{lid}",
+                use_container_width=True,
+            ):
+                with st.spinner("Generation de tous les audios des exemples..."):
+                    all_lessons = load_ai_lessons()
+                    target = next((l for l in all_lessons if l.get("id") == lid), None)
+                    if not target:
+                        st.error("Lecon introuvable.")
+                    else:
+                        for ex_idx, ex_item in enumerate(target.get("examples", [])):
+                            text = (
+                                ex_item.get("text", "")
+                                if isinstance(ex_item, dict)
+                                else str(ex_item)
+                            )
+                            if not text.strip():
+                                continue
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                text,
+                                voice=lesson_voice,
+                            )
+                            if tts_err:
+                                continue
+                            new_path = _save_ai_lesson_example_audio(lid, ex_idx, ab)
+                            if isinstance(target["examples"][ex_idx], dict):
+                                target["examples"][ex_idx]["audio_path"] = new_path
+                        save_ai_lessons(all_lessons)
+                st.rerun()
+            for ex_idx, ex_item in enumerate(examples):
+                text = (
+                    ex_item.get("text", "")
+                    if isinstance(ex_item, dict)
+                    else str(ex_item)
+                )
+                audio_path = (
+                    ex_item.get("audio_path") if isinstance(ex_item, dict) else None
+                )
+                st.markdown(f"**{ex_idx + 1}.** {text}")
+                if audio_path and os.path.exists(audio_path):
+                    st.audio(audio_path, format="audio/wav")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button(
+                            "🔄 Regenerer audio",
+                            key=f"ai-lesson-regen-{lid}-{ex_idx}",
+                            use_container_width=True,
+                        ):
+                            with st.spinner("Generation audio..."):
+                                ab, _, tts_err = text_to_speech_openrouter(
+                                    text,
+                                    voice=lesson_voice,
+                                )
+                            if tts_err:
+                                st.error(tts_err)
+                            else:
+                                new_path = _save_ai_lesson_example_audio(
+                                    lid, ex_idx, ab
+                                )
+                                all_lessons = load_ai_lessons()
+                                for l in all_lessons:
+                                    if l.get("id") == lid and ex_idx < len(
+                                        l.get("examples", [])
+                                    ):
+                                        l["examples"][ex_idx]["audio_path"] = new_path
+                                        break
+                                save_ai_lessons(all_lessons)
+                                st.rerun()
+                    with c2:
+                        if st.button(
+                            "🗑 Supprimer audio",
+                            key=f"ai-lesson-del-{lid}-{ex_idx}",
+                            use_container_width=True,
+                        ):
+                            if audio_path and os.path.exists(audio_path):
+                                os.remove(audio_path)
+                            all_lessons = load_ai_lessons()
+                            for l in all_lessons:
+                                if l.get("id") == lid and ex_idx < len(
+                                    l.get("examples", [])
+                                ):
+                                    l["examples"][ex_idx]["audio_path"] = None
+                                    break
+                            save_ai_lessons(all_lessons)
+                            st.rerun()
+                else:
+                    if st.button(
+                        "🔊 Generer audio",
+                        key=f"ai-lesson-gen-{lid}-{ex_idx}",
+                        use_container_width=True,
+                    ):
+                        with st.spinner("Generation audio..."):
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                text,
+                                voice=lesson_voice,
+                            )
+                        if tts_err:
+                            st.error(tts_err)
+                        else:
+                            new_path = _save_ai_lesson_example_audio(lid, ex_idx, ab)
+                            all_lessons = load_ai_lessons()
+                            for l in all_lessons:
+                                if l.get("id") == lid and ex_idx < len(
+                                    l.get("examples", [])
+                                ):
+                                    l["examples"][ex_idx]["audio_path"] = new_path
+                                    break
+                            save_ai_lessons(all_lessons)
+                            st.rerun()
+
+            st.markdown("---")
+            mini_task = lesson.get("mini_task", {})
+            target_seconds = int(mini_task.get("target_time_seconds", 120) or 120)
+            st.markdown(
+                f"**Mini-task ({target_seconds} sec) :** {mini_task.get('instruction', '')}"
+            )
+            checklist = mini_task.get("success_checklist", [])
+            if checklist:
+                st.markdown("**Checklist de reussite :**")
+                for item in checklist:
+                    st.markdown(f"- {item}")
+
+            start_key = f"ai-mini-start-{lid}"
+            eval_key = f"ai-mini-eval-{lid}"
+            answer_key = f"ai-mini-answer-{lid}"
+            audio_key = f"ai-mini-audio-{lid}"
+            active_key = "ai-mini-active-lesson"
+
+            cstart, cretry = st.columns(2)
+            with cstart:
+                if st.button(
+                    "▶️ Demarrer / Redemarrer le chrono",
+                    key=f"ai-mini-start-btn-{lid}",
+                    use_container_width=True,
+                ):
+                    st.session_state[start_key] = now_iso()
+                    st.session_state[active_key] = lid
+                    st.session_state.pop(eval_key, None)
+                    st.rerun()
+            with cretry:
+                if st.button(
+                    "♻️ Recommencer la mini-task",
+                    key=f"ai-mini-retry-btn-{lid}",
+                    use_container_width=True,
+                ):
+                    st.session_state[start_key] = now_iso()
+                    st.session_state[active_key] = lid
+                    st.session_state[answer_key] = ""
+                    st.session_state.pop(audio_key, None)
+                    st.session_state.pop(eval_key, None)
+                    st.rerun()
+
+            started_at = st.session_state.get(start_key)
+            if started_at:
+                elapsed = _seconds_since_iso(started_at)
+                remaining = max(0, target_seconds - elapsed)
+                st.progress(
+                    min(1.0, elapsed / max(1, target_seconds)),
+                    text=f"Temps ecoule: {elapsed}s  |  Temps restant cible: {remaining}s",
+                )
+                if st.session_state.get(active_key) == lid and remaining > 0:
+                    st_autorefresh(
+                        interval=1000,
+                        key=f"ai-mini-refresh-{lid}",
+                    )
+                if remaining == 0 and st.session_state.get(active_key) == lid:
+                    st.session_state.pop(active_key, None)
+                    st.info(
+                        "⏰ 2 minutes terminees. Soumets ton audio ou ton texte pour evaluation."
+                    )
+
+            st.markdown("**🎤 Reponse audio (optionnel) :**")
+            mini_audio_widget = st.audio_input(
+                "Enregistre ta mini-task puis clique pour soumettre",
+                key=audio_key,
+            )
+            col_transc, col_submit_audio = st.columns(2)
+            with col_transc:
+                transcribe_clicked = st.button(
+                    "📝 Transcrire mon audio",
+                    key=f"ai-mini-transcribe-btn-{lid}",
+                    use_container_width=True,
+                )
+            with col_submit_audio:
+                submit_audio_clicked = st.button(
+                    "🎤 Soumettre audio",
+                    key=f"ai-mini-submit-audio-btn-{lid}",
+                    use_container_width=True,
+                    type="primary",
+                )
+
+            if transcribe_clicked:
+                if not mini_audio_widget:
+                    st.warning("Enregistre d'abord ton audio pour la mini-task.")
+                else:
+                    with st.spinner("Transcription de l'audio..."):
+                        transcribed, terr = transcribe_audio_with_openrouter(
+                            mini_audio_widget.getvalue(),
+                            audio_format="wav",
+                        )
+                    if terr:
+                        st.error(f"Erreur transcription: {terr}")
+                    else:
+                        st.session_state[answer_key] = transcribed
+                        st.success("Transcription ajoutee dans le champ texte.")
+                        st.rerun()
+
+            if submit_audio_clicked:
+                if not mini_audio_widget:
+                    st.warning("Enregistre d'abord ton audio pour soumettre.")
+                else:
+                    with st.spinner("Transcription + evaluation de l'audio..."):
+                        transcribed, terr = transcribe_audio_with_openrouter(
+                            mini_audio_widget.getvalue(),
+                            audio_format="wav",
+                        )
+                    if terr:
+                        st.error(f"Erreur transcription: {terr}")
+                    else:
+                        st.session_state[answer_key] = transcribed
+                        eval_result, eval_err = evaluate_ai_lesson_mini_task(
+                            lesson, transcribed
+                        )
+                        if eval_err:
+                            st.error(f"Erreur evaluation: {eval_err}")
+                        else:
+                            st.session_state[eval_key] = eval_result
+
+            answer = st.text_area(
+                "Ta reponse (texte libre ou transcription de ton oral)",
+                key=answer_key,
+                placeholder="Ecris ici ta production pour verifier si tu as compris le concept...",
+                height=120,
+            )
+            if st.button(
+                "✅ Verifier ma mini-task",
+                key=f"ai-mini-eval-btn-{lid}",
+                use_container_width=True,
+            ):
+                with st.spinner("Evaluation de ta mini-task..."):
+                    eval_result, eval_err = evaluate_ai_lesson_mini_task(lesson, answer)
+                if eval_err:
+                    st.error(f"Erreur evaluation: {eval_err}")
+                else:
+                    st.session_state[eval_key] = eval_result
+
+            mini_eval = st.session_state.get(eval_key)
+            if mini_eval:
+                score = mini_eval.get("score", 0)
+                correct = mini_eval.get("correct", False)
+                feedback = mini_eval.get("feedback_fr", "")
+                improved = mini_eval.get("improved_answer", "")
+                if correct:
+                    st.success(f"Score: {score}/100 — {feedback}")
+                else:
+                    st.warning(f"Score: {score}/100 — {feedback}")
+                if improved:
+                    st.markdown(f"**Version amelioree suggeree :** {improved}")
 
 
 def render_home():
@@ -2189,6 +2876,34 @@ def render_practice_page():
         "Mode", ["Guide par theme", "Session libre"], horizontal=True
     )
 
+    drill_label = st.selectbox(
+        "Drill oral cible",
+        list(PRACTICE_DRILL_MODES.keys()),
+        index=0,
+        help="Choisis un entrainement cible pour combler l'ecart comprehension vs production orale.",
+    )
+    drill_cfg = PRACTICE_DRILL_MODES[drill_label]
+    training_mode = drill_cfg["key"]
+    training_settings = {}
+
+    if training_mode == "conversation_stress":
+        training_settings["stress_reply_seconds"] = st.slider(
+            "Delai reponse cible (secondes)",
+            min_value=5,
+            max_value=20,
+            value=10,
+            help="Objectif de rapidite entre la question de l'IA et ta reponse.",
+        )
+    elif training_mode == "tense_switch":
+        training_settings["target_tense"] = st.selectbox(
+            "Temps cible",
+            ["present", "past", "future"],
+            index=0,
+            help="L'IA va te faire rester dans ce temps, puis te demander des reformulations.",
+        )
+
+    st.caption(f"Drill actif: {drill_label} — {drill_cfg['description']}")
+
     selected_theme = None
     selected_objective = ""
     if practice_mode == "Guide par theme":
@@ -2215,8 +2930,13 @@ def render_practice_page():
         mode_value = "guided" if practice_mode == "Guide par theme" else "free"
         theme_value = selected_theme if mode_value == "guided" else "Free conversation"
         st.session_state.active_session = new_session(
-            mode_value, theme_value, selected_objective
+            mode_value,
+            theme_value,
+            selected_objective,
+            training_mode=training_mode,
+            training_settings=training_settings,
         )
+        st.session_state.pop("practice_last_processed_audio", None)
         st.success(f"Session demarree: {st.session_state.active_session['id']}")
 
     session_data = st.session_state.active_session
@@ -2224,9 +2944,56 @@ def render_practice_page():
         st.info("Demarrez une session pour activer les echanges audio.")
         return
 
-    st.caption(
-        f"Session active: {session_data['id']} | Mode: {session_data['mode']} | Theme: {session_data['theme']}"
+    active_drill_key = session_data.get("training_mode", "standard")
+    active_drill_label = next(
+        (
+            lbl
+            for lbl, cfg in PRACTICE_DRILL_MODES.items()
+            if cfg.get("key") == active_drill_key
+        ),
+        active_drill_key,
     )
+    st.caption(
+        f"Session active: {session_data['id']} | Mode: {session_data['mode']} | Theme: {session_data['theme']} | Drill: {active_drill_label}"
+    )
+
+    with st.expander("🗂 Historique IA recent (sauvegarde automatique)"):
+        hist_sessions = _recent_practice_sessions(limit=20)
+        if not hist_sessions:
+            st.info("Aucune session IA sauvegardee pour le moment.")
+        else:
+            options = [
+                f"{s.get('id')} | {s.get('theme', 'N/A')} | {len(s.get('turns', []))} tours"
+                for s in hist_sessions
+            ]
+            selected_hist_idx = st.selectbox(
+                "Sessions recentes",
+                range(len(hist_sessions)),
+                format_func=lambda i: options[i],
+                key="practice-hist-select",
+            )
+            selected_hist = hist_sessions[selected_hist_idx]
+            col_h1, col_h2 = st.columns([1, 1])
+            with col_h1:
+                if st.button(
+                    "📂 Charger cette session",
+                    key=f"practice-load-session-{selected_hist.get('id')}",
+                    use_container_width=True,
+                ):
+                    st.session_state.active_session = selected_hist
+                    st.session_state.pop("practice_last_processed_audio", None)
+                    st.rerun()
+            with col_h2:
+                st.caption(f"Creee le {selected_hist.get('created_at', '')}")
+
+            if selected_hist.get("evaluation"):
+                st.markdown("**Derniere evaluation de cette session :**")
+                st.markdown(selected_hist["evaluation"].get("text", ""))
+
+            st.markdown("**Derniers echanges :**")
+            for turn in selected_hist.get("turns", [])[-4:]:
+                st.markdown(f"- Vous: {turn.get('user_text', '')}")
+                st.markdown(f"- IA: {turn.get('ai_text', '')}")
 
     # ── Timer 4 minutes ──
     MAX_SESSION_SECONDS = 240  # 4 min
@@ -2251,6 +3018,20 @@ def render_practice_page():
         progress,
         text=f"⏱️ {mins_e}:{secs_e:02d} ecoulees  |  {mins_r}:{secs_r:02d} restantes  (limite : 4:00)",
     )
+
+    if active_drill_key == "conversation_stress":
+        stress_limit = int(
+            session_data.get("training_settings", {}).get("stress_reply_seconds", 10)
+        )
+        if session_data.get("turns"):
+            anchor_time = session_data["turns"][-1].get("created_at")
+        else:
+            anchor_time = session_data.get("started_at")
+        since_prompt = _seconds_since_iso(anchor_time)
+        if since_prompt > stress_limit:
+            st.warning(
+                f"Conversation stress: vise une reponse en <= {stress_limit}s (actuel: {since_prompt}s)."
+            )
 
     # ── Conversation en cours (affichée AVANT l'input pour que l'input reste en bas) ──
     st.subheader("Conversation en cours")
@@ -2298,31 +3079,41 @@ def render_practice_page():
     # ── Audio input EN BAS (toujours visible, suit la conversation) ──
     # Clé dynamique basée sur le nombre de tours : force le reset du widget après chaque envoi
     n_turns = len(session_data["turns"])
-    audio_key = f"practice_audio_input_{n_turns}"
+    audio_key = f"practice_audio_input_{session_data['id']}_{n_turns}"
 
     if elapsed < MAX_SESSION_SECONDS:
         st.markdown("**🎙️ Votre message :**")
+        st.caption(
+            "Envoi automatique: dès que vous arretez l'enregistrement, le message est envoye a l'IA."
+        )
         audio_file = st.audio_input(
             "Cliquez sur le micro, parlez, puis cliquez à nouveau pour arrêter",
             key=audio_key,
         )
 
-        col_send, col_clear, col_eval = st.columns([2, 1, 1])
-        with col_send:
-            send_clicked = st.button(
-                "📤 Envoyer",
-                use_container_width=True,
-                type="primary",
-            )
+        auto_send_ready = False
+        user_audio_bytes = None
+        if audio_file:
+            candidate_bytes = audio_file.getvalue()
+            fingerprint = hashlib.sha1(candidate_bytes).hexdigest()
+            marker = f"{audio_key}:{fingerprint}"
+            if st.session_state.get("practice_last_processed_audio") != marker:
+                st.session_state["practice_last_processed_audio"] = marker
+                auto_send_ready = True
+                user_audio_bytes = candidate_bytes
+
+        col_clear, col_eval = st.columns([1, 1])
         with col_clear:
             if st.button("🗑️ Effacer", use_container_width=True):
                 st.session_state.pop(audio_key, None)
+                st.session_state.pop("practice_last_processed_audio", None)
                 st.rerun()
         with col_eval:
             eval_clicked = st.button("📊 Evaluer", use_container_width=True)
     else:
         audio_file = None
-        send_clicked = False
+        auto_send_ready = False
+        user_audio_bytes = None
         col_eval_only = st.columns(1)[0]
         with col_eval_only:
             eval_clicked = st.button(
@@ -2331,11 +3122,19 @@ def render_practice_page():
                 use_container_width=True,
             )
 
-    if send_clicked:
-        if not audio_file:
-            st.warning("Enregistrez d'abord un audio en cliquant sur le micro.")
+    if auto_send_ready:
+        if not user_audio_bytes:
+            st.warning("Aucun audio detecte. Reessayez l'enregistrement.")
         else:
-            user_audio_bytes = audio_file.getvalue()
+            user_submitted_at = now_iso()
+            last_anchor = (
+                session_data["turns"][-1].get("created_at")
+                if session_data.get("turns")
+                else session_data.get("started_at")
+            )
+            response_latency_seconds = _seconds_between_iso(
+                last_anchor, user_submitted_at
+            )
             if len(user_audio_bytes) < 100:
                 st.warning("L'audio est trop court. Parlez plus longtemps.")
             else:
@@ -2380,6 +3179,8 @@ def render_practice_page():
                         turn_record = {
                             "turn": turn_index,
                             "created_at": now_iso(),
+                            "user_submitted_at": user_submitted_at,
+                            "response_latency_seconds": response_latency_seconds,
                             "user_audio_path": user_audio_path,
                             "user_text": user_text,
                             "ai_text": ai_text,
@@ -2578,6 +3379,15 @@ def _save_review_audio(entry_id: str, audio_bytes: bytes) -> str:
     return path
 
 
+def _save_example_audio(entry_id: str, example_idx: int, audio_bytes: bytes) -> str:
+    """Persist example-sentence TTS audio and return the file path."""
+    os.makedirs(VOCAB_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(VOCAB_AUDIO_DIR, f"{entry_id}_ex{example_idx}.wav")
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
 def evaluate_reverse_flashcard(term: str, user_text: str):
     """Check whether the user correctly identified the term from its definition."""
     messages = [
@@ -2642,6 +3452,10 @@ def render_vocabulary_page():
             if not term_input.strip():
                 st.warning("Entre un mot ou une expression.")
             else:
+                # Clean previous result and its example audio
+                st.session_state.pop("vocab_current", None)
+                for _i in range(10):
+                    st.session_state.pop(f"vocab_ex_audio_{_i}", None)
                 with st.spinner("Analyse en cours…"):
                     result, err = translate_and_explain(term_input.strip())
                 if err:
@@ -2677,17 +3491,22 @@ def render_vocabulary_page():
                     if result.get("term", "").lower() in existing_terms:
                         st.info("Ce mot est déjà dans ton vocabulaire.")
                     else:
+                        entry_id = str(uuid.uuid4())[:8]
+                        examples_with_audio = []
+                        for _ei, _ex in enumerate(result.get("examples", [])):
+                            _ab = st.session_state.get(f"vocab_ex_audio_{_ei}")
+                            _ap = (
+                                _save_example_audio(entry_id, _ei, _ab) if _ab else None
+                            )
+                            examples_with_audio.append({"text": _ex, "audio_path": _ap})
                         entry = {
-                            "id": str(uuid.uuid4())[:8],
+                            "id": entry_id,
                             "term": result.get("term", term_input),
                             "created_at": now_iso(),
                             "translation": result.get("translation", ""),
                             "part_of_speech": result.get("part_of_speech", ""),
                             "explanation": result.get("explanation", ""),
-                            "examples": [
-                                {"text": ex, "audio_path": None}
-                                for ex in result.get("examples", [])
-                            ],
+                            "examples": examples_with_audio,
                             "synonyms": result.get("synonyms", []),
                             "level": result.get("level", ""),
                             "srs": {
@@ -2701,6 +3520,10 @@ def render_vocabulary_page():
                         }
                         entries.append(entry)
                         save_vocab(entries)
+                        # Clean up current analysis from session state
+                        st.session_state.pop("vocab_current", None)
+                        for _i in range(10):
+                            st.session_state.pop(f"vocab_ex_audio_{_i}", None)
                         st.success(f"«{entry['term']}» sauvegardé !")
 
             st.markdown("#### 💬 Phrases d'exemple")
@@ -2799,10 +3622,12 @@ def render_vocabulary_page():
                 )
             st.markdown("*Prononce le terme / chunk correspondant en audio.*")
 
-        # Audio recorder
+        # Audio recorder — use raw flash_idx (never modulo'd) so the key is
+        # always unique and Streamlit never restores a previous card's audio.
+        _mic_key = f"flash-mic-{st.session_state.get('flash_idx', 0)}-{is_reverse}"
         user_audio_widget = st.audio_input(
             "🎤 Enregistre ta réponse",
-            key=f"flash-mic-{idx}-{is_reverse}",
+            key=_mic_key,
         )
         if user_audio_widget:
             st.session_state["flash_user_audio_bytes"] = user_audio_widget.read()
@@ -2854,7 +3679,8 @@ def render_vocabulary_page():
 
         with col_skip:
             if st.button("⏭ Passer", key="flash-skip", use_container_width=True):
-                st.session_state["flash_idx"] = idx + 1
+                st.session_state.pop(_mic_key, None)
+                st.session_state["flash_idx"] = st.session_state.get("flash_idx", 0) + 1
                 st.session_state["flash_revealed"] = False
                 st.session_state["flash_eval_result"] = None
                 st.session_state["flash_user_audio_bytes"] = None
@@ -2876,7 +3702,12 @@ def render_vocabulary_page():
                 st.markdown("**Exemples :**")
                 for ex_item in examples:
                     txt = ex_item["text"] if isinstance(ex_item, dict) else ex_item
+                    ex_audio = (
+                        ex_item.get("audio_path") if isinstance(ex_item, dict) else None
+                    )
                     st.markdown(f"- {txt}")
+                    if ex_audio and os.path.exists(ex_audio):
+                        st.audio(ex_audio, format="audio/wav")
 
             eval_result = st.session_state.get("flash_eval_result")
             if eval_result:
@@ -2919,7 +3750,8 @@ def render_vocabulary_page():
                         e["review_history"].append(rev)
                         break
                 save_vocab(_all)
-                st.session_state["flash_idx"] = idx + 1
+                st.session_state.pop(_mic_key, None)
+                st.session_state["flash_idx"] = st.session_state.get("flash_idx", 0) + 1
                 st.session_state["flash_revealed"] = False
                 st.session_state["flash_eval_result"] = None
                 st.session_state["flash_user_audio_bytes"] = None
@@ -2953,6 +3785,13 @@ def render_vocabulary_page():
                 placeholder="Filtrer par mot…",
                 key="vocab-hist-search",
             )
+            hist_voice_label = st.selectbox(
+                "Voix TTS pour les exemples",
+                list(STORY_NARRATOR_VOICES.keys()),
+                index=0,
+                key="vocab-hist-voice",
+            )
+            hist_voice = STORY_NARRATOR_VOICES.get(hist_voice_label, "alloy")
             filtered = entries
             if search.strip():
                 q = search.strip().lower()
@@ -2980,10 +3819,89 @@ def render_vocabulary_page():
                     synonyms = entry.get("synonyms", [])
                     if synonyms:
                         st.markdown(f"**Synonymes :** {', '.join(synonyms)}")
+
                     st.markdown("**Exemples :**")
-                    for ex_item in entry.get("examples", []):
+                    for ex_idx, ex_item in enumerate(entry.get("examples", [])):
                         txt = ex_item["text"] if isinstance(ex_item, dict) else ex_item
-                        st.markdown(f"- {txt}")
+                        audio_path = (
+                            ex_item.get("audio_path")
+                            if isinstance(ex_item, dict)
+                            else None
+                        )
+
+                        st.markdown(f"**{ex_idx + 1}.** {txt}")
+                        if audio_path and os.path.exists(audio_path):
+                            st.audio(audio_path, format="audio/wav")
+                            ca, cb = st.columns(2)
+                            with ca:
+                                if st.button(
+                                    "🗑 Supprimer audio",
+                                    key=f"vocab-ex-del-{entry['id']}-{ex_idx}",
+                                    use_container_width=True,
+                                ):
+                                    os.remove(audio_path)
+                                    _all = load_vocab()
+                                    for _e in _all:
+                                        if _e["id"] == entry["id"] and isinstance(
+                                            _e["examples"][ex_idx], dict
+                                        ):
+                                            _e["examples"][ex_idx]["audio_path"] = None
+                                            break
+                                    save_vocab(_all)
+                                    st.rerun()
+                            with cb:
+                                if st.button(
+                                    "🔄 Régénérer audio",
+                                    key=f"vocab-ex-regen-{entry['id']}-{ex_idx}",
+                                    use_container_width=True,
+                                ):
+                                    with st.spinner("Génération audio…"):
+                                        _ab, _, _err = text_to_speech_openrouter(
+                                            txt, voice=hist_voice
+                                        )
+                                    if _err:
+                                        st.error(_err)
+                                    else:
+                                        _new_path = _save_example_audio(
+                                            entry["id"], ex_idx, _ab
+                                        )
+                                        _all = load_vocab()
+                                        for _e in _all:
+                                            if _e["id"] == entry["id"] and isinstance(
+                                                _e["examples"][ex_idx], dict
+                                            ):
+                                                _e["examples"][ex_idx][
+                                                    "audio_path"
+                                                ] = _new_path
+                                                break
+                                        save_vocab(_all)
+                                        st.rerun()
+                        else:
+                            if st.button(
+                                "🔊 Générer audio",
+                                key=f"vocab-ex-gen-{entry['id']}-{ex_idx}",
+                                use_container_width=True,
+                            ):
+                                with st.spinner("Génération audio…"):
+                                    _ab, _, _err = text_to_speech_openrouter(
+                                        txt, voice=hist_voice
+                                    )
+                                if _err:
+                                    st.error(_err)
+                                else:
+                                    _new_path = _save_example_audio(
+                                        entry["id"], ex_idx, _ab
+                                    )
+                                    _all = load_vocab()
+                                    for _e in _all:
+                                        if _e["id"] == entry["id"]:
+                                            if isinstance(_e["examples"][ex_idx], dict):
+                                                _e["examples"][ex_idx][
+                                                    "audio_path"
+                                                ] = _new_path
+                                            break
+                                    save_vocab(_all)
+                                    st.rerun()
 
                     # Review history with audio playback
                     reviews = entry.get("review_history", [])
@@ -3262,6 +4180,7 @@ def main():
         [
             "Accueil",
             "Lecons (Ecoute)",
+            "Lecons basees sur echanges IA",
             "Histoires",
             "Playlist",
             "Podcasts",
@@ -3281,6 +4200,8 @@ def main():
         render_home()
     elif page == "Lecons (Ecoute)":
         render_lessons_page()
+    elif page == "Lecons basees sur echanges IA":
+        render_ai_lessons_page()
     elif page == "Histoires":
         render_stories_page()
     elif page == "Playlist":
