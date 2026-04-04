@@ -1,0 +1,132 @@
+[
+  {
+    "id": 1,
+    "cefr_level": "B2",
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hi there! How's it going?\nB: Pretty well, thanks! I was just about to grab a coffee. Nice to meet you!\nA: Nice to meet you too! I'm Alex.\nB: I'm Jamie. So, what do you do for a living?\nA: I work in marketing. And you?\nB: I'm a software developer. It's quite demanding, but I enjoy it."
+  },
+  {
+    "id": 2,
+    "cefr_level": "B2",
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "grammar_focus": "conditional sentences + passive voice",
+    "chunk_focus": [
+      "We could consider...",
+      "It seems that...",
+      "As a result"
+    ],
+    "dialogue": "A: We need to address the issue with the project deadline. It seems that we're falling behind.\nB: Yes, I noticed that too. We could consider reallocating some resources.\nA: That's a good idea. If we do that, we might catch up.\nB: However, we should also communicate with the client about the potential delay.\nA: Agreed. As a result, they might be more understanding if we're transparent."
+  },
+  {
+    "id": 3,
+    "cefr_level": "B2",
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "grammar_focus": "future simple + modal verbs",
+    "chunk_focus": [
+      "We need to hurry up",
+      "It’s now or never",
+      "Let’s go for it"
+    ],
+    "dialogue": "A: We need to hurry up! The meeting starts in ten minutes.\nB: I know! Should we take the car or the bus?\nA: It’s now or never, so let’s go for it with the car. It’ll be faster.\nB: Right, but what if we hit traffic?\nA: Then we’ll just have to deal with it. Better than missing the meeting!"
+  },
+  {
+    "id": 4,
+    "cefr_level": "B2",
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "grammar_focus": "reported speech + present perfect",
+    "chunk_focus": [
+      "I see your point",
+      "I beg to differ",
+      "That being said"
+    ],
+    "dialogue": "A: I think we should focus on social media marketing.\nB: I see your point, but I beg to differ. Email campaigns have worked well for us.\nA: That being said, social media is where our audience spends their time.\nB: True, but I believe a mix of both could be more effective.\nA: Fair enough. Let’s discuss how we can integrate both strategies."
+  },
+  {
+    "id": 5,
+    "cefr_level": "B2",
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "grammar_focus": "modal verbs + present continuous",
+    "chunk_focus": [
+      "Do you mind if...",
+      "I would appreciate it",
+      "Could you help me out?"
+    ],
+    "dialogue": "A: Do you mind if I borrow your laptop for a bit?\nB: Not at all! I would appreciate it if you could keep it safe.\nA: Absolutely, I’ll be careful. Could you help me out with the password?\nB: Sure! It’s just my name with a number at the end.\nA: Got it! Thanks a million!"
+  },
+  {
+    "id": 6,
+    "cefr_level": "B2",
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "grammar_focus": "past perfect + present perfect continuous",
+    "chunk_focus": [
+      "I thought you meant...",
+      "It turns out that...",
+      "I appreciate your patience"
+    ],
+    "dialogue": "A: Hey, I wanted to follow up about our last conversation. I thought you meant next week for the meeting.\nB: I can see how that happened. It turns out that I had meant this week.\nA: I appreciate your patience while we sorted that out.\nB: No problem! It’s good to clarify things. Are we still on for tomorrow?\nA: Yes, definitely! I’ll see you then."
+  },
+  {
+    "id": 7,
+    "cefr_level": "B2",
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "grammar_focus": "future continuous + modal verbs",
+    "chunk_focus": [
+      "What time shall we meet?",
+      "I’m thinking about...",
+      "We could also consider..."
+    ],
+    "dialogue": "A: What time shall we meet tomorrow?\nB: How about 10 AM? I’m thinking about finishing the report by then.\nA: Sounds good! We could also consider grabbing lunch after.\nB: Great idea! I’ve been wanting to try that new café downtown.\nA: Perfect! I’ll make a note of it."
+  },
+  {
+    "id": 8,
+    "cefr_level": "B2",
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "grammar_focus": "modal verbs + conditionals",
+    "chunk_focus": [
+      "What do you think I should do?",
+      "If I were you...",
+      "It might be worth considering..."
+    ],
+    "dialogue": "A: I’ve been thinking about switching jobs. What do you think I should do?\nB: If I were you, I’d weigh the pros and cons carefully.\nA: That makes sense. It might be worth considering my current benefits too.\nB: Absolutely! Also, networking could open new doors for you.\nA: Good point! I’ll start reaching out to some contacts."
+  },
+  {
+    "id": 9,
+    "cefr_level": "B2",
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "grammar_focus": "comparative structures + present perfect",
+    "chunk_focus": [
+      "On one hand...",
+      "On the other hand...",
+      "It’s a tough call"
+    ],
+    "dialogue": "A: I’m trying to decide between two different gyms. On one hand, one is closer to home.\nB: That’s convenient! But on the other hand, the other gym has better facilities.\nA: Exactly! It’s a tough call since I’ve heard great things about both.\nB: Why not try a trial membership at each?\nA: That sounds like a plan! I’ll make some calls."
+  },
+  {
+    "id": 10,
+    "cefr_level": "B2",
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "grammar_focus": "future perfect + passive voice",
+    "chunk_focus": [
+      "By the end of the week...",
+      "Let’s recap what we discussed",
+      "I’ll follow up with you"
+    ],
+    "dialogue": "A: Let’s recap what we discussed. By the end of the week, the report will be completed.\nB: Right, and I’ll follow up with you on the data collection.\nA: Perfect! I’ll have my part done by then.\nB: Also, the presentation will be ready by next Wednesday.\nA: Great! I’ll check in with you tomorrow to see how it’s going."
+  }
+]

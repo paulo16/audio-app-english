@@ -23,12 +23,23 @@
     "synonyms": [],
     "level": "B2",
     "srs": {
-      "next_review": "2026-04-01T21:40:31Z",
+      "next_review": "2026-04-05T04:24:14.826723Z",
       "interval": 1,
-      "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
-    }
+      "ease": 2.35,
+      "repetitions": 1,
+      "last_result": "Difficile"
+    },
+    "review_history": [
+      {
+        "date": "2026-04-04T04:24:14Z",
+        "mode": "normal",
+        "rating": 1,
+        "rating_label": "Difficile",
+        "user_text": "My strength just dipped low after my day. I'm so tired.",
+        "score": 85,
+        "audio_path": "data\\vocab_audio\\05656c57_20260404-042327.wav"
+      }
+    ]
   },
   {
     "id": "26a5f42e",
@@ -54,12 +65,23 @@
     "synonyms": [],
     "level": "B2",
     "srs": {
-      "next_review": "2026-04-01T21:43:12Z",
+      "next_review": "2026-04-05T04:33:09.899085Z",
       "interval": 1,
       "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
-    }
+      "repetitions": 1,
+      "last_result": "Bien"
+    },
+    "review_history": [
+      {
+        "date": "2026-04-04T04:33:09Z",
+        "mode": "normal",
+        "rating": 2,
+        "rating_label": "Bien",
+        "user_text": "I can definitely get behind your idea. You're right.",
+        "score": 95,
+        "audio_path": "data\\vocab_audio\\26a5f42e_20260404-043255.wav"
+      }
+    ]
   },
   {
     "id": "98f6e2a2",
@@ -85,12 +107,64 @@
     "synonyms": [],
     "level": "C1",
     "srs": {
-      "next_review": "2026-04-01T22:04:21Z",
+      "next_review": "2026-04-05T04:39:20.069092Z",
       "interval": 1,
-      "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
+      "ease": 2.35,
+      "repetitions": 1,
+      "last_result": "Difficile"
     },
-    "review_history": []
+    "review_history": [
+      {
+        "date": "2026-04-04T04:39:20Z",
+        "mode": "normal",
+        "rating": 1,
+        "rating_label": "Difficile",
+        "user_text": "I have to make a deep dive about this idea to really grasp that",
+        "score": 70,
+        "audio_path": "data\\vocab_audio\\98f6e2a2_20260404-043856.wav"
+      }
+    ]
+  },
+  {
+    "id": "96a2b5fd",
+    "term": "bit to the bush",
+    "created_at": "2026-04-04T04:22:26Z",
+    "translation": "un peu dans le flou",
+    "part_of_speech": "idiom",
+    "explanation": "The phrase 'bit to the bush' is an idiomatic expression that suggests being indirect or vague in communication. It is often used in contexts where someone is avoiding getting straight to the point or is being evasive about a topic.",
+    "examples": [
+      {
+        "text": "Instead of answering the question directly, he just gave a bit to the bush.",
+        "audio_path": "data\\vocab_audio\\96a2b5fd_ex0.wav"
+      },
+      {
+        "text": "When asked about his plans, she always tends to go a bit to the bush.",
+        "audio_path": "data\\vocab_audio\\96a2b5fd_ex1.wav"
+      },
+      {
+        "text": "I appreciate honesty, so please don't beat around the bush or go a bit to the bush.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [],
+    "level": "B2",
+    "srs": {
+      "next_review": "2026-04-05T04:43:53.006200Z",
+      "interval": 1,
+      "ease": 2.3,
+      "repetitions": 0,
+      "last_result": "À revoir"
+    },
+    "review_history": [
+      {
+        "date": "2026-04-04T04:43:53Z",
+        "mode": "normal",
+        "rating": 0,
+        "rating_label": "À revoir",
+        "user_text": "I asked my parents how they they met and they just beat to the bush.",
+        "score": 30,
+        "audio_path": "data\\vocab_audio\\96a2b5fd_20260404-044249.wav"
+      }
+    ]
   }
 ]

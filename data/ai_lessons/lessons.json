@@ -1,0 +1,218 @@
+[
+  {
+    "id": "ai-lesson-20260404-1-35f0",
+    "created_at": "2026-04-04T05:32:19Z",
+    "source_session_ids": [
+      "session-20260331-225803-cb427e",
+      "session-20260331-230211-48a905",
+      "session-20260331-230649-b80b1a",
+      "session-20260331-230959-da2f78",
+      "session-20260331-231439-ac5ab6",
+      "session-20260331-232545-69052e",
+      "session-20260331-233208-726258",
+      "session-20260404-050613-896574",
+      "session-20260404-052546-2ac1c9"
+    ],
+    "focus": "Improving Sentence Structure",
+    "concept": "Focus on constructing clearer and more complete sentences to enhance communication. This will help avoid confusion and make conversations flow better.",
+    "common_mistakes": [
+      "Omitting subjects or verbs in sentences",
+      "Using repetitive phrases like 'I have a lot of' without variation",
+      "Incorrect word order or missing articles"
+    ],
+    "tips_to_remember": [
+      "Always include a subject and a verb in your sentences.",
+      "Try to vary your vocabulary to avoid repetition.",
+      "Use articles ('a', 'an', 'the') correctly to clarify your meaning."
+    ],
+    "examples": [
+      {
+        "text": "I have many lessons to prepare as a computer science teacher.",
+        "audio_path": null
+      },
+      {
+        "text": "My day was busy, but I enjoyed teaching my students.",
+        "audio_path": null
+      },
+      {
+        "text": "I discussed Python and how to manage lists and dictionaries.",
+        "audio_path": null
+      },
+      {
+        "text": "I like to listen to music while I run errands.",
+        "audio_path": null
+      }
+    ],
+    "mini_task": {
+      "instruction": "Describe your day using at least five complete sentences.",
+      "success_checklist": [
+        "Each sentence has a subject and a verb.",
+        "Avoid repeating the same phrases.",
+        "Use correct articles where needed."
+      ],
+      "target_time_seconds": 120
+    }
+  },
+  {
+    "id": "ai-lesson-20260404-2-93c2",
+    "created_at": "2026-04-04T05:32:19Z",
+    "source_session_ids": [
+      "session-20260331-225803-cb427e",
+      "session-20260331-230211-48a905",
+      "session-20260331-230649-b80b1a",
+      "session-20260331-230959-da2f78",
+      "session-20260331-231439-ac5ab6",
+      "session-20260331-232545-69052e",
+      "session-20260331-233208-726258",
+      "session-20260404-050613-896574",
+      "session-20260404-052546-2ac1c9"
+    ],
+    "focus": "Expanding Vocabulary",
+    "concept": "Learn synonyms and related phrases to express ideas more clearly and avoid repetition in conversation.",
+    "common_mistakes": [
+      "Using the same words repeatedly (e.g., 'a lot', 'busy')",
+      "Not knowing alternative expressions for common ideas",
+      "Forgetting to use descriptive adjectives"
+    ],
+    "tips_to_remember": [
+      "Keep a list of synonyms for common words you use.",
+      "Practice using new vocabulary in sentences.",
+      "Incorporate descriptive language to make your speech more engaging."
+    ],
+    "examples": [
+      {
+        "text": "I have numerous tasks to complete today.",
+        "audio_path": null
+      },
+      {
+        "text": "My schedule is quite hectic, but manageable.",
+        "audio_path": null
+      },
+      {
+        "text": "I find Python to be an accessible programming language.",
+        "audio_path": null
+      },
+      {
+        "text": "Listening to music makes running errands more enjoyable.",
+        "audio_path": null
+      }
+    ],
+    "mini_task": {
+      "instruction": "Choose three common words you often use and find synonyms for them. Use each synonym in a sentence.",
+      "success_checklist": [
+        "Identify three synonyms for each word.",
+        "Use each synonym correctly in a sentence.",
+        "Ensure sentences are clear and meaningful."
+      ],
+      "target_time_seconds": 120
+    }
+  },
+  {
+    "id": "ai-lesson-20260404-3-609a",
+    "created_at": "2026-04-04T05:32:19Z",
+    "source_session_ids": [
+      "session-20260331-225803-cb427e",
+      "session-20260331-230211-48a905",
+      "session-20260331-230649-b80b1a",
+      "session-20260331-230959-da2f78",
+      "session-20260331-231439-ac5ab6",
+      "session-20260331-232545-69052e",
+      "session-20260331-233208-726258",
+      "session-20260404-050613-896574",
+      "session-20260404-052546-2ac1c9"
+    ],
+    "focus": "Practicing Conversational Flow",
+    "concept": "Engage in back-and-forth dialogue to improve fluency and comfort in spontaneous conversation.",
+    "common_mistakes": [
+      "Pausing too long while thinking",
+      "Giving one-word answers instead of elaborating",
+      "Not asking follow-up questions"
+    ],
+    "tips_to_remember": [
+      "Practice responding quickly to questions.",
+      "Try to elaborate on your answers to keep the conversation going.",
+      "Ask follow-up questions to show interest and encourage dialogue."
+    ],
+    "examples": [
+      {
+        "text": "What do you enjoy most about teaching?",
+        "audio_path": null
+      },
+      {
+        "text": "Can you tell me more about your favorite anime?",
+        "audio_path": null
+      },
+      {
+        "text": "How do you usually spend your weekends?",
+        "audio_path": null
+      },
+      {
+        "text": "What challenges do your students face when learning programming?",
+        "audio_path": null
+      }
+    ],
+    "mini_task": {
+      "instruction": "Pair up with a friend or language partner and have a 2-minute conversation about your favorite hobbies, taking turns asking questions.",
+      "success_checklist": [
+        "Respond quickly without long pauses.",
+        "Elaborate on your answers.",
+        "Ask at least two follow-up questions."
+      ],
+      "target_time_seconds": 120
+    }
+  },
+  {
+    "id": "ai-lesson-20260404-4-3e5e",
+    "created_at": "2026-04-04T05:32:19Z",
+    "source_session_ids": [
+      "session-20260331-225803-cb427e",
+      "session-20260331-230211-48a905",
+      "session-20260331-230649-b80b1a",
+      "session-20260331-230959-da2f78",
+      "session-20260331-231439-ac5ab6",
+      "session-20260331-232545-69052e",
+      "session-20260331-233208-726258",
+      "session-20260404-050613-896574",
+      "session-20260404-052546-2ac1c9"
+    ],
+    "focus": "Using Fillers and Natural Speech",
+    "concept": "Learn to use fillers and natural speech patterns to sound more fluent and less robotic during conversations.",
+    "common_mistakes": [
+      "Overusing fillers like 'um' and 'uh'",
+      "Speaking too formally in casual conversations",
+      "Not using contractions (e.g., 'I am' instead of 'I'm')"
+    ],
+    "tips_to_remember": [
+      "Use fillers sparingly to give yourself time to think.",
+      "Practice speaking in a more relaxed, conversational tone.",
+      "Incorporate contractions to sound more natural."
+    ],
+    "examples": [
+      {
+        "text": "So, I was thinking about what to do this weekend.",
+        "audio_path": null
+      },
+      {
+        "text": "You know, I really enjoy watching anime.",
+        "audio_path": null
+      },
+      {
+        "text": "I mean, Python is such a cool language to teach.",
+        "audio_path": null
+      },
+      {
+        "text": "Like, I usually listen to music while I work.",
+        "audio_path": null
+      }
+    ],
+    "mini_task": {
+      "instruction": "Record yourself talking about your favorite movie or show for 2 minutes, using fillers naturally.",
+      "success_checklist": [
+        "Use fillers appropriately without overdoing it.",
+        "Maintain a conversational tone.",
+        "Include contractions to sound more natural."
+      ],
+      "target_time_seconds": 120
+    }
+  }
+]
