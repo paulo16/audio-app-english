@@ -1427,7 +1427,7 @@ def generate_lesson_flashcards_ai(
     ]
     chunks_text = "\n".join(f"- {c}" for c in chunks[:20]) or "- None"
 
-    prompt = f"""You are an English teacher creating flashcards for a learner.
+    prompt = f"""You are an English teacher creating flashcards for a French-speaking learner.
 
 Theme: {theme_name}
 Target CEFR: {target}
@@ -1443,12 +1443,13 @@ Task:
 - Return at most {max_cards} flashcards.
 - Prefer high-frequency, practical expressions the learner can reuse immediately.
 - Keep level appropriate for {target}.
+- The "translation" field MUST be in French (never Spanish or any other language).
 
 Return ONLY valid JSON array with objects using this schema:
 [
   {{
     "term": "...",
-    "translation": "...",        
+    "translation": "traduction en francais ici",
     "part_of_speech": "chunk|verb|noun phrase|idiom|phrasal verb|...",
     "explanation": "1 short English explanation",
     "examples": ["example 1", "example 2"],
@@ -1959,6 +1960,40 @@ def get_shadowing_session(profile_id, day_key, source_id):
     return session if isinstance(session, dict) else {}
 
 
+def _render_shadowing_phrase_detail(records):
+    """Render per-phrase detail results (used in both column and full-width contexts)."""
+    for rec in records:
+        idx = int(rec.get("chunk_idx", 0)) + 1
+        score = int(rec.get("score", 0))
+        score_scales = _shadowing_score_scales(score)
+        score_label = _shadowing_score_label(score)
+        feedback = rec.get("feedback", "")
+        user_said = rec.get("user_text", "")
+        target_text = rec.get("chunk_text", "")
+
+        if score >= 85:
+            score_color = "green"
+        elif score >= 55:
+            score_color = "orange"
+        else:
+            score_color = "red"
+
+        st.markdown("---")
+        st.markdown(
+            f"**Phrase {idx}** — :{score_color}[**{score_scales['on_100']}/100**] "
+            f"({score_scales['on_20']}/20) — {score_label}"
+        )
+        st.markdown(f"**Attendu:** {target_text}")
+        if user_said:
+            st.markdown(f"**Tu as dit:** {user_said}")
+        elif score > 0:
+            st.markdown("**Tu as dit:** *(transcription indisponible)*")
+        else:
+            st.markdown("**Tu as dit:** *(non enregistre)*")
+        if feedback:
+            st.caption(f"Conseil: {feedback}")
+
+
 def _shadowing_records_summary(records, chunk_count):
     valid = [r for r in records if isinstance(r, dict)]
     if not valid:
@@ -2148,7 +2183,7 @@ def _normalize_compare_text(text):
     return re.sub(r"[^a-z0-9\s']+", " ", str(text or "").lower()).strip()
 
 
-def _shadowing_mismatch_feedback(reference_text, user_text, max_points=2):
+def _shadowing_mismatch_feedback(reference_text, user_text, max_points=5):
     ref_words = re.findall(r"[a-z0-9']+", _normalize_compare_text(reference_text))
     usr_words = re.findall(r"[a-z0-9']+", _normalize_compare_text(user_text))
     if not ref_words or not usr_words:
@@ -2214,8 +2249,14 @@ def evaluate_shadowing_chunk(reference_text, user_text, cefr_level="B1"):
         {
             "role": "system",
             "content": (
-                "You are an English speaking coach. Compare the learner sentence to the target sentence. "
-                "Score fidelity and fluency from 0 to 100."
+                "You are an English pronunciation and speaking coach. "
+                "Compare the learner's transcribed sentence to the target sentence. "
+                "Evaluate: 1) Fidelity (missing/added/wrong words), "
+                "2) Pronunciation clues (words likely mispronounced based on transcript differences), "
+                "3) Fluency (natural rhythm). "
+                "Give a score from 0 to 100 and detailed coaching feedback IN FRENCH. "
+                "In the feedback, ALWAYS specify: which exact words differ, "
+                "what the learner said vs what was expected, and a concrete tip to improve."
             ),
         },
         {
@@ -2224,12 +2265,12 @@ def evaluate_shadowing_chunk(reference_text, user_text, cefr_level="B1"):
                 f"Target CEFR: {target}\n"
                 f"Target sentence: {reference_text}\n"
                 f"Learner transcript: {user_text}\n\n"
-                'Return ONLY JSON: {"score": 0-100, "feedback": "short coaching feedback in French"}'
+                'Return ONLY JSON: {"score": 0-100, "feedback": "detailed coaching feedback in French with specific word-level corrections"}'
             ),
         },
     ]
 
-    raw, err = openrouter_chat(messages, EVAL_MODEL, temperature=0.1, max_tokens=180)
+    raw, err = openrouter_chat(messages, EVAL_MODEL, temperature=0.1, max_tokens=350)
     if err:
         return _score_shadowing_chunk_fallback(reference_text, user_text)
 
@@ -3837,11 +3878,7 @@ def render_shadowing_daily_page():
         labels = {}
         for t in texts:
             sid = str(t.get("source_id", ""))
-            title = str(
-                t.get("lesson_title")
-                or t.get("theme_name")
-                or sid
-            )
+            title = str(t.get("lesson_title") or t.get("theme_name") or sid)
             level = str(t.get("cefr_level", ""))
             labels[sid] = f"{title} ({level})" if level else title
 
@@ -3896,9 +3933,7 @@ def render_shadowing_daily_page():
         return
 
     text_title = str(
-        daily_text.get("lesson_title")
-        or daily_text.get("theme_name")
-        or "N/A"
+        daily_text.get("lesson_title") or daily_text.get("theme_name") or "N/A"
     )
     st.markdown(f"### {text_title}")
     st.caption(
@@ -3941,58 +3976,53 @@ def render_shadowing_daily_page():
             "- Reperes rapides: 85-100 tres bon, 70-84 bon, 55-69 moyen, <55 a retravailler."
         )
 
-    if records:
-        with st.expander("Historique des phrases notees aujourd'hui", expanded=False):
-            for rec in records:
-                idx = int(rec.get("chunk_idx", 0)) + 1
-                score = int(rec.get("score", 0))
-                score_scales = _shadowing_score_scales(score)
-                score_label = _shadowing_score_label(score)
-                feedback = rec.get("feedback", "")
-                st.markdown(
-                    f"- Phrase {idx}: **{score_scales['on_100']}/100** "
-                    f"({score_scales['on_20']}/20, {score_scales['on_10']}/10) - "
-                    f"{score_label}. {feedback}"
-                )
+    # ── Helper: render recommencer + run history ──
+    def _render_recommencer_and_history():
+        if st.button(
+            "Recommencer ce texte (garder mon historique)",
+            key=f"shadow-restart-{profile_id}-{day_key}-{source_slug}",
+            width="stretch",
+        ):
+            reset_shadowing_session_keep_history(
+                profile_id=profile_id,
+                day_key=day_key,
+                source_id=source_id,
+                chunk_count=len(chunks),
+            )
+            state_prefix = f"shadow-{profile_id}-{day_key}-{source_slug}-"
+            for state_key in list(st.session_state.keys()):
+                if str(state_key).startswith(state_prefix):
+                    st.session_state.pop(state_key, None)
+            st.session_state.pop("shadow_last_autoplay_chunk", None)
+            st.rerun()
 
-    if st.button(
-        "Recommencer ce texte (garder mon historique)",
-        key=f"shadow-restart-{profile_id}-{day_key}-{source_slug}",
-        width="stretch",
-    ):
-        reset_shadowing_session_keep_history(
-            profile_id=profile_id,
-            day_key=day_key,
-            source_id=source_id,
-            chunk_count=len(chunks),
-        )
-        state_prefix = f"shadow-{profile_id}-{day_key}-{source_slug}-"
-        for state_key in list(st.session_state.keys()):
-            if str(state_key).startswith(state_prefix):
-                st.session_state.pop(state_key, None)
-        st.session_state.pop("shadow_last_autoplay_chunk", None)
-        st.rerun()
+        if run_history:
+            with st.expander("Historique de mes tentatives", expanded=False):
+                shown = list(reversed(run_history[-10:]))
+                for i, run in enumerate(shown, start=1):
+                    archived_at = str(run.get("archived_at", ""))
+                    archived_label = (
+                        archived_at.replace("T", " ")[:19] if archived_at else "N/A"
+                    )
+                    avg_s = run.get("avg_score", 0)
+                    avg_sc = _shadowing_score_scales(avg_s)
+                    avg_lb = _shadowing_score_label(avg_s)
+                    pdone = int(run.get("phrases_done", 0))
+                    cc = int(run.get("chunk_count", len(chunks)))
+                    st.markdown(
+                        f"- Tentative {i} ({archived_label}) - moyenne: **{avg_sc['on_100']}/100** "
+                        f"({avg_sc['on_20']}/20, {avg_sc['on_10']}/10) "
+                        f"- {avg_lb} ({pdone}/{cc} phrases)"
+                    )
 
-    if run_history:
-        with st.expander("Historique de mes tentatives", expanded=False):
-            shown = list(reversed(run_history[-10:]))
-            for i, run in enumerate(shown, start=1):
-                archived_at = str(run.get("archived_at", ""))
-                archived_label = (
-                    archived_at.replace("T", " ")[:19] if archived_at else "N/A"
-                )
-                avg_score = run.get("avg_score", 0)
-                avg_scales = _shadowing_score_scales(avg_score)
-                avg_label = _shadowing_score_label(avg_score)
-                phrases_done = int(run.get("phrases_done", 0))
-                chunk_count = int(run.get("chunk_count", len(chunks)))
-                st.markdown(
-                    f"- Tentative {i} ({archived_label}) - moyenne: **{avg_scales['on_100']}/100** "
-                    f"({avg_scales['on_20']}/20, {avg_scales['on_10']}/10) "
-                    f"- {avg_label} ({phrases_done}/{chunk_count} phrases)"
-                )
-
+    # ── Session complete: full-width detail ──
     if next_idx >= len(chunks):
+        if records:
+            with st.expander("Detail par phrase", expanded=True):
+                _render_shadowing_phrase_detail(records)
+
+        _render_recommencer_and_history()
+
         completed_summary = _shadowing_records_summary(records, len(chunks))
         avg_done = float(completed_summary.get("avg_score", 0) or 0)
         if maybe_advance_shadowing_daily_text(
@@ -4014,72 +4044,110 @@ def render_shadowing_daily_page():
         )
         return
 
+    # ── Session in progress: side-by-side layout ──
     current_chunk = str(chunks[next_idx]).strip()
     record_limit = _shadowing_record_seconds(current_chunk)
 
-    st.markdown("### Shadowing actif")
-    st.markdown(f"**Phrase {next_idx + 1} / {len(chunks)}**")
-    st.write(current_chunk)
-    st.caption(
-        "Mode libre: pas de chrono. " f"Repete la phrase puis envoie quand tu es pret."
-    )
+    col_active, col_detail = st.columns([3, 2])
 
-    chunk_audio_path, audio_err = ensure_shadowing_chunk_audio(
-        profile_id=profile_id,
-        source_id=source_id,
-        chunk_idx=next_idx,
-        chunk_text=current_chunk,
-        voice=voice,
-    )
-    if audio_err:
-        st.warning(f"Audio phrase indisponible: {audio_err}")
-    elif chunk_audio_path and os.path.exists(chunk_audio_path):
-        autoplay_chunk_marker = f"{profile_id}:{day_key}:{source_id}:{next_idx}"
-        autoplay_state_key = "shadow_last_autoplay_chunk"
-        if st.session_state.get(autoplay_state_key) != autoplay_chunk_marker:
-            try:
-                with open(chunk_audio_path, "rb") as _af:
-                    _ab64 = base64.b64encode(_af.read()).decode("utf-8")
-                st_components.html(
-                    (
-                        '<audio autoplay style="display:none">'
-                        f'<source src="data:audio/wav;base64,{_ab64}">'
-                        "</audio>"
-                    ),
-                    height=0,
-                )
-                st.session_state[autoplay_state_key] = autoplay_chunk_marker
-            except Exception:
-                pass
-        st.audio(chunk_audio_path, format="audio/wav")
+    with col_active:
+        st.markdown("### Shadowing actif")
+        st.markdown(f"**Phrase {next_idx + 1} / {len(chunks)}**")
+        st.write(current_chunk)
+        st.caption(
+            "Mode libre: pas de chrono. "
+            "Repete la phrase puis envoie quand tu es pret."
+        )
 
-    run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"
-    blob_key = f"{run_key}-blob"
-    widget_key = f"{run_key}-widget"
+        chunk_audio_path, audio_err = ensure_shadowing_chunk_audio(
+            profile_id=profile_id,
+            source_id=source_id,
+            chunk_idx=next_idx,
+            chunk_text=current_chunk,
+            voice=voice,
+        )
+        if audio_err:
+            st.warning(f"Audio phrase indisponible: {audio_err}")
+        elif chunk_audio_path and os.path.exists(chunk_audio_path):
+            autoplay_chunk_marker = f"{profile_id}:{day_key}:{source_id}:{next_idx}"
+            autoplay_state_key = "shadow_last_autoplay_chunk"
+            if st.session_state.get(autoplay_state_key) != autoplay_chunk_marker:
+                try:
+                    with open(chunk_audio_path, "rb") as _af:
+                        _ab64 = base64.b64encode(_af.read()).decode("utf-8")
+                    st_components.html(
+                        (
+                            '<audio autoplay style="display:none">'
+                            f'<source src="data:audio/wav;base64,{_ab64}">'
+                            "</audio>"
+                        ),
+                        height=0,
+                    )
+                    st.session_state[autoplay_state_key] = autoplay_chunk_marker
+                except Exception:
+                    pass
+            st.audio(chunk_audio_path, format="audio/wav")
 
-    def _finalize_chunk():
-        audio_bytes = st.session_state.get(blob_key)
-        duration_sec = 0.0
-        user_text = ""
-        score = 0
-        feedback = ""
+        run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"
+        blob_key = f"{run_key}-blob"
+        widget_key = f"{run_key}-widget"
 
-        if audio_bytes:
-            duration = _audio_duration_seconds(audio_bytes)
-            if duration is not None:
-                duration_sec = float(duration)
+        # ── Audio input FIRST so bytes are captured before button click ──
+        fmt_key = f"{run_key}-fmt"
+        user_audio_widget = st.audio_input(
+            "Enregistre ta repetition ici",
+            key=widget_key,
+        )
+        if user_audio_widget is not None:
+            raw_bytes = user_audio_widget.getvalue()
+            if raw_bytes and len(raw_bytes) > 44:
+                st.session_state[blob_key] = raw_bytes
+                # Detect format from widget MIME type
+                mime = getattr(user_audio_widget, "type", "") or ""
+                if "webm" in mime:
+                    st.session_state[fmt_key] = "webm"
+                elif "ogg" in mime:
+                    st.session_state[fmt_key] = "ogg"
+                elif "mp3" in mime or "mpeg" in mime:
+                    st.session_state[fmt_key] = "mp3"
+                else:
+                    st.session_state[fmt_key] = "wav"
 
-            if duration is not None and duration > (record_limit + 0.2):
-                score = 40
-                feedback = (
-                    f"Audio trop long ({duration_sec:.1f}s). "
-                    f"Cible: {record_limit:.1f}s max pour cette phrase."
-                )
-            else:
+        has_audio = bool(st.session_state.get(blob_key))
+        if has_audio:
+            st.success("Audio capture - pret a envoyer!", icon="✅")
+
+        def _finalize_chunk():
+            audio_bytes = st.session_state.get(blob_key)
+            audio_fmt = st.session_state.get(fmt_key, "wav")
+            if not audio_bytes:
+                w = st.session_state.get(widget_key)
+                if w is not None:
+                    try:
+                        raw = w.getvalue()
+                        if raw and len(raw) > 44:
+                            audio_bytes = raw
+                            mime = getattr(w, "type", "") or ""
+                            if "webm" in mime:
+                                audio_fmt = "webm"
+                            elif "ogg" in mime:
+                                audio_fmt = "ogg"
+                    except Exception:
+                        audio_bytes = None
+            duration_sec = 0.0
+            user_text = ""
+            score = 0
+            feedback = ""
+
+            if audio_bytes:
+                duration = _audio_duration_seconds(audio_bytes)
+                if duration is not None:
+                    duration_sec = float(duration)
+
                 with st.spinner("Transcription et notation..."):
                     user_text, stt_err = transcribe_audio_with_openrouter(
                         audio_bytes,
-                        audio_format="wav",
+                        audio_format=audio_fmt,
                     )
                 if stt_err:
                     score = 30
@@ -4102,55 +4170,75 @@ def render_shadowing_daily_page():
                             if feedback
                             else mismatch_msg
                         )
-        else:
-            score = 0
-            feedback = "Aucun audio detecte."
+            else:
+                score = 0
+                feedback = (
+                    "Aucun audio detecte. Enregistre d'abord puis clique Envoyer."
+                )
 
-        save_shadowing_chunk_result(
-            profile_id=profile_id,
-            day_key=day_key,
-            source_id=source_id,
-            chunk_idx=next_idx,
-            chunk_text=current_chunk,
-            score=score,
-            feedback=feedback,
-            user_text=user_text,
-            duration_sec=duration_sec,
-            chunk_count=len(chunks),
-        )
-
-        st.session_state.pop(blob_key, None)
-        st.session_state.pop(widget_key, None)
-        st.rerun()
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("Envoyer maintenant", key=f"{run_key}-send-btn", width="stretch"):
-            _finalize_chunk()
-    with c2:
-        if st.button("Passer", key=f"{run_key}-skip-btn", width="stretch"):
             save_shadowing_chunk_result(
                 profile_id=profile_id,
                 day_key=day_key,
                 source_id=source_id,
                 chunk_idx=next_idx,
                 chunk_text=current_chunk,
-                score=0,
-                feedback="Phrase passee manuellement.",
-                user_text="",
-                duration_sec=0.0,
+                score=score,
+                feedback=feedback,
+                user_text=user_text,
+                duration_sec=duration_sec,
                 chunk_count=len(chunks),
             )
+
             st.session_state.pop(blob_key, None)
             st.session_state.pop(widget_key, None)
+            st.session_state.pop(fmt_key, None)
             st.rerun()
 
-    user_audio_widget = st.audio_input(
-        "Enregistre ta repetition ici",
-        key=widget_key,
-    )
-    if user_audio_widget:
-        st.session_state[blob_key] = user_audio_widget.getvalue()
+        btn1, btn2 = st.columns(2)
+        with btn1:
+            send_disabled = not has_audio
+            if st.button(
+                "Envoyer maintenant",
+                key=f"{run_key}-send-btn",
+                width="stretch",
+                disabled=send_disabled,
+            ):
+                _finalize_chunk()
+        with btn2:
+            if st.button("Passer", key=f"{run_key}-skip-btn", width="stretch"):
+                save_shadowing_chunk_result(
+                    profile_id=profile_id,
+                    day_key=day_key,
+                    source_id=source_id,
+                    chunk_idx=next_idx,
+                    chunk_text=current_chunk,
+                    score=0,
+                    feedback="Phrase passee manuellement.",
+                    user_text="",
+                    duration_sec=0.0,
+                    chunk_count=len(chunks),
+                )
+                st.session_state.pop(blob_key, None)
+                st.session_state.pop(widget_key, None)
+                st.session_state.pop(fmt_key, None)
+                st.rerun()
+
+        if not has_audio:
+            st.info("Enregistre ton audio ci-dessus, puis clique Envoyer.")
+
+    with col_detail:
+        st.markdown("### Resultats phrase par phrase")
+        # Reload records from disk to reflect the latest save
+        records_fresh = get_shadowing_session_records(profile_id, day_key, source_id)
+        detail_container = st.container(height=500)
+        with detail_container:
+            if records_fresh:
+                _render_shadowing_phrase_detail(records_fresh)
+            else:
+                st.info("Les resultats apparaitront ici au fur et a mesure.")
+
+    # ── Recommencer + run history (full width, below columns) ──
+    _render_recommencer_and_history()
 
 
 # ── Story persistence ─────────────────────────────────────────────────────────
@@ -5310,17 +5398,19 @@ def translate_and_explain(term: str, target_cefr: str = "B1"):
     target = str(target_cefr or "B1").upper()
     if target not in CEFR_LEVELS:
         target = "B1"
-    prompt = f"""You are an expert English teacher for French speakers.
+    prompt = f"""You are an expert English teacher for French-speaking learners.
 The learner gives you a word or chunk in English (or occasionally in French).
 Target CEFR level for the output examples and explanations: {target}.
 Return a JSON object with these exact keys:
 - "term": the English word/chunk (normalized)
-- "translation": concise French translation
+- "translation": concise translation IN FRENCH (mandatory: always in French, never Spanish or any other language)
 - "part_of_speech": e.g. "idiom", "verb", "noun phrase", "phrasal verb" etc.
 - "explanation": 2-3 sentence English explanation of meaning, register, and typical context
 - "examples": array of exactly 3 English example sentences that show natural usage (no translation needed)
 - "synonyms": array of 2-3 English synonyms or related expressions (can be empty array)
 - "level": estimated CEFR level string, e.g. "B2"
+
+IMPORTANT: The "translation" field MUST be in French. Example: for "to run out of" -> "manquer de", NOT "quedarse sin".
 
 Respond with ONLY valid JSON, no markdown fences."""
 
@@ -5635,12 +5725,11 @@ def render_vocabulary_page():
         mode_key = f"flash_mode_{profile_id}_{is_reverse}"
         if (
             "flash_idx" not in st.session_state
-            or st.session_state.get("flash_due_count") != total_due
             or st.session_state.get("flash_mode_key") != mode_key
             or st.session_state.get("flash_profile_id") != profile_id
         ):
             st.session_state["flash_idx"] = 0
-            st.session_state["flash_due_count"] = total_due
+            st.session_state["flash_initial_due"] = total_due
             st.session_state["flash_mode_key"] = mode_key
             st.session_state["flash_profile_id"] = profile_id
             st.session_state["flash_revealed"] = False
@@ -5648,10 +5737,19 @@ def render_vocabulary_page():
             st.session_state["flash_user_audio_bytes"] = None
             st.session_state["flash_user_audio_path"] = None
 
-        idx = st.session_state["flash_idx"] % total_due
+        initial_due = st.session_state.get("flash_initial_due", total_due)
+        card_number = st.session_state.get("flash_idx", 0) + 1
+
+        if not due:
+            st.success("✅ Toutes les révisions du jour sont faites ! Reviens demain.")
+            st.session_state.pop("flash_idx", None)
+            st.session_state.pop("flash_initial_due", None)
+            return
+
+        idx = st.session_state["flash_idx"] % len(due)
         card = due[idx]
 
-        st.markdown(f"**Carte {idx + 1} / {total_due}**")
+        st.markdown(f"**Carte {card_number} / {initial_due}**")
         st.markdown("---")
 
         # Card face

@@ -8,172 +8,162 @@
       {
         "chunk_idx": 0,
         "chunk_text": "Hi!",
-        "score": 40,
-        "feedback": "Audio trop long (2.3s). Cible: 1.6s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.34,
-        "saved_at": "2026-04-06T21:06:19Z"
+        "score": 50,
+        "feedback": "Fidélité : Le mot attendu était 'Hi', mais vous avez dit 'Hello'. Prononciation : Bien que 'Hello' soit un mot correct en anglais, il ne correspond pas au mot attendu. Fluence : La fluidité est correcte, mais il est important de dire le mot exact attendu. Pour améliorer, concentrez-vous sur la distinction entre 'Hi' et 'Hello'. 'Hi' est plus court et plus direct, tandis que 'Hello' est un peu plus formel. Essayez de pratiquer en répétant 'Hi' plusieurs fois pour vous habituer à sa brièveté. Points a corriger: au lieu de \"hi\", tu as dit \"hello\".",
+        "user_text": "Hello",
+        "duration_sec": 1.2,
+        "saved_at": "2026-04-06T22:25:21Z"
       },
       {
         "chunk_idx": 1,
         "chunk_text": "How's it going?",
-        "score": 34,
-        "feedback": "Audio trop long (2.5s). Cible: 1.9s max pour cette phrase. Penalite spontaneite: -6 (depassement 3.2s).",
-        "user_text": "",
-        "duration_sec": 2.52,
-        "saved_at": "2026-04-06T21:06:36Z"
+        "score": 90,
+        "feedback": "Très bien, presque parfait ! La seule différence est l'absence du point d'interrogation à la fin de la phrase. Vous avez dit \"How's it going\" au lieu de \"How's it going?\". Cela peut sembler mineur, mais en anglais, l'intonation montante à la fin d'une question est importante pour indiquer qu'il s'agit d'une question. Pour améliorer cela, pratiquez en posant la question avec une intonation montante à la fin. Essayez de penser à la mélodie de la phrase, en montant légèrement la voix sur le dernier mot \"going\".",
+        "user_text": "How's it going",
+        "duration_sec": 2.22,
+        "saved_at": "2026-04-06T22:25:35Z"
       },
       {
         "chunk_idx": 2,
         "chunk_text": "Oh, hi!",
-        "score": 31,
-        "feedback": "Audio trop long (2.2s). Cible: 1.6s max pour cette phrase. Penalite spontaneite: -9 (depassement 4.3s).",
-        "user_text": "",
-        "duration_sec": 2.22,
-        "saved_at": "2026-04-06T21:06:50Z"
+        "score": 95,
+        "feedback": "Fidélité: La phrase de l'apprenant est presque correcte, mais il manque la virgule après 'Oh'. L'apprenant a dit 'Oh hi' au lieu de 'Oh, hi!'. Prononciation: Il n'y a pas d'indication de mauvaise prononciation basée sur la transcription. Fluence: Le rythme semble naturel, mais il est important de marquer une légère pause après 'Oh' pour refléter la virgule. Conseil: Pratiquez en disant 'Oh' avec une pause avant de continuer avec 'hi', pour bien marquer la ponctuation et donner un rythme plus naturel.",
+        "user_text": "Oh hi",
+        "duration_sec": 2.34,
+        "saved_at": "2026-04-06T22:25:48Z"
       },
       {
         "chunk_idx": 3,
         "chunk_text": "It's going well, thanks.",
-        "score": 40,
-        "feedback": "Audio trop long (3.3s). Cible: 2.1s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 3.3,
-        "saved_at": "2026-04-06T21:07:01Z"
+        "score": 95,
+        "feedback": "Fidélité : La phrase de l'apprenant est presque correcte, mais il manque une virgule après 'well'. L'apprenant a dit 'It's going well thanks' au lieu de 'It's going well, thanks.'\n\nPrononciation : L'absence de virgule peut indiquer une prononciation trop rapide ou un manque de pause entre 'well' et 'thanks'.\n\nFluence : La phrase est fluide, mais il est important de marquer une légère pause après 'well' pour respecter la ponctuation et le rythme naturel de la phrase.\n\nConseil : Pour améliorer, pratiquez en disant la phrase avec une pause après 'well'. Essayez de dire : 'It's going well... thanks.' en marquant une pause pour simuler la virgule. Cela aidera à améliorer la clarté et le rythme de votre discours.",
+        "user_text": "It's going well thanks",
+        "duration_sec": 3.12,
+        "saved_at": "2026-04-06T22:26:03Z"
       },
       {
         "chunk_idx": 4,
         "chunk_text": "And you?",
-        "score": 40,
-        "feedback": "Audio trop long (2.8s). Cible: 1.6s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.82,
-        "saved_at": "2026-04-06T21:07:19Z"
+        "score": 95,
+        "feedback": "Très bien, il n'y a pas de différence de mots entre ce que vous avez dit et la phrase cible. Cependant, il manque un point d'interrogation à la fin pour indiquer que c'est une question. Assurez-vous de monter légèrement l'intonation à la fin de la phrase pour signaler que c'est une question. Cela aidera à rendre votre discours plus naturel et fluide. Continuez à pratiquer l'intonation des questions en anglais pour améliorer votre fluidité.",
+        "user_text": "And you",
+        "duration_sec": 1.68,
+        "saved_at": "2026-04-06T22:26:17Z"
       },
       {
         "chunk_idx": 5,
         "chunk_text": "I'm good, just busy with work.",
-        "score": 40,
-        "feedback": "Audio trop long (4.3s). Cible: 2.5s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 4.26,
-        "saved_at": "2026-04-06T21:07:54Z"
+        "score": 95,
+        "feedback": "Très bien ! La phrase est presque parfaite. La seule différence est l'absence de la virgule après 'good'. Vous avez dit : 'I'm good just busy with work.' alors que la phrase cible est : 'I'm good, just busy with work.' Cela peut affecter légèrement le rythme naturel de la phrase. Pour améliorer votre fluidité, pensez à faire une petite pause après 'good', comme si vous preniez une respiration rapide. Cela aidera à marquer la séparation entre les idées et à rendre votre discours plus naturel.",
+        "user_text": "I'm good just busy with work.",
+        "duration_sec": 3.3,
+        "saved_at": "2026-04-06T22:26:38Z"
       },
       {
         "chunk_idx": 6,
         "chunk_text": "I was just about to grab some coffee.",
         "score": 100,
-        "feedback": "Excellent! La phrase est parfaitement correcte.",
-        "user_text": "I was just about to grab some coffee",
-        "duration_sec": 3.18,
-        "saved_at": "2026-04-06T21:10:51Z"
+        "feedback": "Félicitations ! Votre phrase est parfaitement fidèle à la phrase cible. Vous avez utilisé tous les mots correctement : 'I was just about to grab some coffee'. Il n'y a pas de différences à corriger. Continuez à pratiquer pour maintenir ce niveau de précision et de fluidité. Essayez de vous enregistrer et de vous écouter pour vous assurer que votre prononciation reste claire et naturelle.",
+        "user_text": "I was just about to grab some coffee.",
+        "duration_sec": 3.66,
+        "saved_at": "2026-04-06T22:26:52Z"
       },
       {
         "chunk_idx": 7,
         "chunk_text": "Nice!",
-        "score": 40,
-        "feedback": "Audio trop long (2.3s). Cible: 1.6s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.34,
-        "saved_at": "2026-04-06T21:11:02Z"
+        "score": 95,
+        "feedback": "Félicitations, vous avez presque atteint la perfection ! La seule différence est l'absence du point d'exclamation dans votre transcription. Vous avez dit 'Nice' au lieu de 'Nice!'. Cela peut indiquer un manque d'intonation ou d'enthousiasme dans votre prononciation. Pour améliorer cela, essayez de pratiquer en ajoutant une légère montée de ton à la fin du mot pour simuler l'exclamation. Cela donnera plus de vie et de naturel à votre expression.",
+        "user_text": "Nice",
+        "duration_sec": 1.86,
+        "saved_at": "2026-04-06T22:27:12Z"
       },
       {
         "chunk_idx": 8,
         "chunk_text": "I love coffee.",
-        "score": 40,
-        "feedback": "Audio trop long (3.3s). Cible: 1.9s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 3.3,
-        "saved_at": "2026-04-06T21:11:12Z"
+        "score": 100,
+        "feedback": "Excellent travail ! Vous avez parfaitement reproduit la phrase cible sans aucune erreur. Continuez à pratiquer pour maintenir ce niveau de précision et de fluidité.",
+        "user_text": "I love coffee",
+        "duration_sec": 2.58,
+        "saved_at": "2026-04-06T22:27:23Z"
       },
       {
         "chunk_idx": 9,
         "chunk_text": "Do you come here often?",
-        "score": 40,
-        "feedback": "Audio trop long (2.5s). Cible: 2.3s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.52,
-        "saved_at": "2026-04-06T21:11:20Z"
+        "score": 90,
+        "feedback": "Fidélité : La phrase est presque correcte, mais il manque le point d'interrogation à la fin, ce qui peut indiquer une intonation incorrecte pour une question. \n\nPrononciation : Les mots sont corrects, mais assurez-vous de bien prononcer 'often'. En anglais américain, le 't' est souvent silencieux, donc cela se prononce souvent 'ofen'. \n\nFluence : La phrase semble fluide, mais n'oubliez pas de monter l'intonation à la fin pour indiquer qu'il s'agit d'une question. \n\nConseil : Pratiquez l'intonation des questions en anglais en écoutant des locuteurs natifs et en répétant après eux. Cela vous aidera à rendre vos questions plus naturelles.",
+        "user_text": "Do you come here often",
+        "duration_sec": 2.7,
+        "saved_at": "2026-04-06T22:27:37Z"
       },
       {
         "chunk_idx": 10,
         "chunk_text": "Not really, it’s my first time.",
-        "score": 40,
-        "feedback": "Audio trop long (2.8s). Cible: 2.5s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.82,
-        "saved_at": "2026-04-06T21:11:28Z"
+        "score": 95,
+        "feedback": "Fidélité : La phrase de l'apprenant est presque correcte, mais il manque une virgule après \"Not really\". Cela peut affecter légèrement la compréhension et le rythme de la phrase.\n\nPrononciation : Il n'y a pas d'indication claire de mots mal prononcés, mais assurez-vous de bien articuler \"really\" et \"first\" pour éviter toute confusion.\n\nFluence : La phrase est fluide, mais l'absence de pause après \"Not really\" peut rendre la phrase un peu précipitée.\n\nPour améliorer : Pensez à faire une pause après \"Not really\" pour marquer la virgule manquante. Cela aidera à donner un rythme plus naturel à votre discours. Vous pouvez vous entraîner en lisant la phrase à voix haute en marquant une légère pause après \"Not really\". Points a corriger: au lieu de \"it s\", tu as dit \"it's\".",
+        "user_text": "Not really it's my first time",
+        "duration_sec": 2.58,
+        "saved_at": "2026-04-06T22:27:49Z"
       },
       {
         "chunk_idx": 11,
         "chunk_text": "Nice to meet you, by the way.",
-        "score": 40,
-        "feedback": "Audio trop long (3.4s). Cible: 2.7s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 3.42,
-        "saved_at": "2026-04-06T21:11:39Z"
+        "score": 95,
+        "feedback": "Très bon effort! La phrase transcrite est presque correcte. La seule différence est l'absence de la virgule après 'you'. Cela peut indiquer un manque de pause naturelle dans la prononciation. Pour améliorer la fluidité, essayez de marquer une légère pause après 'Nice to meet you' avant de continuer avec 'by the way'. Cela donnera un rythme plus naturel à votre discours.",
+        "user_text": "Nice to meet you by the way",
+        "duration_sec": 3.12,
+        "saved_at": "2026-04-06T22:28:04Z"
       },
       {
         "chunk_idx": 12,
         "chunk_text": "Nice to meet you too!",
-        "score": 40,
-        "feedback": "Audio trop long (2.8s). Cible: 2.3s max pour cette phrase.",
-        "user_text": "",
-        "duration_sec": 2.76,
-        "saved_at": "2026-04-06T21:11:48Z"
+        "score": 95,
+        "feedback": "Félicitations, vous avez presque atteint la phrase cible parfaitement. La seule différence est l'absence du point d'exclamation à la fin de votre phrase. Cela n'affecte pas la fidélité des mots, mais peut influencer légèrement l'intonation et le rythme naturel de la phrase. Pour améliorer votre fluidité, essayez de pratiquer avec des phrases qui incluent des exclamations pour bien marquer l'intonation. Par exemple, répétez plusieurs fois 'Nice to meet you too!' en mettant l'accent sur le 'too!' pour donner une intonation plus enthousiaste.",
+        "user_text": "Nice to meet you too.",
+        "duration_sec": 2.88,
+        "saved_at": "2026-04-06T22:28:18Z"
       },
       {
         "chunk_idx": 13,
         "chunk_text": "I'm Sarah.",
-        "score": 0,
-        "feedback": "Aucun audio detecte.",
-        "user_text": "",
-        "duration_sec": 0.0,
-        "saved_at": "2026-04-06T21:11:52Z"
+        "score": 50,
+        "feedback": "Fidélité : La phrase cible est \"I'm Sarah\", mais l'apprenant a dit \"I'm sorry\". Le mot \"Sarah\" a été remplacé par \"sorry\". \n\nPrononciation : Il est probable que l'apprenant ait confondu la prononciation de \"Sarah\" avec \"sorry\". \"Sarah\" se prononce /ˈsɛərə/ ou /ˈsærə/, tandis que \"sorry\" se prononce /ˈsɒri/ ou /ˈsɔːri/. \n\nFluence : La phrase est courte, donc le rythme est probablement correct, mais la substitution de mots change complètement le sens.\n\nConseil : Pour améliorer, concentrez-vous sur la prononciation du nom \"Sarah\". Pratiquez en répétant lentement et en écoutant des enregistrements de locuteurs natifs. Essayez de faire la différence entre les sons \"a\" dans \"Sarah\" et \"o\" dans \"sorry\". Points a corriger: au lieu de \"sarah\", tu as dit \"sorry\".",
+        "user_text": "I'm sorry",
+        "duration_sec": 2.7,
+        "saved_at": "2026-04-06T22:28:32Z"
       },
       {
         "chunk_idx": 14,
         "chunk_text": "I'm Mike.",
         "score": 20,
-        "feedback": "La phrase de l'apprenant est incomplète et ne correspond pas à la phrase cible. 'I'm on' ne transmet pas le même sens que 'I'm Mike'. Il faut corriger pour inclure le nom.",
-        "user_text": "I'm on",
-        "duration_sec": 1.8,
-        "saved_at": "2026-04-06T21:12:03Z"
+        "feedback": "La phrase cible était \"I'm Mike\", mais vous avez dit \"A month\". Les mots diffèrent complètement. Vous avez dit \"A month\" au lieu de \"I'm Mike\". Pour améliorer votre prononciation, concentrez-vous sur la contraction \"I'm\" qui se prononce comme /aɪm/ et le nom \"Mike\" qui se prononce comme /maɪk/. Essayez de pratiquer ces sons individuellement et ensuite ensemble pour améliorer votre fluidité. Un exercice utile serait de répéter des phrases simples avec \"I'm\" pour vous habituer à la contraction. Points a corriger: au lieu de \"i'm mike\", tu as dit \"a month\".",
+        "user_text": "A month",
+        "duration_sec": 1.62,
+        "saved_at": "2026-04-06T22:28:42Z"
       },
       {
         "chunk_idx": 15,
         "chunk_text": "So, what do you do for work?",
         "score": 95,
-        "feedback": "Très bien ! N'oubliez pas la ponctuation à la fin de la phrase.",
+        "feedback": "Fidélité: La phrase de l'apprenant est presque parfaite, mais il manque une virgule après 'So'. Cela peut sembler mineur, mais en anglais, les pauses peuvent affecter la compréhension et le naturel de la phrase.\n\nPrononciation: Il n'y a pas d'indication claire de mots mal prononcés dans la transcription, mais assurez-vous de bien articuler chaque mot, en particulier 'do' et 'work', qui peuvent parfois être mal prononcés par les francophones.\n\nFluence: La phrase est fluide, mais n'oubliez pas d'ajouter une légère pause après 'So' pour imiter le rythme naturel de l'anglais parlé.\n\nConseil: Pratiquez en lisant la phrase à haute voix en ajoutant une pause après 'So'. Cela aidera à améliorer le rythme et à rendre votre discours plus naturel.",
         "user_text": "So what do you do for work",
-        "duration_sec": 2.88,
-        "saved_at": "2026-04-06T21:12:19Z"
+        "duration_sec": 3.12,
+        "saved_at": "2026-04-06T22:28:57Z"
       }
     ],
-    "started_at": "2026-04-06T21:06:10Z",
-    "completed_at": "2026-04-06T21:12:19Z",
+    "started_at": "2026-04-06T22:25:09Z",
+    "completed_at": "2026-04-06T22:28:57Z",
     "run_history": [
       {
-        "archived_at": "2026-04-06T20:51:24Z",
-        "started_at": "2026-04-06T20:39:29Z",
-        "completed_at": "2026-04-06T20:44:52Z",
-        "avg_score": 2.5,
-        "min_score": 0,
-        "max_score": 40,
-        "phrases_done": 16,
-        "chunk_count": 16
-      },
-      {
-        "archived_at": "2026-04-06T21:06:10Z",
-        "started_at": "2026-04-06T20:51:24Z",
-        "completed_at": "2026-04-06T21:00:05Z",
-        "avg_score": 56.9,
-        "min_score": 25,
-        "max_score": 97,
+        "archived_at": "2026-04-06T22:25:09Z",
+        "started_at": "2026-04-06T21:58:47Z",
+        "completed_at": "2026-04-06T22:20:49Z",
+        "avg_score": 50.9,
+        "min_score": 40,
+        "max_score": 95,
         "phrases_done": 16,
         "chunk_count": 16
       }
     ],
-    "restart_count": 2
+    "restart_count": 1
   }
 }

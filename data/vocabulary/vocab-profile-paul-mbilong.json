@@ -27,13 +27,23 @@
     "source_theme": "Introductions & small talk",
     "source_auto": true,
     "srs": {
-      "next_review": "2026-04-06T20:38:21Z",
-      "interval": 1,
-      "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
+      "next_review": "2026-04-09T22:30:31Z",
+      "interval": 3,
+      "ease": 2.65,
+      "repetitions": 1,
+      "last_result": "Facile"
     },
-    "review_history": []
+    "review_history": [
+      {
+        "date": "2026-04-06T22:30:31Z",
+        "mode": "normal",
+        "rating": 3,
+        "rating_label": "Facile",
+        "user_text": "Hi Ben how's it going",
+        "score": 90,
+        "audio_path": "data\\vocab_audio\\profile-paul-mbilong-e5dc5fb0_20260406-223017.wav"
+      }
+    ]
   },
   {
     "id": "e85e7291",
@@ -63,13 +73,23 @@
     "source_theme": "Introductions & small talk",
     "source_auto": true,
     "srs": {
-      "next_review": "2026-04-06T20:38:21Z",
+      "next_review": "2026-04-07T22:31:14Z",
       "interval": 1,
       "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
+      "repetitions": 1,
+      "last_result": "Bien"
     },
-    "review_history": []
+    "review_history": [
+      {
+        "date": "2026-04-06T22:31:14Z",
+        "mode": "normal",
+        "rating": 2,
+        "rating_label": "Bien",
+        "user_text": "Hi Sarah I was just about to grab a coffee",
+        "score": 95,
+        "audio_path": "data\\vocab_audio\\profile-paul-mbilong-e85e7291_20260406-223054.wav"
+      }
+    ]
   },
   {
     "id": "44cabca3",
@@ -99,13 +119,23 @@
     "source_theme": "Introductions & small talk",
     "source_auto": true,
     "srs": {
-      "next_review": "2026-04-06T20:38:21Z",
+      "next_review": "2026-04-07T22:31:52Z",
       "interval": 1,
       "ease": 2.5,
-      "repetitions": 0,
-      "last_result": null
+      "repetitions": 1,
+      "last_result": "Bien"
     },
-    "review_history": []
+    "review_history": [
+      {
+        "date": "2026-04-06T22:31:52Z",
+        "mode": "normal",
+        "rating": 2,
+        "rating_label": "Bien",
+        "user_text": "Nice to meet you by the way",
+        "score": 60,
+        "audio_path": "data\\vocab_audio\\profile-paul-mbilong-44cabca3_20260406-223136.wav"
+      }
+    ]
   },
   {
     "id": "50dfa741",
@@ -352,6 +382,366 @@
     "source_auto": true,
     "srs": {
       "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "c06f9cfc",
+    "profile_id": "profile-paul-mbilong",
+    "term": "What’s the matter?",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Quel est le problème ?",
+    "part_of_speech": "chunk",
+    "explanation": "A way to ask someone what is wrong.",
+    "examples": [
+      {
+        "text": "You look upset. What’s the matter?",
+        "audio_path": null
+      },
+      {
+        "text": "She seems quiet. What’s the matter?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "What's wrong?",
+      "Is something bothering you?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "07a9e3c2",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Let’s figure it out",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Résolvons cela",
+    "part_of_speech": "chunk",
+    "explanation": "A suggestion to solve a problem together.",
+    "examples": [
+      {
+        "text": "I don’t understand this math problem. Let’s figure it out.",
+        "audio_path": null
+      },
+      {
+        "text": "The car won’t start. Let’s figure it out.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Let's solve it",
+      "Let's work it out"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "ac9170a4",
+    "profile_id": "profile-paul-mbilong",
+    "term": "I can help with that",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Je peux vous aider avec ça",
+    "part_of_speech": "chunk",
+    "explanation": "A way to offer assistance.",
+    "examples": [
+      {
+        "text": "If you need help with your homework, I can help with that.",
+        "audio_path": null
+      },
+      {
+        "text": "I can help with that if you want.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "I can assist with that",
+      "I can support you with that"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "2a3021d9",
+    "profile_id": "profile-paul-mbilong",
+    "term": "It won’t start",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Il ne démarre pas",
+    "part_of_speech": "chunk",
+    "explanation": "Used to describe something that is not functioning.",
+    "examples": [
+      {
+        "text": "My phone won’t start.",
+        "audio_path": null
+      },
+      {
+        "text": "The engine won’t start.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "It doesn't turn on",
+      "It won't power up"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "8da98846",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Did you check...?",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "As-tu vérifié... ?",
+    "part_of_speech": "chunk",
+    "explanation": "A way to ask if someone has looked at something.",
+    "examples": [
+      {
+        "text": "Did you check the settings?",
+        "audio_path": null
+      },
+      {
+        "text": "Did you check the connections?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Have you looked at...?",
+      "Have you examined...?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "2037dba9",
+    "profile_id": "profile-paul-mbilong",
+    "term": "It’s plugged in",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Il est branché",
+    "part_of_speech": "chunk",
+    "explanation": "Indicates that a device is connected to a power source.",
+    "examples": [
+      {
+        "text": "Make sure your laptop is plugged in.",
+        "audio_path": null
+      },
+      {
+        "text": "The charger is plugged in.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "It's connected",
+      "It's attached"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "d05190b6",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Maybe it needs a restart",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Peut-être qu'il a besoin d'un redémarrage",
+    "part_of_speech": "chunk",
+    "explanation": "A suggestion that restarting might solve the issue.",
+    "examples": [
+      {
+        "text": "The app is frozen. Maybe it needs a restart.",
+        "audio_path": null
+      },
+      {
+        "text": "If the computer is slow, maybe it needs a restart.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Perhaps it needs to reboot",
+      "It might need to restart"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "562f365a",
+    "profile_id": "profile-paul-mbilong",
+    "term": "What else can we do?",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Que pouvons-nous faire d'autre ?",
+    "part_of_speech": "chunk",
+    "explanation": "A way to ask for additional options or solutions.",
+    "examples": [
+      {
+        "text": "The first plan didn’t work. What else can we do?",
+        "audio_path": null
+      },
+      {
+        "text": "I finished my homework. What else can we do?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "What other options do we have?",
+      "What can we try next?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "9462f056",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Let’s try...",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Essayons...",
+    "part_of_speech": "chunk",
+    "explanation": "A suggestion to attempt something.",
+    "examples": [
+      {
+        "text": "Let’s try turning it off and on.",
+        "audio_path": null
+      },
+      {
+        "text": "Let’s try a different approach.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Let's attempt...",
+      "Let's give it a shot..."
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "2e9c6264",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Removing the battery",
+    "created_at": "2026-04-06T22:40:58Z",
+    "translation": "Retirer la batterie",
+    "part_of_speech": "noun phrase",
+    "explanation": "The action of taking out the battery from a device.",
+    "examples": [
+      {
+        "text": "Removing the battery can sometimes fix the issue.",
+        "audio_path": null
+      },
+      {
+        "text": "Make sure to turn off the device before removing the battery.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Taking out the battery",
+      "Extracting the battery"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:2",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T22:40:58Z",
       "interval": 1,
       "ease": 2.5,
       "repetitions": 0,

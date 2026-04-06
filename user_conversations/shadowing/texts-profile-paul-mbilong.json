@@ -32,5 +32,36 @@
     ],
     "created_at": "2026-04-06T20:38:06Z",
     "updated_at": "2026-04-06T20:38:06Z"
+  },
+  {
+    "source_id": "quick:introductions-small-talk:b1:2",
+    "profile_id": "profile-paul-mbilong",
+    "theme_name": "Introductions & small talk",
+    "cefr_level": "B1",
+    "lesson_kind": "quick",
+    "lesson_title": "Variation 2: Problem-solving discussion",
+    "dialogue_text": "A: Hey, what’s the matter?\nB: I'm having trouble with my computer. It won’t start.\nA: Oh no! Let’s figure it out. Did you check the power?\nB: Yes, I did. It’s plugged in but still nothing.\nA: Hmm, I can help with that. Maybe it needs a restart?\nB: I tried that. What else can we do?\nA: Let’s try removing the battery and putting it back.",
+    "chunks": [
+      "Hey, what’s the matter?",
+      "I'm having trouble with my computer.",
+      "It won’t start.",
+      "Oh no!",
+      "Let’s figure it out.",
+      "Did you check the power?",
+      "Yes, I did.",
+      "It’s plugged in but still nothing.",
+      "Hmm, I can help with that.",
+      "Maybe it needs a restart?",
+      "I tried that.",
+      "What else can we do?",
+      "Let’s try removing the battery and putting it back."
+    ],
+    "chunk_focus": [
+      "What’s the matter?",
+      "Let’s figure it out",
+      "I can help with that"
+    ],
+    "created_at": "2026-04-06T22:40:34Z",
+    "updated_at": "2026-04-06T22:40:34Z"
   }
 ]
