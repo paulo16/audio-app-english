@@ -1,0 +1,362 @@
+[
+  {
+    "id": "e5dc5fb0",
+    "profile_id": "profile-paul-mbilong",
+    "term": "How's it going?",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "¿Cómo va?",
+    "part_of_speech": "chunk",
+    "explanation": "A casual way to ask someone how they are.",
+    "examples": [
+      {
+        "text": "How's it going? I haven't seen you in a while.",
+        "audio_path": null
+      },
+      {
+        "text": "Hey! How's it going with your new job?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "How are you?",
+      "What's up?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "e85e7291",
+    "profile_id": "profile-paul-mbilong",
+    "term": "I was just about to...",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Estaba a punto de...",
+    "part_of_speech": "chunk",
+    "explanation": "Used to indicate that you were on the verge of doing something.",
+    "examples": [
+      {
+        "text": "I was just about to leave when you called.",
+        "audio_path": null
+      },
+      {
+        "text": "I was just about to eat lunch.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "I was going to...",
+      "I was on the point of..."
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "44cabca3",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Nice to meet you",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Encantado/a de conocerte",
+    "part_of_speech": "chunk",
+    "explanation": "A polite expression used when meeting someone for the first time.",
+    "examples": [
+      {
+        "text": "Hi, I'm John. Nice to meet you!",
+        "audio_path": null
+      },
+      {
+        "text": "It's nice to meet you, Sarah.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Pleased to meet you",
+      "Glad to meet you"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "50dfa741",
+    "profile_id": "profile-paul-mbilong",
+    "term": "It's going well",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Va bien",
+    "part_of_speech": "chunk",
+    "explanation": "A response to indicate that things are good.",
+    "examples": [
+      {
+        "text": "How's your day? It's going well, thanks!",
+        "audio_path": null
+      },
+      {
+        "text": "How's the project? It's going well.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "It's going fine",
+      "Everything is good"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "997b83ef",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Just busy with work",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Solo ocupado/a con el trabajo",
+    "part_of_speech": "chunk",
+    "explanation": "A way to explain that you have a lot of work to do.",
+    "examples": [
+      {
+        "text": "I can't join you tonight, I'm just busy with work.",
+        "audio_path": null
+      },
+      {
+        "text": "Lately, I've been just busy with work.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Occupied with work",
+      "Tied up with work"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "6251cd4e",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Do you come here often?",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "¿Vienes aquí a menudo?",
+    "part_of_speech": "chunk",
+    "explanation": "A question to ask someone if they visit a place frequently.",
+    "examples": [
+      {
+        "text": "Do you come here often? I love this café.",
+        "audio_path": null
+      },
+      {
+        "text": "Do you come here often or is this your first time?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Do you visit here regularly?",
+      "Is this a regular spot for you?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "bb50fec2",
+    "profile_id": "profile-paul-mbilong",
+    "term": "It's my first time",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Es mi primera vez",
+    "part_of_speech": "chunk",
+    "explanation": "Used to indicate that you are experiencing something for the first time.",
+    "examples": [
+      {
+        "text": "It's my first time in this city.",
+        "audio_path": null
+      },
+      {
+        "text": "It's my first time trying sushi.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "This is new for me",
+      "I've never done this before"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "b95db054",
+    "profile_id": "profile-paul-mbilong",
+    "term": "What do you do for work?",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "¿A qué te dedicas?",
+    "part_of_speech": "chunk",
+    "explanation": "A common way to ask someone about their job.",
+    "examples": [
+      {
+        "text": "So, what do you do for work?",
+        "audio_path": null
+      },
+      {
+        "text": "I'm curious, what do you do for work?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "What is your job?",
+      "What do you do for a living?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "a11c8ce7",
+    "profile_id": "profile-paul-mbilong",
+    "term": "I love coffee",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "Me encanta el café",
+    "part_of_speech": "chunk",
+    "explanation": "A way to express a strong liking for coffee.",
+    "examples": [
+      {
+        "text": "I love coffee, especially in the morning.",
+        "audio_path": null
+      },
+      {
+        "text": "Do you like tea? I love coffee.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "I'm a big fan of coffee",
+      "I really enjoy coffee"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "e40bae9e",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Just about to",
+    "created_at": "2026-04-06T20:38:21Z",
+    "translation": "A punto de",
+    "part_of_speech": "chunk",
+    "explanation": "Indicates that something is going to happen very soon.",
+    "examples": [
+      {
+        "text": "I'm just about to leave.",
+        "audio_path": null
+      },
+      {
+        "text": "She was just about to call you.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "On the verge of",
+      "Almost ready to"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:1",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-06T20:38:21Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  }
+]

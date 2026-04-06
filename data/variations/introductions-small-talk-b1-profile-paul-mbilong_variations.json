@@ -1,0 +1,132 @@
+[
+  {
+    "id": 1,
+    "cefr_level": "B1",
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hi! How's it going?\nB: Oh, hi! It's going well, thanks. And you?\nA: I'm good, just busy with work. I was just about to grab some coffee.\nB: Nice! I love coffee. Do you come here often?\nA: Not really, it’s my first time. Nice to meet you, by the way.\nB: Nice to meet you too! I'm Sarah.\nA: I'm Mike. So, what do you do for work?"
+  },
+  {
+    "id": 2,
+    "cefr_level": "B1",
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "grammar_focus": "present continuous + will",
+    "chunk_focus": [
+      "What’s the matter?",
+      "Let’s figure it out",
+      "I can help with that"
+    ],
+    "dialogue": "A: Hey, what’s the matter?\nB: I'm having trouble with my computer. It won’t start.\nA: Oh no! Let’s figure it out. Did you check the power?\nB: Yes, I did. It’s plugged in but still nothing.\nA: Hmm, I can help with that. Maybe it needs a restart?\nB: I tried that. What else can we do?\nA: Let’s try removing the battery and putting it back."
+  },
+  {
+    "id": 3,
+    "cefr_level": "B1",
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "grammar_focus": "simple present + will",
+    "chunk_focus": [
+      "We need to hurry",
+      "What do you think?",
+      "I guess we should"
+    ],
+    "dialogue": "A: We need to hurry! The movie starts in 10 minutes.\nB: Right! Should we take the bus or walk?\nA: I think walking is faster. What do you think?\nB: Yeah, I guess we should walk then.\nA: Okay, let’s go! I hope we make it on time.\nB: Me too! I really want to see this film."
+  },
+  {
+    "id": 4,
+    "cefr_level": "B1",
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "grammar_focus": "simple past + conditional",
+    "chunk_focus": [
+      "I see your point",
+      "But I think that...",
+      "Maybe we could consider"
+    ],
+    "dialogue": "A: I think we should go with the blue design.\nB: I see your point, but I think that the green one looks better.\nA: Really? I thought blue was more popular.\nB: Maybe, but green is fresh and unique.\nA: Hm, that’s true. Maybe we could consider both options?\nB: Yes, that sounds fair. Let’s ask the team."
+  },
+  {
+    "id": 5,
+    "cefr_level": "B1",
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "grammar_focus": "simple present + would",
+    "chunk_focus": [
+      "Could you please...",
+      "I would appreciate it",
+      "It would really help me"
+    ],
+    "dialogue": "A: Excuse me, could you please help me with this report?\nB: Sure! What do you need?\nA: I would appreciate it if you could check my calculations.\nB: No problem! It would really help me too if we work together.\nA: Great! Thanks a lot!\nB: You’re welcome! Let’s sit down and go through it."
+  },
+  {
+    "id": 6,
+    "cefr_level": "B1",
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "grammar_focus": "past simple + present perfect",
+    "chunk_focus": [
+      "I didn’t mean to...",
+      "I realize now",
+      "Can we clear this up?"
+    ],
+    "dialogue": "A: Hey, I wanted to talk about yesterday. I didn’t mean to upset you.\nB: I realize now it was a misunderstanding.\nA: Can we clear this up? I thought you were mad at me.\nB: No, I wasn’t. I just misunderstood your words.\nA: I’m glad to hear that. I really value our friendship.\nB: Me too! Let’s forget about it and move on."
+  },
+  {
+    "id": 7,
+    "cefr_level": "B1",
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "grammar_focus": "simple future + going to",
+    "chunk_focus": [
+      "What time should we meet?",
+      "I think I’ll...",
+      "Let’s make a plan"
+    ],
+    "dialogue": "A: What time should we meet tomorrow?\nB: I think I’ll be free around 10 a.m.\nA: Sounds good! Let’s make a plan for breakfast first?\nB: Yes! I’m going to try that new cafe.\nA: Oh, I heard it’s really good. Let’s meet there!\nB: Perfect! I can’t wait to try it."
+  },
+  {
+    "id": 8,
+    "cefr_level": "B1",
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "grammar_focus": "simple present + would",
+    "chunk_focus": [
+      "What do you think I should do?",
+      "I’m considering...",
+      "Any advice?"
+    ],
+    "dialogue": "A: Hey, I need your advice. What do you think I should do?\nB: Sure! What’s the problem?\nA: I’m considering taking a new job, but I’m not sure.\nB: That sounds exciting! Any advice?\nA: I just don’t want to make the wrong choice.\nB: Well, think about what’s best for you. Trust your gut!"
+  },
+  {
+    "id": 9,
+    "cefr_level": "B1",
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "grammar_focus": "simple present + comparative",
+    "chunk_focus": [
+      "What do you think about...",
+      "In my opinion...",
+      "It’s better than"
+    ],
+    "dialogue": "A: I’m thinking of buying a laptop. What do you think about the Dell?\nB: I think it’s good, but the HP is faster.\nA: Really? In my opinion, the Dell looks nicer.\nB: True, but the HP is better for gaming.\nA: I see. So, it’s better than the Dell for performance?\nB: Yes! If you game a lot, I would choose the HP."
+  },
+  {
+    "id": 10,
+    "cefr_level": "B1",
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "grammar_focus": "future simple + going to",
+    "chunk_focus": [
+      "Let’s wrap this up",
+      "I’m going to...",
+      "See you next time!"
+    ],
+    "dialogue": "A: Alright, let’s wrap this up. What’s next?\nB: I’m going to finish the report by Friday.\nA: Great! I’ll review it on Saturday.\nB: Perfect! See you next time!\nA: Yes! Let’s meet again next week to discuss it.\nB: Sounds like a plan! Take care!"
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "default",
+    "name": "Profil principal",
+    "target_cefr": "B1",
+    "module_levels": {},
+    "created_at": "2026-04-06T19:34:52Z"
+  },
+  {
+    "id": "profile-paul-mbilong",
+    "name": "Paul Mbilong",
+    "target_cefr": "B1",
+    "module_levels": {},
+    "created_at": "2026-04-06T19:35:42Z"
+  },
+  {
+    "id": "profile-pauline-aglago",
+    "name": "Pauline Aglago",
+    "target_cefr": "A2",
+    "module_levels": {},
+    "created_at": "2026-04-06T19:51:19Z"
+  }
+]

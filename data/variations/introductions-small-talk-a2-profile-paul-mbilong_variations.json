@@ -1,0 +1,132 @@
+[
+  {
+    "id": 1,
+    "cefr_level": "A2",
+    "title": "Variation 1: First-time conversation",
+    "situation": "first-time conversation",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "dialogue": "A: Hi! How's it going?\nB: Hi! I'm good, thanks. And you?\nA: I'm fine. Nice to meet you!\nB: Nice to meet you too! What do you do?\nA: I work in a bookstore. What about you?\nB: I’m a teacher. I love it!"
+  },
+  {
+    "id": 2,
+    "cefr_level": "A2",
+    "title": "Variation 2: Problem-solving discussion",
+    "situation": "problem-solving discussion",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "What do you think?",
+      "We can try...",
+      "Let's find a solution"
+    ],
+    "dialogue": "A: We have a problem with the project.\nB: Yes, I know. What do you think?\nA: I think we can try a different approach.\nB: Good idea! What should we do?\nA: Let's find a solution together.\nB: Okay! I will make a list of ideas."
+  },
+  {
+    "id": 3,
+    "cefr_level": "A2",
+    "title": "Variation 3: Quick decision under time pressure",
+    "situation": "quick decision under time pressure",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "We need to decide quickly.",
+      "What do you want to do?",
+      "Let's go with that."
+    ],
+    "dialogue": "A: We need to decide quickly! The movie starts soon.\nB: Yes! What do you want to do?\nA: Should we eat first or go to the movie?\nB: Let's eat after. I want to see the movie!\nA: Okay! Let's go with that."
+  },
+  {
+    "id": 4,
+    "cefr_level": "A2",
+    "title": "Variation 4: Polite disagreement",
+    "situation": "polite disagreement",
+    "grammar_focus": "simple present + past simple",
+    "chunk_focus": [
+      "I see your point, but...",
+      "I don’t agree.",
+      "That's a good idea."
+    ],
+    "dialogue": "A: I think we should start the meeting early.\nB: I see your point, but I prefer to start later.\nA: Why? Is there a reason?\nB: Yes, I don’t agree because more people will be there later.\nA: That's a good idea. Maybe we can compromise."
+  },
+  {
+    "id": 5,
+    "cefr_level": "A2",
+    "title": "Variation 5: Making a request",
+    "situation": "making a request",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "Can you help me?",
+      "I need your help.",
+      "Could you please...?"
+    ],
+    "dialogue": "A: Hi! Can you help me?\nB: Sure! What do you need?\nA: I need your help with my homework.\nB: Of course! What subject is it?\nA: It’s math. Could you please explain this problem?\nB: Yes, I can!"
+  },
+  {
+    "id": 6,
+    "cefr_level": "A2",
+    "title": "Variation 6: Follow-up after a misunderstanding",
+    "situation": "follow-up after a misunderstanding",
+    "grammar_focus": "simple past + present perfect",
+    "chunk_focus": [
+      "I think there was a misunderstanding.",
+      "I didn't mean to confuse you.",
+      "Let’s clarify."
+    ],
+    "dialogue": "A: I think there was a misunderstanding earlier.\nB: Yes, I didn't mean to confuse you.\nA: What did you mean?\nB: I meant the meeting is next week, not this week.\nA: Oh! Let’s clarify that together."
+  },
+  {
+    "id": 7,
+    "cefr_level": "A2",
+    "title": "Variation 7: Planning for tomorrow",
+    "situation": "planning for tomorrow",
+    "grammar_focus": "simple future + simple present",
+    "chunk_focus": [
+      "What time should we meet?",
+      "I will bring...",
+      "Let’s meet at..."
+    ],
+    "dialogue": "A: What time should we meet tomorrow?\nB: Let’s meet at 10 AM.\nA: Okay! I will bring the papers.\nB: Great! I will bring the snacks.\nA: Sounds good! See you then!"
+  },
+  {
+    "id": 8,
+    "cefr_level": "A2",
+    "title": "Variation 8: Asking for advice",
+    "situation": "asking for advice",
+    "grammar_focus": "simple present + modals",
+    "chunk_focus": [
+      "What do you think I should do?",
+      "I need some advice.",
+      "Maybe you should..."
+    ],
+    "dialogue": "A: Hi! I need some advice.\nB: Sure! What do you think I should do?\nA: I want to change my job.\nB: Maybe you should look for something in your field.\nA: That’s a good idea! Thank you!"
+  },
+  {
+    "id": 9,
+    "cefr_level": "A2",
+    "title": "Variation 9: Comparing two options",
+    "situation": "comparing two options",
+    "grammar_focus": "simple present + comparative",
+    "chunk_focus": [
+      "Which one do you prefer?",
+      "This one is better because...",
+      "I like this one more."
+    ],
+    "dialogue": "A: I have two shirts. Which one do you prefer?\nB: I like the blue one.\nA: Why?\nB: This one is better because it looks nice.\nA: I like this one more too! Let's buy it."
+  },
+  {
+    "id": 10,
+    "cefr_level": "A2",
+    "title": "Variation 10: Wrapping up and next steps",
+    "situation": "wrapping up and next steps",
+    "grammar_focus": "simple present + future simple",
+    "chunk_focus": [
+      "Let’s summarize what we talked about.",
+      "Next, we will...",
+      "I will email you."
+    ],
+    "dialogue": "A: Let’s summarize what we talked about.\nB: Yes, we discussed the project.\nA: Next, we will meet again next week.\nB: I will email you the details.\nA: Perfect! Thanks for the meeting!"
+  }
+]

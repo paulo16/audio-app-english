@@ -1,0 +1,36 @@
+[
+  {
+    "source_id": "quick:introductions-small-talk:b1:1",
+    "profile_id": "profile-paul-mbilong",
+    "theme_name": "Introductions & small talk",
+    "cefr_level": "B1",
+    "lesson_kind": "quick",
+    "lesson_title": "Variation 1: First-time conversation",
+    "dialogue_text": "A: Hi! How's it going?\nB: Oh, hi! It's going well, thanks. And you?\nA: I'm good, just busy with work. I was just about to grab some coffee.\nB: Nice! I love coffee. Do you come here often?\nA: Not really, it’s my first time. Nice to meet you, by the way.\nB: Nice to meet you too! I'm Sarah.\nA: I'm Mike. So, what do you do for work?",
+    "chunks": [
+      "Hi!",
+      "How's it going?",
+      "Oh, hi!",
+      "It's going well, thanks.",
+      "And you?",
+      "I'm good, just busy with work.",
+      "I was just about to grab some coffee.",
+      "Nice!",
+      "I love coffee.",
+      "Do you come here often?",
+      "Not really, it’s my first time.",
+      "Nice to meet you, by the way.",
+      "Nice to meet you too!",
+      "I'm Sarah.",
+      "I'm Mike.",
+      "So, what do you do for work?"
+    ],
+    "chunk_focus": [
+      "How's it going?",
+      "I was just about to...",
+      "Nice to meet you"
+    ],
+    "created_at": "2026-04-06T20:38:06Z",
+    "updated_at": "2026-04-06T20:38:06Z"
+  }
+]

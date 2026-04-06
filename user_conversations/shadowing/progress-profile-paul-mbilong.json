@@ -1,0 +1,179 @@
+{
+  "2026-04-06::quick:introductions-small-talk:b1:1": {
+    "profile_id": "profile-paul-mbilong",
+    "day": "2026-04-06",
+    "source_id": "quick:introductions-small-talk:b1:1",
+    "chunk_count": 16,
+    "records": [
+      {
+        "chunk_idx": 0,
+        "chunk_text": "Hi!",
+        "score": 40,
+        "feedback": "Audio trop long (2.3s). Cible: 1.6s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.34,
+        "saved_at": "2026-04-06T21:06:19Z"
+      },
+      {
+        "chunk_idx": 1,
+        "chunk_text": "How's it going?",
+        "score": 34,
+        "feedback": "Audio trop long (2.5s). Cible: 1.9s max pour cette phrase. Penalite spontaneite: -6 (depassement 3.2s).",
+        "user_text": "",
+        "duration_sec": 2.52,
+        "saved_at": "2026-04-06T21:06:36Z"
+      },
+      {
+        "chunk_idx": 2,
+        "chunk_text": "Oh, hi!",
+        "score": 31,
+        "feedback": "Audio trop long (2.2s). Cible: 1.6s max pour cette phrase. Penalite spontaneite: -9 (depassement 4.3s).",
+        "user_text": "",
+        "duration_sec": 2.22,
+        "saved_at": "2026-04-06T21:06:50Z"
+      },
+      {
+        "chunk_idx": 3,
+        "chunk_text": "It's going well, thanks.",
+        "score": 40,
+        "feedback": "Audio trop long (3.3s). Cible: 2.1s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 3.3,
+        "saved_at": "2026-04-06T21:07:01Z"
+      },
+      {
+        "chunk_idx": 4,
+        "chunk_text": "And you?",
+        "score": 40,
+        "feedback": "Audio trop long (2.8s). Cible: 1.6s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.82,
+        "saved_at": "2026-04-06T21:07:19Z"
+      },
+      {
+        "chunk_idx": 5,
+        "chunk_text": "I'm good, just busy with work.",
+        "score": 40,
+        "feedback": "Audio trop long (4.3s). Cible: 2.5s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 4.26,
+        "saved_at": "2026-04-06T21:07:54Z"
+      },
+      {
+        "chunk_idx": 6,
+        "chunk_text": "I was just about to grab some coffee.",
+        "score": 100,
+        "feedback": "Excellent! La phrase est parfaitement correcte.",
+        "user_text": "I was just about to grab some coffee",
+        "duration_sec": 3.18,
+        "saved_at": "2026-04-06T21:10:51Z"
+      },
+      {
+        "chunk_idx": 7,
+        "chunk_text": "Nice!",
+        "score": 40,
+        "feedback": "Audio trop long (2.3s). Cible: 1.6s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.34,
+        "saved_at": "2026-04-06T21:11:02Z"
+      },
+      {
+        "chunk_idx": 8,
+        "chunk_text": "I love coffee.",
+        "score": 40,
+        "feedback": "Audio trop long (3.3s). Cible: 1.9s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 3.3,
+        "saved_at": "2026-04-06T21:11:12Z"
+      },
+      {
+        "chunk_idx": 9,
+        "chunk_text": "Do you come here often?",
+        "score": 40,
+        "feedback": "Audio trop long (2.5s). Cible: 2.3s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.52,
+        "saved_at": "2026-04-06T21:11:20Z"
+      },
+      {
+        "chunk_idx": 10,
+        "chunk_text": "Not really, it’s my first time.",
+        "score": 40,
+        "feedback": "Audio trop long (2.8s). Cible: 2.5s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.82,
+        "saved_at": "2026-04-06T21:11:28Z"
+      },
+      {
+        "chunk_idx": 11,
+        "chunk_text": "Nice to meet you, by the way.",
+        "score": 40,
+        "feedback": "Audio trop long (3.4s). Cible: 2.7s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 3.42,
+        "saved_at": "2026-04-06T21:11:39Z"
+      },
+      {
+        "chunk_idx": 12,
+        "chunk_text": "Nice to meet you too!",
+        "score": 40,
+        "feedback": "Audio trop long (2.8s). Cible: 2.3s max pour cette phrase.",
+        "user_text": "",
+        "duration_sec": 2.76,
+        "saved_at": "2026-04-06T21:11:48Z"
+      },
+      {
+        "chunk_idx": 13,
+        "chunk_text": "I'm Sarah.",
+        "score": 0,
+        "feedback": "Aucun audio detecte.",
+        "user_text": "",
+        "duration_sec": 0.0,
+        "saved_at": "2026-04-06T21:11:52Z"
+      },
+      {
+        "chunk_idx": 14,
+        "chunk_text": "I'm Mike.",
+        "score": 20,
+        "feedback": "La phrase de l'apprenant est incomplète et ne correspond pas à la phrase cible. 'I'm on' ne transmet pas le même sens que 'I'm Mike'. Il faut corriger pour inclure le nom.",
+        "user_text": "I'm on",
+        "duration_sec": 1.8,
+        "saved_at": "2026-04-06T21:12:03Z"
+      },
+      {
+        "chunk_idx": 15,
+        "chunk_text": "So, what do you do for work?",
+        "score": 95,
+        "feedback": "Très bien ! N'oubliez pas la ponctuation à la fin de la phrase.",
+        "user_text": "So what do you do for work",
+        "duration_sec": 2.88,
+        "saved_at": "2026-04-06T21:12:19Z"
+      }
+    ],
+    "started_at": "2026-04-06T21:06:10Z",
+    "completed_at": "2026-04-06T21:12:19Z",
+    "run_history": [
+      {
+        "archived_at": "2026-04-06T20:51:24Z",
+        "started_at": "2026-04-06T20:39:29Z",
+        "completed_at": "2026-04-06T20:44:52Z",
+        "avg_score": 2.5,
+        "min_score": 0,
+        "max_score": 40,
+        "phrases_done": 16,
+        "chunk_count": 16
+      },
+      {
+        "archived_at": "2026-04-06T21:06:10Z",
+        "started_at": "2026-04-06T20:51:24Z",
+        "completed_at": "2026-04-06T21:00:05Z",
+        "avg_score": 56.9,
+        "min_score": 25,
+        "max_score": 97,
+        "phrases_done": 16,
+        "chunk_count": 16
+      }
+    ],
+    "restart_count": 2
+  }
+}

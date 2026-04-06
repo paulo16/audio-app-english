@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 import hashlib
 import io
 import json
@@ -6,7 +6,8 @@ import os
 import re
 import uuid
 import wave
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 
 import requests
 import streamlit as st
@@ -62,6 +63,15 @@ VARIATIONS_DIR = os.path.join(DATA_DIR, "variations")
 USER_CONVERSATIONS_DIR = "user_conversations"
 SESSIONS_DIR = os.path.join(USER_CONVERSATIONS_DIR, "sessions")
 AUDIO_DIR = os.path.join(USER_CONVERSATIONS_DIR, "audio")
+PROFILES_DIR = os.path.join(USER_CONVERSATIONS_DIR, "profiles")
+PROFILES_FILE = os.path.join(PROFILES_DIR, "profiles.json")
+LESSON_FLASHCARD_LIMIT = 10
+SHADOWING_DIR = os.path.join(USER_CONVERSATIONS_DIR, "shadowing")
+SHADOWING_AUDIO_DIR = os.path.join(SHADOWING_DIR, "audio")
+SHADOWING_DAILY_FILE = os.path.join(SHADOWING_DIR, "daily_assignments.json")
+SHADOWING_MAX_RECORD_SECONDS = 3.0
+SHADOWING_SUBMIT_GRACE_SECONDS = 4.0
+SHADOWING_PREP_SECONDS = 2.0
 
 ESSENTIAL_THEMES = {
     # — Daily Life & Basics —
@@ -246,6 +256,26 @@ THEME_CATEGORIES = {
 }
 
 CEFR_DESCRIPTORS = {
+    "A1": {
+        "label": "A1 — Débutant",
+        "badge": "⚪ A1",
+        "english": (
+            "Use very simple everyday words and short sentences. "
+            "Prefer present simple and basic question forms. "
+            "Keep ideas concrete and direct with frequent repetition. "
+            "Prioritize clarity over complexity."
+        ),
+    },
+    "A2": {
+        "label": "A2 — Élémentaire",
+        "badge": "🟡 A2",
+        "english": (
+            "Use common vocabulary for daily routines, family, shopping, and work basics. "
+            "Use short linked sentences with simple past/future forms when needed. "
+            "Ask and answer practical questions clearly. "
+            "Minor grammar mistakes are acceptable if meaning stays clear."
+        ),
+    },
     "B1": {
         "label": "B1 — Intermédiaire",
         "badge": "🔵 B1",
@@ -287,6 +317,8 @@ CEFR_DESCRIPTORS = {
         ),
     },
 }
+
+CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
 VARIATION_SITUATIONS = [
     "first-time conversation",
@@ -447,6 +479,9 @@ def ensure_directories():
         LESSON_AUDIO_DIR,
         VARIATIONS_DIR,
         USER_CONVERSATIONS_DIR,
+        PROFILES_DIR,
+        SHADOWING_DIR,
+        SHADOWING_AUDIO_DIR,
         SESSIONS_DIR,
         AUDIO_DIR,
         PODCAST_DIR,
@@ -462,12 +497,210 @@ def ensure_directories():
 
 
 def now_iso():
-    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return utc_iso(utc_now())
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def utc_iso(dt):
+    return (
+        dt.astimezone(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def slugify(value):
     value = value.lower().strip()
     return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+
+
+def _profile_storage_slug(profile_id):
+    return slugify(profile_id or "default") or "default"
+
+
+def save_profiles(profiles):
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    with open(PROFILES_FILE, "w", encoding="utf-8") as f:
+        json.dump(profiles, f, ensure_ascii=False, indent=2)
+
+
+def load_profiles():
+    if not os.path.exists(PROFILES_FILE):
+        default_profiles = [
+            {
+                "id": "default",
+                "name": "Profil principal",
+                "target_cefr": "B1",
+                "module_levels": {},
+                "created_at": now_iso(),
+            }
+        ]
+        save_profiles(default_profiles)
+        return default_profiles
+
+    try:
+        with open(PROFILES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        data = []
+
+    profiles = []
+    if isinstance(data, list):
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+            pid = str(item.get("id", "")).strip() or f"profile-{slugify(name)}"
+            pid = _profile_storage_slug(pid)
+            target = str(item.get("target_cefr", "B1")).upper()
+            if target not in CEFR_LEVELS:
+                target = "B1"
+            module_levels_raw = item.get("module_levels", {})
+            module_levels = {}
+            if isinstance(module_levels_raw, dict):
+                for k, v in module_levels_raw.items():
+                    vv = str(v).upper()
+                    if vv in CEFR_LEVELS:
+                        module_levels[str(k)] = vv
+            profiles.append(
+                {
+                    "id": pid,
+                    "name": name,
+                    "target_cefr": target,
+                    "module_levels": module_levels,
+                    "created_at": item.get("created_at") or now_iso(),
+                }
+            )
+
+    if not profiles:
+        profiles = [
+            {
+                "id": "default",
+                "name": "Profil principal",
+                "target_cefr": "B1",
+                "module_levels": {},
+                "created_at": now_iso(),
+            }
+        ]
+
+    if not any(p.get("id") == "default" for p in profiles):
+        profiles.insert(
+            0,
+            {
+                "id": "default",
+                "name": "Profil principal",
+                "target_cefr": "B1",
+                "module_levels": {},
+                "created_at": now_iso(),
+            },
+        )
+
+    save_profiles(profiles)
+    return profiles
+
+
+def create_or_update_profile(name, target_cefr="B1"):
+    clean_name = str(name or "").strip()
+    if not clean_name:
+        return None, "Le nom du profil est obligatoire."
+
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+
+    profiles = load_profiles()
+    existing = next(
+        (p for p in profiles if p.get("name", "").lower() == clean_name.lower()), None
+    )
+    if existing:
+        existing["target_cefr"] = target
+        save_profiles(profiles)
+        return existing, None
+
+    profile_id = _profile_storage_slug(f"profile-{slugify(clean_name)}")
+    if any(p.get("id") == profile_id for p in profiles):
+        profile_id = _profile_storage_slug(f"{profile_id}-{uuid.uuid4().hex[:6]}")
+
+    profile = {
+        "id": profile_id,
+        "name": clean_name,
+        "target_cefr": target,
+        "module_levels": {},
+        "created_at": now_iso(),
+    }
+    profiles.append(profile)
+    save_profiles(profiles)
+    return profile, None
+
+
+def update_profile_target_cefr(profile_id, target_cefr):
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        return
+
+    profiles = load_profiles()
+    changed = False
+    for p in profiles:
+        if p.get("id") == profile_id and p.get("target_cefr") != target:
+            p["target_cefr"] = target
+            changed = True
+            break
+    if changed:
+        save_profiles(profiles)
+
+
+def get_active_profile():
+    profiles = load_profiles()
+    active_id = st.session_state.get("active_profile_id")
+    active = next((p for p in profiles if p.get("id") == active_id), None)
+    if not active:
+        active = profiles[0]
+        st.session_state["active_profile_id"] = active["id"]
+    st.session_state["active_profile_name"] = active.get("name", "Profil principal")
+    st.session_state["active_profile_target_cefr"] = active.get("target_cefr", "B1")
+    return active
+
+
+def get_profile_module_level(profile, module_key, fallback_level=None):
+    fallback = str(fallback_level or profile.get("target_cefr", "B1")).upper()
+    if fallback not in CEFR_LEVELS:
+        fallback = "B1"
+
+    levels = profile.get("module_levels", {})
+    if not isinstance(levels, dict):
+        return fallback
+    level = str(levels.get(module_key, fallback)).upper()
+    if level not in CEFR_LEVELS:
+        return fallback
+    return level
+
+
+def set_profile_module_level(profile_id, module_key, level):
+    new_level = str(level or "").upper()
+    if new_level not in CEFR_LEVELS:
+        return
+
+    profiles = load_profiles()
+    changed = False
+    for p in profiles:
+        if p.get("id") != profile_id:
+            continue
+        levels = p.get("module_levels")
+        if not isinstance(levels, dict):
+            levels = {}
+            p["module_levels"] = levels
+        if levels.get(module_key) != new_level:
+            levels[module_key] = new_level
+            changed = True
+        break
+    if changed:
+        save_profiles(profiles)
 
 
 def openrouter_headers(title="English Audio Coach"):
@@ -883,6 +1116,11 @@ def extract_json_from_text(text):
 def generate_quick_variations_ai(theme_name, cefr_level="B1"):
     """Generate 10 realistic themed variations via OpenRouter AI at the given CEFR level."""
     cefr = CEFR_DESCRIPTORS[cefr_level]
+    idiom_rule = (
+        f"- Include at least 1 very common daily chunk suitable for {cefr_level} per dialogue"
+        if cefr_level in {"A1", "A2"}
+        else f"- Include at least 2 idiomatic expressions or chunks typical of {cefr_level} per dialogue"
+    )
     situations_list = "\n".join(
         f"{i+1}. {s}" for i, s in enumerate(VARIATION_SITUATIONS)
     )
@@ -898,7 +1136,7 @@ Requirements:
 - 2 speakers: A and B
 - 10 to 14 lines total per dialogue (more lines for higher levels)
 - Natural American spoken English calibrated to {cefr_level}
-- Include at least 2 idiomatic expressions or chunks typical of {cefr_level} per dialogue
+{idiom_rule}
 - Situations to cover (one per dialogue):
 {situations_list}
 
@@ -925,44 +1163,85 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact schema:
     return data, None
 
 
-def lesson_pack_path(theme_name, cefr_level="B1"):
+def lesson_pack_path(theme_name, cefr_level="B1", profile_id="default"):
+    profile_slug = _profile_storage_slug(profile_id)
     return os.path.join(
-        LESSON_PACK_DIR, f"{slugify(theme_name)}-{cefr_level.lower()}.json"
+        LESSON_PACK_DIR,
+        f"{slugify(theme_name)}-{cefr_level.lower()}-{profile_slug}.json",
     )
 
 
-def load_lesson_pack(theme_name, cefr_level="B1"):
-    path = lesson_pack_path(theme_name, cefr_level)
+def load_lesson_pack(theme_name, cefr_level="B1", profile_id="default"):
+    path = lesson_pack_path(theme_name, cefr_level, profile_id=profile_id)
     if not os.path.exists(path):
+        legacy_paths = [
+            os.path.join(
+                LESSON_PACK_DIR, f"{slugify(theme_name)}-{cefr_level.lower()}.json"
+            )
+        ]
+        if cefr_level.upper() == "B1":
+            legacy_paths.append(
+                os.path.join(LESSON_PACK_DIR, f"{slugify(theme_name)}.json")
+            )
+        for legacy_path in legacy_paths:
+            if os.path.exists(legacy_path):
+                with open(legacy_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
         return None
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_lesson_pack(theme_name, pack_data, cefr_level="B1"):
-    with open(lesson_pack_path(theme_name, cefr_level), "w", encoding="utf-8") as f:
+def save_lesson_pack(theme_name, pack_data, cefr_level="B1", profile_id="default"):
+    with open(
+        lesson_pack_path(theme_name, cefr_level, profile_id=profile_id),
+        "w",
+        encoding="utf-8",
+    ) as f:
         json.dump(pack_data, f, ensure_ascii=False, indent=2)
 
 
 # ── Variations persistence ────────────────────────────────────────────────────
 
 
-def variations_path(theme_name, cefr_level="B1"):
+def variations_path(theme_name, cefr_level="B1", profile_id="default"):
+    profile_slug = _profile_storage_slug(profile_id)
     return os.path.join(
-        VARIATIONS_DIR, f"{slugify(theme_name)}-{cefr_level.lower()}_variations.json"
+        VARIATIONS_DIR,
+        f"{slugify(theme_name)}-{cefr_level.lower()}-{profile_slug}_variations.json",
     )
 
 
-def load_quick_variations(theme_name, cefr_level="B1"):
-    path = variations_path(theme_name, cefr_level)
+def load_quick_variations(theme_name, cefr_level="B1", profile_id="default"):
+    path = variations_path(theme_name, cefr_level, profile_id=profile_id)
     if not os.path.exists(path):
+        legacy_paths = [
+            os.path.join(
+                VARIATIONS_DIR,
+                f"{slugify(theme_name)}-{cefr_level.lower()}_variations.json",
+            )
+        ]
+        if cefr_level.upper() == "B1":
+            legacy_paths.append(
+                os.path.join(VARIATIONS_DIR, f"{slugify(theme_name)}_variations.json")
+            )
+        for legacy_path in legacy_paths:
+            if os.path.exists(legacy_path):
+                with open(legacy_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
         return None
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_quick_variations(theme_name, variations, cefr_level="B1"):
-    with open(variations_path(theme_name, cefr_level), "w", encoding="utf-8") as f:
+def save_quick_variations(
+    theme_name, variations, cefr_level="B1", profile_id="default"
+):
+    with open(
+        variations_path(theme_name, cefr_level, profile_id=profile_id),
+        "w",
+        encoding="utf-8",
+    ) as f:
         json.dump(variations, f, ensure_ascii=False, indent=2)
 
 
@@ -990,6 +1269,11 @@ def load_lesson_audio(file_name):
 
 def generate_five_minute_pack(theme_name, cefr_level="B1"):
     cefr = CEFR_DESCRIPTORS[cefr_level]
+    idiom_rule = (
+        f"- Prefer very common daily chunks and avoid advanced idioms for {cefr_level}."
+        if cefr_level in {"A1", "A2"}
+        else f"- Include realistic chunks and idiomatic phrases appropriate for {cefr_level}."
+    )
     prompt = f"""
 Generate a JSON array with exactly 5 lesson conversations for an English learner targeting {cefr_level} ({cefr['label']}), American English.
 Theme: {theme_name}
@@ -1003,7 +1287,7 @@ Constraints:
 - Exactly 2 speakers: A and B.
 - Natural American spoken English calibrated to {cefr_level}.
 - Practical daily-life context directly related to the theme.
-- Include realistic chunks and idiomatic phrases appropriate for {cefr_level}.
+{idiom_rule}
 - Each conversation targets a different sub-situation within the theme.
 
 Return only valid JSON in this schema:
@@ -1037,10 +1321,968 @@ Return only valid JSON in this schema:
     return data, None
 
 
+def _lesson_source_id(lesson_kind, theme_name, cefr_level, lesson_uid):
+    return (
+        f"{lesson_kind}:{slugify(theme_name)}:{str(cefr_level).lower()}:"
+        f"{str(lesson_uid).strip()}"
+    )
+
+
+def _sanitize_lesson_flashcards(raw_cards, cefr_level="B1", max_cards=10):
+    level_default = str(cefr_level or "B1").upper()
+    if level_default not in CEFR_LEVELS:
+        level_default = "B1"
+
+    cleaned = []
+    seen = set()
+    for item in raw_cards:
+        if not isinstance(item, dict):
+            continue
+
+        term = str(item.get("term", "")).strip()
+        if not term:
+            continue
+
+        term_key = term.lower()
+        if term_key in seen:
+            continue
+        seen.add(term_key)
+
+        examples = []
+        for ex in item.get("examples", []):
+            if isinstance(ex, str) and ex.strip():
+                examples.append(ex.strip())
+            if len(examples) >= 3:
+                break
+
+        synonyms = []
+        for syn in item.get("synonyms", []):
+            if isinstance(syn, str) and syn.strip():
+                synonyms.append(syn.strip())
+            if len(synonyms) >= 4:
+                break
+
+        lvl = str(item.get("level", level_default)).upper()
+        if lvl not in CEFR_LEVELS:
+            lvl = level_default
+
+        cleaned.append(
+            {
+                "term": term,
+                "translation": str(item.get("translation", "")).strip(),
+                "part_of_speech": str(item.get("part_of_speech", "")).strip(),
+                "explanation": str(item.get("explanation", "")).strip(),
+                "examples": examples,
+                "synonyms": synonyms,
+                "level": lvl,
+            }
+        )
+        if len(cleaned) >= max_cards:
+            break
+    return cleaned
+
+
+def _fallback_lesson_flashcards(chunk_focus, cefr_level="B1", max_cards=10):
+    cards = []
+    seen = set()
+    for chunk in chunk_focus or []:
+        if not isinstance(chunk, str):
+            continue
+        clean = chunk.strip()
+        if not clean:
+            continue
+        key = clean.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cards.append(
+            {
+                "term": clean,
+                "translation": "",
+                "part_of_speech": "chunk",
+                "explanation": "Expression importante extraite de la lecon.",
+                "examples": [],
+                "synonyms": [],
+                "level": str(cefr_level or "B1").upper(),
+            }
+        )
+        if len(cards) >= max_cards:
+            break
+    return cards
+
+
+def generate_lesson_flashcards_ai(
+    theme_name,
+    dialogue_text,
+    chunk_focus=None,
+    cefr_level="B1",
+    max_cards=10,
+):
+    target = str(cefr_level or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+
+    chunks = [
+        c.strip() for c in (chunk_focus or []) if isinstance(c, str) and c.strip()
+    ]
+    chunks_text = "\n".join(f"- {c}" for c in chunks[:20]) or "- None"
+
+    prompt = f"""You are an English teacher creating flashcards for a learner.
+
+Theme: {theme_name}
+Target CEFR: {target}
+
+Dialogue:
+{dialogue_text}
+
+Priority chunks from lesson metadata:
+{chunks_text}
+
+Task:
+- Extract the most useful vocabulary and chunks from this lesson.
+- Return at most {max_cards} flashcards.
+- Prefer high-frequency, practical expressions the learner can reuse immediately.
+- Keep level appropriate for {target}.
+
+Return ONLY valid JSON array with objects using this schema:
+[
+  {{
+    "term": "...",
+    "translation": "...",        
+    "part_of_speech": "chunk|verb|noun phrase|idiom|phrasal verb|...",
+    "explanation": "1 short English explanation",
+    "examples": ["example 1", "example 2"],
+    "synonyms": ["optional", "optional"],
+    "level": "{target}"
+  }}
+]
+"""
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a precise English pedagogy assistant.",
+        },
+        {"role": "user", "content": prompt},
+    ]
+    text, err = openrouter_chat(messages, CHAT_MODEL, temperature=0.2, max_tokens=1800)
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, list):
+        return None, "Extraction IA invalide pour les flashcards de lecon."
+
+    cards = _sanitize_lesson_flashcards(data, cefr_level=target, max_cards=max_cards)
+    if not cards:
+        return None, "Aucune flashcard valide extraite depuis la lecon."
+
+    return cards, None
+
+
+def auto_add_lesson_flashcards(
+    profile_id,
+    source_lesson_id,
+    lesson_kind,
+    theme_name,
+    dialogue_text,
+    chunk_focus=None,
+    cefr_level="B1",
+    max_cards=10,
+):
+    result = {
+        "added": 0,
+        "skipped": 0,
+        "already_done": False,
+        "used_fallback": False,
+        "error": None,
+    }
+
+    entries = load_vocab(profile_id=profile_id)
+    if any(e.get("source_lesson_id") == source_lesson_id for e in entries):
+        result["already_done"] = True
+        return result
+
+    cards, err = generate_lesson_flashcards_ai(
+        theme_name=theme_name,
+        dialogue_text=dialogue_text,
+        chunk_focus=chunk_focus,
+        cefr_level=cefr_level,
+        max_cards=max_cards,
+    )
+    if err:
+        cards = _fallback_lesson_flashcards(
+            chunk_focus,
+            cefr_level=cefr_level,
+            max_cards=max_cards,
+        )
+        if not cards:
+            result["error"] = err
+            return result
+        result["used_fallback"] = True
+        result["error"] = err
+
+    existing_terms = {
+        str(e.get("term", "")).strip().lower()
+        for e in entries
+        if str(e.get("term", "")).strip()
+    }
+
+    for card in cards[:max_cards]:
+        term = str(card.get("term", "")).strip()
+        if not term:
+            continue
+        term_key = term.lower()
+        if term_key in existing_terms:
+            result["skipped"] += 1
+            continue
+
+        entry_id = str(uuid.uuid4())[:8]
+        examples_with_audio = [
+            {"text": ex, "audio_path": None} for ex in card.get("examples", [])
+        ]
+        entries.append(
+            {
+                "id": entry_id,
+                "profile_id": profile_id,
+                "term": term,
+                "created_at": now_iso(),
+                "translation": card.get("translation", ""),
+                "part_of_speech": card.get("part_of_speech", ""),
+                "explanation": card.get("explanation", ""),
+                "examples": examples_with_audio,
+                "synonyms": card.get("synonyms", []),
+                "level": card.get("level", str(cefr_level or "B1").upper()),
+                "source_lesson_id": source_lesson_id,
+                "source_lesson_kind": lesson_kind,
+                "source_theme": theme_name,
+                "source_auto": True,
+                "srs": {
+                    "next_review": now_iso(),
+                    "interval": 1,
+                    "ease": 2.5,
+                    "repetitions": 0,
+                    "last_result": None,
+                },
+                "review_history": [],
+            }
+        )
+        existing_terms.add(term_key)
+        result["added"] += 1
+
+    if result["added"] > 0:
+        save_vocab(entries, profile_id=profile_id)
+
+    return result
+
+
+def shadowing_texts_path(profile_id):
+    return os.path.join(
+        SHADOWING_DIR,
+        f"texts-{_profile_storage_slug(profile_id)}.json",
+    )
+
+
+def shadowing_progress_path(profile_id):
+    return os.path.join(
+        SHADOWING_DIR,
+        f"progress-{_profile_storage_slug(profile_id)}.json",
+    )
+
+
+def load_shadowing_texts(profile_id):
+    path = shadowing_texts_path(profile_id)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_shadowing_texts(profile_id, items):
+    os.makedirs(SHADOWING_DIR, exist_ok=True)
+    with open(shadowing_texts_path(profile_id), "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+
+
+def _split_shadowing_chunks(text):
+    raw = str(text or "").replace("\r", "\n")
+    lines = []
+    for line in raw.split("\n"):
+        clean = line.strip()
+        if not clean:
+            continue
+        clean = re.sub(r"^[A-Za-z]\s*:\s*", "", clean)
+        if clean:
+            lines.append(clean)
+    merged = " ".join(lines).strip()
+    if not merged:
+        return []
+
+    base_sentences = [
+        s.strip() for s in re.split(r"(?<=[.!?])\s+", merged) if s.strip()
+    ]
+
+    chunks = []
+    for sentence in base_sentences:
+        words = sentence.split()
+        if len(words) <= 12:
+            chunks.append(sentence)
+            continue
+
+        pieces = [
+            p.strip()
+            for p in re.split(
+                r"(?<=[,;:])\s+|\s+(?=(?:and|but|so|because|then)\b)",
+                sentence,
+                flags=re.IGNORECASE,
+            )
+            if p.strip()
+        ]
+        if len(pieces) <= 1:
+            pieces = [" ".join(words[i : i + 10]) for i in range(0, len(words), 10)]
+
+        for piece in pieces:
+            piece_words = piece.split()
+            if len(piece_words) <= 12:
+                chunks.append(piece)
+            else:
+                for i in range(0, len(piece_words), 10):
+                    sub = " ".join(piece_words[i : i + 10]).strip()
+                    if sub:
+                        chunks.append(sub)
+
+    return [c for c in chunks if c]
+
+
+def register_shadowing_text(
+    profile_id,
+    source_lesson_id,
+    lesson_kind,
+    theme_name,
+    dialogue_text,
+    chunk_focus=None,
+    cefr_level="B1",
+    lesson_title="",
+):
+    text = str(dialogue_text or "").strip()
+    if not text:
+        return False
+
+    chunks = _split_shadowing_chunks(text)
+    if not chunks:
+        return False
+
+    items = load_shadowing_texts(profile_id)
+    for item in items:
+        if item.get("source_id") == source_lesson_id:
+            item["theme_name"] = theme_name
+            item["cefr_level"] = str(cefr_level or "B1").upper()
+            item["lesson_kind"] = lesson_kind
+            item["lesson_title"] = lesson_title
+            item["dialogue_text"] = text
+            item["chunks"] = chunks
+            item["chunk_focus"] = chunk_focus or []
+            item["updated_at"] = now_iso()
+            save_shadowing_texts(profile_id, items)
+            return False
+
+    items.append(
+        {
+            "source_id": source_lesson_id,
+            "profile_id": profile_id,
+            "theme_name": theme_name,
+            "cefr_level": str(cefr_level or "B1").upper(),
+            "lesson_kind": lesson_kind,
+            "lesson_title": lesson_title,
+            "dialogue_text": text,
+            "chunks": chunks,
+            "chunk_focus": chunk_focus or [],
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+    )
+    save_shadowing_texts(profile_id, items)
+    return True
+
+
+def load_shadowing_daily_assignments():
+    if not os.path.exists(SHADOWING_DAILY_FILE):
+        return {}
+    try:
+        with open(SHADOWING_DAILY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_shadowing_daily_assignments(data):
+    os.makedirs(SHADOWING_DIR, exist_ok=True)
+    with open(SHADOWING_DAILY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _shadowing_day_entry_to_state(entry):
+    if isinstance(entry, str):
+        return {
+            "current_source_id": entry,
+            "completed_source_ids": [],
+        }
+    if not isinstance(entry, dict):
+        return {
+            "current_source_id": "",
+            "completed_source_ids": [],
+        }
+
+    current_source_id = str(entry.get("current_source_id", "") or "")
+    completed_source_ids = entry.get("completed_source_ids", [])
+    if not isinstance(completed_source_ids, list):
+        completed_source_ids = []
+    completed_source_ids = [
+        str(sid) for sid in completed_source_ids if str(sid or "").strip()
+    ]
+
+    return {
+        "current_source_id": current_source_id,
+        "completed_source_ids": completed_source_ids,
+    }
+
+
+def _shadowing_save_day_state(
+    profile_id, day_key, current_source_id, completed_source_ids
+):
+    assignments = load_shadowing_daily_assignments()
+    profile_map = assignments.get(profile_id, {})
+    if not isinstance(profile_map, dict):
+        profile_map = {}
+
+    profile_map[day_key] = {
+        "current_source_id": str(current_source_id or ""),
+        "completed_source_ids": [
+            str(sid) for sid in completed_source_ids if str(sid or "").strip()
+        ][-30:],
+        "updated_at": now_iso(),
+    }
+    assignments[profile_id] = profile_map
+    save_shadowing_daily_assignments(assignments)
+
+
+def archive_shadowing_session_run(
+    profile_id, day_key, source_id, chunk_count, reason="completed"
+):
+    data = load_shadowing_progress(profile_id)
+    key = _shadowing_progress_key(day_key, source_id)
+    session = data.get(key)
+    if not isinstance(session, dict):
+        return False
+
+    records = session.get("records", [])
+    if not isinstance(records, list):
+        records = []
+    records = [r for r in records if isinstance(r, dict)]
+    if not records:
+        return False
+
+    run_history = session.get("run_history", [])
+    if not isinstance(run_history, list):
+        run_history = []
+
+    summary = _shadowing_records_summary(records, chunk_count)
+    run_history.append(
+        {
+            "archived_at": now_iso(),
+            "started_at": session.get("started_at"),
+            "completed_at": session.get("completed_at"),
+            "avg_score": summary["avg_score"],
+            "min_score": summary["min_score"],
+            "max_score": summary["max_score"],
+            "phrases_done": summary["phrases_done"],
+            "chunk_count": summary["chunk_count"],
+            "reason": str(reason or "completed"),
+        }
+    )
+
+    session["run_history"] = run_history[-30:]
+    session["records"] = []
+    session["chunk_count"] = int(chunk_count)
+    session["started_at"] = now_iso()
+    session["completed_at"] = None
+    session["auto_advanced_count"] = int(session.get("auto_advanced_count", 0)) + 1
+
+    data[key] = session
+    save_shadowing_progress(profile_id, data)
+    return True
+
+
+def maybe_advance_shadowing_daily_text(
+    profile_id, day_key, source_id, texts, avg_score
+):
+    if float(avg_score or 0) < 80.0:
+        return False
+
+    texts_by_id = {str(t.get("source_id")): t for t in texts if t.get("source_id")}
+    current_source_id = str(source_id or "")
+    if current_source_id not in texts_by_id:
+        return False
+
+    assignments = load_shadowing_daily_assignments()
+    profile_map = assignments.get(profile_id, {})
+    if not isinstance(profile_map, dict):
+        profile_map = {}
+
+    state = _shadowing_day_entry_to_state(profile_map.get(day_key))
+    completed_ids = [sid for sid in state.get("completed_source_ids", []) if sid]
+    if current_source_id not in completed_ids:
+        completed_ids.append(current_source_id)
+
+    all_ids = sorted(texts_by_id.keys())
+    excluded = set(completed_ids)
+    candidate_ids = [sid for sid in all_ids if sid not in excluded]
+    if not candidate_ids:
+        return False
+
+    seed_num = int(
+        hashlib.sha1(
+            f"{profile_id}:{day_key}:{current_source_id}:{len(completed_ids)}".encode(
+                "utf-8"
+            )
+        ).hexdigest(),
+        16,
+    )
+    next_source_id = candidate_ids[seed_num % len(candidate_ids)]
+
+    archive_shadowing_session_run(
+        profile_id=profile_id,
+        day_key=day_key,
+        source_id=current_source_id,
+        chunk_count=len(texts_by_id[current_source_id].get("chunks") or []),
+        reason="avg>=80 auto-next",
+    )
+
+    _shadowing_save_day_state(
+        profile_id=profile_id,
+        day_key=day_key,
+        current_source_id=next_source_id,
+        completed_source_ids=completed_ids,
+    )
+    return True
+
+
+def pick_daily_shadowing_text(profile_id, texts):
+    if not texts:
+        return None, None
+
+    texts_by_id = {str(t.get("source_id")): t for t in texts if t.get("source_id")}
+    if not texts_by_id:
+        return None, None
+
+    today_date = utc_now().date()
+    today = today_date.isoformat()
+    yesterday = (today_date - timedelta(days=1)).isoformat()
+
+    assignments = load_shadowing_daily_assignments()
+    profile_map = assignments.get(profile_id, {})
+    if not isinstance(profile_map, dict):
+        profile_map = {}
+
+    today_state = _shadowing_day_entry_to_state(profile_map.get(today))
+    assigned_source = today_state.get("current_source_id")
+    if assigned_source in texts_by_id:
+        return texts_by_id[assigned_source], today
+
+    all_ids = sorted(texts_by_id.keys())
+    previous_state = _shadowing_day_entry_to_state(profile_map.get(yesterday))
+    previous = previous_state.get("current_source_id")
+    candidate_ids = [sid for sid in all_ids if sid != previous] or all_ids
+
+    seed_num = int(
+        hashlib.sha1(f"{profile_id}:{today}".encode("utf-8")).hexdigest(),
+        16,
+    )
+    chosen_id = candidate_ids[seed_num % len(candidate_ids)]
+    profile_map[today] = chosen_id
+
+    min_keep = today_date - timedelta(days=120)
+    for key in list(profile_map.keys()):
+        try:
+            key_date = datetime.fromisoformat(key).date()
+        except Exception:
+            continue
+        if key_date < min_keep:
+            del profile_map[key]
+
+    assignments[profile_id] = profile_map
+    save_shadowing_daily_assignments(assignments)
+    return texts_by_id[chosen_id], today
+
+
+def _shadowing_progress_key(day_key, source_id):
+    return f"{day_key}::{source_id}"
+
+
+def load_shadowing_progress(profile_id):
+    path = shadowing_progress_path(profile_id)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_shadowing_progress(profile_id, data):
+    os.makedirs(SHADOWING_DIR, exist_ok=True)
+    with open(shadowing_progress_path(profile_id), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def get_shadowing_session_records(profile_id, day_key, source_id):
+    data = load_shadowing_progress(profile_id)
+    session = data.get(_shadowing_progress_key(day_key, source_id), {})
+    records = session.get("records", [])
+    if not isinstance(records, list):
+        return []
+    records = [r for r in records if isinstance(r, dict)]
+    records.sort(key=lambda r: int(r.get("chunk_idx", 10**6)))
+    return records
+
+
+def get_shadowing_session(profile_id, day_key, source_id):
+    data = load_shadowing_progress(profile_id)
+    session = data.get(_shadowing_progress_key(day_key, source_id), {})
+    return session if isinstance(session, dict) else {}
+
+
+def _shadowing_records_summary(records, chunk_count):
+    valid = [r for r in records if isinstance(r, dict)]
+    if not valid:
+        return {
+            "avg_score": 0,
+            "min_score": 0,
+            "max_score": 0,
+            "phrases_done": 0,
+            "chunk_count": int(chunk_count),
+        }
+
+    scores = [int(r.get("score", 0)) for r in valid]
+    return {
+        "avg_score": round(sum(scores) / len(scores), 1),
+        "min_score": min(scores),
+        "max_score": max(scores),
+        "phrases_done": len(valid),
+        "chunk_count": int(chunk_count),
+    }
+
+
+def _shadowing_score_scales(score_100):
+    score = float(score_100 or 0.0)
+    return {
+        "on_100": round(score, 1),
+        "on_20": round(score / 5.0, 1),
+        "on_10": round(score / 10.0, 1),
+    }
+
+
+def _shadowing_score_label(score_100):
+    score = float(score_100 or 0.0)
+    if score >= 85:
+        return "Tres bon (fidele et fluide)"
+    if score >= 70:
+        return "Bon (quelques ajustements)"
+    if score >= 55:
+        return "Moyen (manque de precision)"
+    return "A retravailler"
+
+
+def get_shadowing_run_history(profile_id, day_key, source_id):
+    session = get_shadowing_session(profile_id, day_key, source_id)
+    history = session.get("run_history", [])
+    if not isinstance(history, list):
+        return []
+    return [h for h in history if isinstance(h, dict)]
+
+
+def reset_shadowing_session_keep_history(profile_id, day_key, source_id, chunk_count):
+    data = load_shadowing_progress(profile_id)
+    key = _shadowing_progress_key(day_key, source_id)
+    session = data.get(key)
+    if not isinstance(session, dict):
+        session = {
+            "profile_id": profile_id,
+            "day": day_key,
+            "source_id": source_id,
+            "chunk_count": int(chunk_count),
+            "records": [],
+            "run_history": [],
+            "restart_count": 0,
+            "started_at": now_iso(),
+            "completed_at": None,
+        }
+
+    records = session.get("records", [])
+    if not isinstance(records, list):
+        records = []
+    run_history = session.get("run_history", [])
+    if not isinstance(run_history, list):
+        run_history = []
+
+    if records:
+        summary = _shadowing_records_summary(records, chunk_count)
+        run_history.append(
+            {
+                "archived_at": now_iso(),
+                "started_at": session.get("started_at"),
+                "completed_at": session.get("completed_at"),
+                "avg_score": summary["avg_score"],
+                "min_score": summary["min_score"],
+                "max_score": summary["max_score"],
+                "phrases_done": summary["phrases_done"],
+                "chunk_count": summary["chunk_count"],
+            }
+        )
+
+    session["run_history"] = run_history[-30:]
+    session["records"] = []
+    session["chunk_count"] = int(chunk_count)
+    session["restart_count"] = int(session.get("restart_count", 0)) + 1
+    session["started_at"] = now_iso()
+    session["completed_at"] = None
+
+    data[key] = session
+    save_shadowing_progress(profile_id, data)
+    return session
+
+
+def save_shadowing_chunk_result(
+    profile_id,
+    day_key,
+    source_id,
+    chunk_idx,
+    chunk_text,
+    score,
+    feedback,
+    user_text,
+    duration_sec,
+    chunk_count,
+):
+    data = load_shadowing_progress(profile_id)
+    key = _shadowing_progress_key(day_key, source_id)
+    session = data.get(key)
+    if not isinstance(session, dict):
+        session = {
+            "profile_id": profile_id,
+            "day": day_key,
+            "source_id": source_id,
+            "chunk_count": chunk_count,
+            "records": [],
+            "started_at": now_iso(),
+            "completed_at": None,
+        }
+
+    session["chunk_count"] = chunk_count
+    records = session.get("records", [])
+    if not isinstance(records, list):
+        records = []
+
+    payload = {
+        "chunk_idx": int(chunk_idx),
+        "chunk_text": chunk_text,
+        "score": int(max(0, min(100, int(score)))),
+        "feedback": str(feedback or ""),
+        "user_text": str(user_text or ""),
+        "duration_sec": float(duration_sec or 0.0),
+        "saved_at": now_iso(),
+    }
+
+    replaced = False
+    for i, rec in enumerate(records):
+        if int(rec.get("chunk_idx", -1)) == int(chunk_idx):
+            records[i] = payload
+            replaced = True
+            break
+    if not replaced:
+        records.append(payload)
+
+    records.sort(key=lambda r: int(r.get("chunk_idx", 10**6)))
+    session["records"] = records
+
+    if len(records) >= int(chunk_count):
+        session["completed_at"] = now_iso()
+
+    data[key] = session
+    save_shadowing_progress(profile_id, data)
+    return payload
+
+
+def get_next_shadowing_chunk_index(records, chunk_count):
+    done = {int(r.get("chunk_idx", -1)) for r in records if isinstance(r, dict)}
+    for idx in range(int(chunk_count)):
+        if idx not in done:
+            return idx
+    return int(chunk_count)
+
+
+def _shadowing_record_seconds(chunk_text):
+    words = max(1, len(str(chunk_text or "").split()))
+    base = 1.2 + (words * 0.22)
+    return round(min(SHADOWING_MAX_RECORD_SECONDS, max(1.6, base)), 1)
+
+
+def _audio_duration_seconds(audio_bytes):
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+            frames = wav_file.getnframes()
+            rate = wav_file.getframerate() or 1
+            return frames / float(rate)
+    except Exception:
+        return None
+
+
+def _normalize_compare_text(text):
+    return re.sub(r"[^a-z0-9\s']+", " ", str(text or "").lower()).strip()
+
+
+def _shadowing_mismatch_feedback(reference_text, user_text, max_points=2):
+    ref_words = re.findall(r"[a-z0-9']+", _normalize_compare_text(reference_text))
+    usr_words = re.findall(r"[a-z0-9']+", _normalize_compare_text(user_text))
+    if not ref_words or not usr_words:
+        return ""
+
+    points = []
+    matcher = SequenceMatcher(None, ref_words, usr_words)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        ref_part = " ".join(ref_words[i1:i2]).strip()
+        usr_part = " ".join(usr_words[j1:j2]).strip()
+
+        if tag == "replace" and ref_part and usr_part:
+            points.append(f'au lieu de "{ref_part}", tu as dit "{usr_part}"')
+        elif tag == "delete" and ref_part:
+            points.append(f'il manque "{ref_part}"')
+        elif tag == "insert" and usr_part:
+            points.append(f'mot en trop: "{usr_part}"')
+
+        if len(points) >= int(max_points):
+            break
+
+    if not points:
+        return ""
+    return "Points a corriger: " + " ; ".join(points) + "."
+
+
+def _score_shadowing_chunk_fallback(reference_text, user_text):
+    ref = _normalize_compare_text(reference_text)
+    usr = _normalize_compare_text(user_text)
+    if not usr:
+        return {
+            "score": 0,
+            "feedback": "Aucun audio exploitable. Reessaie en parlant plus clairement.",
+        }
+
+    ratio = SequenceMatcher(None, ref, usr).ratio()
+    score = int(round(ratio * 100))
+    if score >= 90:
+        feedback = "Excellent. Continue ce rythme et garde la precision."
+    elif score >= 75:
+        feedback = (
+            "Bon resultat. Ameliore les petits mots de liaison pour gagner des points."
+        )
+    elif score >= 60:
+        feedback = (
+            "Correct, mais il manque des mots. Reecoute puis repete plus lentement."
+        )
+    else:
+        feedback = (
+            "A retravailler. Coupe la phrase en petits groupes et articule chaque mot."
+        )
+    return {"score": score, "feedback": feedback}
+
+
+def evaluate_shadowing_chunk(reference_text, user_text, cefr_level="B1"):
+    target = str(cefr_level or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an English speaking coach. Compare the learner sentence to the target sentence. "
+                "Score fidelity and fluency from 0 to 100."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Target CEFR: {target}\n"
+                f"Target sentence: {reference_text}\n"
+                f"Learner transcript: {user_text}\n\n"
+                'Return ONLY JSON: {"score": 0-100, "feedback": "short coaching feedback in French"}'
+            ),
+        },
+    ]
+
+    raw, err = openrouter_chat(messages, EVAL_MODEL, temperature=0.1, max_tokens=180)
+    if err:
+        return _score_shadowing_chunk_fallback(reference_text, user_text)
+
+    data = extract_json_from_text(raw)
+    if not isinstance(data, dict):
+        return _score_shadowing_chunk_fallback(reference_text, user_text)
+
+    try:
+        score = int(data.get("score", 0))
+    except Exception:
+        score = 0
+    score = max(0, min(100, score))
+    feedback = str(data.get("feedback", "")).strip()
+    if not feedback:
+        feedback = _score_shadowing_chunk_fallback(reference_text, user_text)[
+            "feedback"
+        ]
+    return {"score": score, "feedback": feedback}
+
+
+def shadowing_chunk_audio_path(profile_id, source_id, chunk_idx, chunk_text):
+    source_slug = slugify(str(source_id).replace(":", "-")) or "source"
+    chunk_hash = hashlib.sha1(str(chunk_text).encode("utf-8")).hexdigest()[:10]
+    file_name = f"{_profile_storage_slug(profile_id)}-{source_slug}-{int(chunk_idx)}-{chunk_hash}.wav"
+    return os.path.join(SHADOWING_AUDIO_DIR, file_name)
+
+
+def ensure_shadowing_chunk_audio(profile_id, source_id, chunk_idx, chunk_text, voice):
+    path = shadowing_chunk_audio_path(profile_id, source_id, chunk_idx, chunk_text)
+    if os.path.exists(path):
+        return path, None
+    audio_bytes, _, err = text_to_speech_openrouter(chunk_text, voice=voice)
+    if err:
+        return None, err
+    os.makedirs(SHADOWING_AUDIO_DIR, exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path, None
+
+
 def build_tutor_system_prompt(
-    mode, theme, objective, training_mode="standard", training_settings=None
+    mode,
+    theme,
+    objective,
+    target_cefr="B1",
+    training_mode="standard",
+    training_settings=None,
 ):
     training_settings = training_settings or {}
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+    cefr = CEFR_DESCRIPTORS.get(target, CEFR_DESCRIPTORS["B1"])
     topic_instruction = (
         f"Current theme: {theme}. Keep the learner in-theme. If the learner drifts, gently redirect."
         if theme
@@ -1078,7 +2320,8 @@ def build_tutor_system_prompt(
         training_instruction = "Training drill: STANDARD FLUENCY."
 
     return (
-        "You are a friendly American English conversation partner for a B1 learner targeting C2. "
+        f"You are a friendly American English conversation partner for a {target} learner. "
+        f"Language calibration: {cefr['english']} "
         "Speak like a real native American — casual, natural, with contractions and fillers (yeah, totally, I mean, you know, right?). "
         "NEVER explicitly correct the learner. NEVER say 'you should say', 'the correct form is', 'actually it's', or anything that interrupts the flow. "
         "Instead, use IMPLICIT RECASTS only: if the learner makes a grammar or vocabulary mistake, simply use the correct form naturally in your reply without drawing attention to it. "
@@ -1112,12 +2355,19 @@ def choose_theme_with_ai():
 
 
 def new_session(
-    mode, theme, objective, training_mode="standard", training_settings=None
+    mode,
+    theme,
+    objective,
+    target_cefr=None,
+    training_mode="standard",
+    training_settings=None,
 ):
     training_settings = training_settings or {}
-    session_id = (
-        f"session-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
-    )
+    profile = get_active_profile()
+    session_target_cefr = str(target_cefr or profile.get("target_cefr", "B1")).upper()
+    if session_target_cefr not in CEFR_LEVELS:
+        session_target_cefr = "B1"
+    session_id = f"session-{utc_now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
     data = {
         "id": session_id,
         "created_at": now_iso(),
@@ -1125,6 +2375,9 @@ def new_session(
         "mode": mode,
         "theme": theme,
         "objective": objective,
+        "profile_id": profile.get("id", "default"),
+        "profile_name": profile.get("name", "Profil principal"),
+        "target_cefr": session_target_cefr,
         "training_mode": training_mode,
         "training_settings": training_settings,
         "messages": [
@@ -1134,6 +2387,7 @@ def new_session(
                     mode=mode,
                     theme=theme,
                     objective=objective,
+                    target_cefr=session_target_cefr,
                     training_mode=training_mode,
                     training_settings=training_settings,
                 ),
@@ -1155,14 +2409,29 @@ def save_session(session_data):
         json.dump(session_data, f, ensure_ascii=False, indent=2)
 
 
-def load_all_sessions():
+def load_all_sessions(profile_id=None):
+    if profile_id is None:
+        profile_id = st.session_state.get("active_profile_id", "default")
+
     sessions = []
     for file_name in os.listdir(SESSIONS_DIR):
         if not file_name.endswith(".json"):
             continue
         path = os.path.join(SESSIONS_DIR, file_name)
-        with open(path, "r", encoding="utf-8") as f:
-            sessions.append(json.load(f))
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+
+        sid = data.get("profile_id")
+        if sid and sid != profile_id:
+            continue
+        if not sid and profile_id != "default":
+            continue
+
+        sessions.append(data)
+
     sessions.sort(key=lambda item: item.get("created_at", ""), reverse=True)
     return sessions
 
@@ -1208,12 +2477,24 @@ def save_podcast_audio_bytes(date_str, podcast_id, audio_bytes):
     return path
 
 
-def generate_podcast_scripts(date_str, interests, duration_minutes=7):
+def generate_podcast_scripts(date_str, interests, duration_minutes=7, target_cefr="C1"):
     """Generate 3 podcast discussions (one per interest category) via OpenRouter AI."""
+    target = str(target_cefr or "C1").upper()
+    if target not in CEFR_LEVELS:
+        target = "C1"
+    cefr = CEFR_DESCRIPTORS[target]
+    vocab_rule = (
+        "- Keep vocabulary high-frequency and practical; avoid advanced idioms."
+        if target in {"A1", "A2"}
+        else f"- Use rich {target} vocabulary naturally embedded in conversation."
+    )
     interests_list = "\n".join(f"- {i}" for i in interests)
     prompt = f"""Today's date: {date_str}.
 
-You are a podcast producer creating engaging English-learning content for an intermediate learner targeting C2 American English.
+You are a podcast producer creating engaging English-learning content for an American English learner targeting {target} ({cefr['label']}).
+
+Language calibration:
+{cefr['english']}
 
 Generate exactly 3 podcast episodes as a JSON array, one for each of these interest areas:
 {interests_list}
@@ -1225,7 +2506,7 @@ Requirements:
 - Use natural American conversational English: contractions, fillers (you know, I mean, right, totally, absolutely, kind of, sort of), natural interruptions and overlaps.
 - Both hosts share opinions, debate facts, make jokes, and disagree sometimes — like a real podcast.
 - Base topics on plausible current events, recent trends, or hot discussions related to today's date ({date_str}) in that interest area.
-- Use rich C1/C2 vocabulary naturally embedded in conversation.
+{vocab_rule}
 - Format speaker lines as "Host A: ..." and "Host B: ..." on separate lines.
 
 Return ONLY a valid JSON array with this exact schema (no markdown, no comments):
@@ -1273,7 +2554,10 @@ def _parse_iso(iso_text):
     if not iso_text:
         return None
     try:
-        return datetime.fromisoformat(str(iso_text).replace("Z", ""))
+        parsed = datetime.fromisoformat(str(iso_text).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     except Exception:
         return None
 
@@ -1290,7 +2574,7 @@ def _seconds_since_iso(iso_text):
     dt = _parse_iso(iso_text)
     if not dt:
         return 0
-    return max(0, int((datetime.utcnow() - dt).total_seconds()))
+    return max(0, int((utc_now() - dt).total_seconds()))
 
 
 def get_elapsed_seconds(session_data):
@@ -1299,8 +2583,10 @@ def get_elapsed_seconds(session_data):
     if not started:
         return 0
     try:
-        started_dt = datetime.fromisoformat(started.replace("Z", ""))
-        return int((datetime.utcnow() - started_dt).total_seconds())
+        started_dt = _parse_iso(started)
+        if not started_dt:
+            return 0
+        return int((utc_now() - started_dt).total_seconds())
     except Exception:
         return 0
 
@@ -1374,6 +2660,9 @@ def evaluate_session(session_data):
         return "Pas assez de contenu a evaluer.", None
 
     training_mode = session_data.get("training_mode", "standard")
+    target_cefr = str(session_data.get("target_cefr", "B1")).upper()
+    if target_cefr not in CEFR_LEVELS:
+        target_cefr = "B1"
     target_tense = session_data.get("training_settings", {}).get("target_tense", "-")
     latencies = [
         turn.get("response_latency_seconds")
@@ -1396,7 +2685,7 @@ def evaluate_session(session_data):
     ]
 
     prompt = f"""
-Evaluate this learner's spoken English (B1 level aiming for C2 American English).
+Evaluate this learner's spoken English targeting CEFR {target_cefr} ({CEFR_DESCRIPTORS[target_cefr]['label']}) in American English.
 
 Give a score from 1 to 10 for:
 - Grammar
@@ -1433,20 +2722,30 @@ Conversation transcript (learner only):
     return text, None
 
 
-def load_ai_lessons():
-    if not os.path.exists(AI_LESSON_FILE):
-        return []
+def ai_lesson_file_path(profile_id="default"):
+    profile_slug = _profile_storage_slug(profile_id)
+    return os.path.join(AI_LESSON_DIR, f"lessons-{profile_slug}.json")
+
+
+def load_ai_lessons(profile_id="default"):
+    path = ai_lesson_file_path(profile_id)
+    if not os.path.exists(path):
+        if profile_id == "default" and os.path.exists(AI_LESSON_FILE):
+            path = AI_LESSON_FILE
+        else:
+            return []
+
     try:
-        with open(AI_LESSON_FILE, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, list) else []
     except Exception:
         return []
 
 
-def save_ai_lessons(lessons):
+def save_ai_lessons(lessons, profile_id="default"):
     os.makedirs(AI_LESSON_DIR, exist_ok=True)
-    with open(AI_LESSON_FILE, "w", encoding="utf-8") as f:
+    with open(ai_lesson_file_path(profile_id), "w", encoding="utf-8") as f:
         json.dump(lessons, f, ensure_ascii=False, indent=2)
 
 
@@ -1463,10 +2762,17 @@ def _recent_practice_sessions(limit=12):
     return sessions[:limit]
 
 
-def generate_ai_lessons_from_sessions(session_limit=12, lesson_count=4):
+def generate_ai_lessons_from_sessions(
+    session_limit=12, lesson_count=4, target_cefr="B1"
+):
     sessions = _recent_practice_sessions(limit=session_limit)
     if not sessions:
         return None, "Aucune session IA trouvee dans l'historique."
+
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+    cefr = CEFR_DESCRIPTORS[target]
 
     chunks = []
     used_ids = []
@@ -1492,6 +2798,9 @@ def generate_ai_lessons_from_sessions(session_limit=12, lesson_count=4):
 You are an expert American English speaking coach.
 
 Analyze the learner transcript below (B2 listening, around B1 speaking).
+Target CEFR for the generated practice material: {target} ({cefr['label']}).
+Language calibration:
+{cefr['english']}
 Create exactly {lesson_count} practical lessons to improve daily conversation fluency.
 
 Return ONLY valid JSON array with this exact schema:
@@ -1531,7 +2840,9 @@ Transcript:
     for idx, item in enumerate(data[:lesson_count]):
         if not isinstance(item, dict):
             continue
-        lesson_id = f"ai-lesson-{datetime.utcnow().strftime('%Y%m%d')}-{idx+1}-{uuid.uuid4().hex[:4]}"
+        lesson_id = (
+            f"ai-lesson-{utc_now().strftime('%Y%m%d')}-{idx+1}-{uuid.uuid4().hex[:4]}"
+        )
         examples_raw = item.get("example_sentences") or []
         examples = []
         for ex in examples_raw[:6]:
@@ -1618,10 +2929,25 @@ Return ONLY valid JSON:
 
 
 def render_ai_lessons_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("Lecons basees sur vos echanges IA")
     st.write(
         "Ces lecons sont generees depuis vos conversations IA pour corriger vos vrais points faibles a l'oral."
     )
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    ai_level_default = get_profile_module_level(profile, "ai_lessons")
+    ai_level = st.radio(
+        "Niveau cible des lecons",
+        CEFR_LEVELS,
+        index=CEFR_LEVELS.index(ai_level_default),
+        horizontal=True,
+        key=f"ai-lessons-level-{profile_id}",
+    )
+    if ai_level != ai_level_default:
+        set_profile_module_level(profile_id, "ai_lessons", ai_level)
 
     voice_label = st.selectbox(
         "Voix audio des exemples",
@@ -1652,22 +2978,23 @@ def render_ai_lessons_page():
     if st.button(
         "Generer / Regenerer mes lecons personnalisees",
         type="primary",
-        use_container_width=True,
+        width="stretch",
         key="ai-lessons-generate",
     ):
         with st.spinner("Analyse des conversations et generation des lecons..."):
             lessons, err = generate_ai_lessons_from_sessions(
                 session_limit=session_limit,
                 lesson_count=lesson_count,
+                target_cefr=ai_level,
             )
         if err:
             st.error(f"Erreur generation lecons: {err}")
         else:
-            save_ai_lessons(lessons)
+            save_ai_lessons(lessons, profile_id=profile_id)
             st.success(f"{len(lessons)} lecon(s) personnalisee(s) creee(s).")
             st.rerun()
 
-    lessons = load_ai_lessons()
+    lessons = load_ai_lessons(profile_id=profile_id)
     if not lessons:
         st.info(
             "Aucune lecon personnalisee pour l'instant. Generez-les depuis vos echanges IA."
@@ -1699,10 +3026,10 @@ def render_ai_lessons_page():
             if examples and st.button(
                 "🔊 Generer tous les audios des exemples",
                 key=f"ai-lesson-gen-all-{lid}",
-                use_container_width=True,
+                width="stretch",
             ):
                 with st.spinner("Generation de tous les audios des exemples..."):
-                    all_lessons = load_ai_lessons()
+                    all_lessons = load_ai_lessons(profile_id=profile_id)
                     target = next((l for l in all_lessons if l.get("id") == lid), None)
                     if not target:
                         st.error("Lecon introuvable.")
@@ -1724,7 +3051,7 @@ def render_ai_lessons_page():
                             new_path = _save_ai_lesson_example_audio(lid, ex_idx, ab)
                             if isinstance(target["examples"][ex_idx], dict):
                                 target["examples"][ex_idx]["audio_path"] = new_path
-                        save_ai_lessons(all_lessons)
+                        save_ai_lessons(all_lessons, profile_id=profile_id)
                 st.rerun()
             for ex_idx, ex_item in enumerate(examples):
                 text = (
@@ -1743,7 +3070,7 @@ def render_ai_lessons_page():
                         if st.button(
                             "🔄 Regenerer audio",
                             key=f"ai-lesson-regen-{lid}-{ex_idx}",
-                            use_container_width=True,
+                            width="stretch",
                         ):
                             with st.spinner("Generation audio..."):
                                 ab, _, tts_err = text_to_speech_openrouter(
@@ -1756,37 +3083,37 @@ def render_ai_lessons_page():
                                 new_path = _save_ai_lesson_example_audio(
                                     lid, ex_idx, ab
                                 )
-                                all_lessons = load_ai_lessons()
+                                all_lessons = load_ai_lessons(profile_id=profile_id)
                                 for l in all_lessons:
                                     if l.get("id") == lid and ex_idx < len(
                                         l.get("examples", [])
                                     ):
                                         l["examples"][ex_idx]["audio_path"] = new_path
                                         break
-                                save_ai_lessons(all_lessons)
+                                save_ai_lessons(all_lessons, profile_id=profile_id)
                                 st.rerun()
                     with c2:
                         if st.button(
                             "🗑 Supprimer audio",
                             key=f"ai-lesson-del-{lid}-{ex_idx}",
-                            use_container_width=True,
+                            width="stretch",
                         ):
                             if audio_path and os.path.exists(audio_path):
                                 os.remove(audio_path)
-                            all_lessons = load_ai_lessons()
+                            all_lessons = load_ai_lessons(profile_id=profile_id)
                             for l in all_lessons:
                                 if l.get("id") == lid and ex_idx < len(
                                     l.get("examples", [])
                                 ):
                                     l["examples"][ex_idx]["audio_path"] = None
                                     break
-                            save_ai_lessons(all_lessons)
+                            save_ai_lessons(all_lessons, profile_id=profile_id)
                             st.rerun()
                 else:
                     if st.button(
                         "🔊 Generer audio",
                         key=f"ai-lesson-gen-{lid}-{ex_idx}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         with st.spinner("Generation audio..."):
                             ab, _, tts_err = text_to_speech_openrouter(
@@ -1797,14 +3124,14 @@ def render_ai_lessons_page():
                             st.error(tts_err)
                         else:
                             new_path = _save_ai_lesson_example_audio(lid, ex_idx, ab)
-                            all_lessons = load_ai_lessons()
+                            all_lessons = load_ai_lessons(profile_id=profile_id)
                             for l in all_lessons:
                                 if l.get("id") == lid and ex_idx < len(
                                     l.get("examples", [])
                                 ):
                                     l["examples"][ex_idx]["audio_path"] = new_path
                                     break
-                            save_ai_lessons(all_lessons)
+                            save_ai_lessons(all_lessons, profile_id=profile_id)
                             st.rerun()
 
             st.markdown("---")
@@ -1830,7 +3157,7 @@ def render_ai_lessons_page():
                 if st.button(
                     "▶️ Demarrer / Redemarrer le chrono",
                     key=f"ai-mini-start-btn-{lid}",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     st.session_state[start_key] = now_iso()
                     st.session_state[active_key] = lid
@@ -1840,7 +3167,7 @@ def render_ai_lessons_page():
                 if st.button(
                     "♻️ Recommencer la mini-task",
                     key=f"ai-mini-retry-btn-{lid}",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     st.session_state[start_key] = now_iso()
                     st.session_state[active_key] = lid
@@ -1878,13 +3205,13 @@ def render_ai_lessons_page():
                 transcribe_clicked = st.button(
                     "📝 Transcrire mon audio",
                     key=f"ai-mini-transcribe-btn-{lid}",
-                    use_container_width=True,
+                    width="stretch",
                 )
             with col_submit_audio:
                 submit_audio_clicked = st.button(
                     "🎤 Soumettre audio",
                     key=f"ai-mini-submit-audio-btn-{lid}",
-                    use_container_width=True,
+                    width="stretch",
                     type="primary",
                 )
 
@@ -1934,7 +3261,7 @@ def render_ai_lessons_page():
             if st.button(
                 "✅ Verifier ma mini-task",
                 key=f"ai-mini-eval-btn-{lid}",
-                use_container_width=True,
+                width="stretch",
             ):
                 with st.spinner("Evaluation de ta mini-task..."):
                     eval_result, eval_err = evaluate_ai_lesson_mini_task(lesson, answer)
@@ -1958,32 +3285,84 @@ def render_ai_lessons_page():
 
 
 def render_home():
-    st.header("Objectif: B1 -> C2 American English")
+    st.header("Objectif: A1 -> C2 American English")
     st.write(
         "Cette application combine ecoute intensive, repetition et conversations audio instantanees avec l'IA."
     )
     st.markdown(
         """
-- **Lecons**: 10 variations par theme de vie quotidienne + packs 5x5 min
-- **Podcasts**: 3 podcasts par jour sur News, IA, Football et Manga (5-10 min, accent US, niveau C1/C2)
-- **Pratique IA**: mode guide (theme) ou libre, conversations audio
-- **Evaluation** de fin de session: grammaire, chunks, fluidite, naturel
-- **Historique** audio complet: reecoute de toutes les sessions
+- **Lecons**: 10 variations par theme + packs 5x5 min
+- **Pratique IA**: conversation audio corrigee en continu (recasts implicites)
+- **Vocabulaire & Flashcards**: memoire long terme et reactivation quotidienne
+- **Podcasts / Histoires**: comprehension et exposition naturelle a l'anglais US
+- **Historique**: suivi de progression et reecoute des sessions
+"""
+    )
+
+    st.subheader("Comment devenir fluent avec 15 a 30 minutes par jour")
+    st.markdown(
+        """
+**Principe simple:** chaque jour, faire **Input -> Repetition -> Output -> Feedback**.
+
+**Schema 15 minutes (minimum efficace):**
+1. **Lecons (5 min)**: choisis 1 variation et ecoute/repete 2-3 fois (shadowing).
+2. **Pratique IA (6 min)**: fais une mini session sur le meme theme et parle sans traduire.
+3. **Vocabulaire (4 min)**: ajoute 2-3 chunks de la session + fais les flashcards du jour.
+
+**Schema 30 minutes (progression rapide):**
+1. **Lecons (10 min)**: 2 variations + 1 audio de pack (5 min).
+2. **Pratique IA (10 min)**: session guidee avec objectif clair (fluidite, temps, vocabulaire).
+3. **Vocabulaire (5 min)**: revision SRS + 3 nouvelles expressions utiles.
+4. **Podcast ou Histoire (5 min)**: ecoute active et note 3 expressions a reutiliser.
+"""
+    )
+
+    st.info(
+        "Routine conseillee: garde le meme theme 2-3 jours, puis change. "
+        "Objectif quotidien: reutiliser au moins 5 expressions dans ta session IA."
+    )
+
+    st.markdown(
+        """
+**Plan quotidien concret:**
+1. Regle ton **niveau CEFR** selon ton profil.
+2. Fais tes **Lecons audio** d'abord (oreille + prononciation).
+3. Enchaine avec **Pratique IA** (production orale immediate).
+4. Termine par **Vocabulaire** (memorisation) et, si possible, **Podcast/Histoire**.
+5. 1-2 fois par semaine, relis l'**Historique** pour verifier les erreurs recurrentes.
 """
     )
 
 
 def render_lessons_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+    profile_slug = _profile_storage_slug(profile_id)
+    profile_vocab_entries = load_vocab(profile_id=profile_id)
+    lesson_sources_done = {
+        str(e.get("source_lesson_id"))
+        for e in profile_vocab_entries
+        if isinstance(e, dict) and e.get("source_lesson_id")
+    }
+
     st.header("Lecons audio: ecouter et repeter")
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
 
     # ── Niveau CEFR ──────────────────────────────────────────────────────────
+    default_level = profile.get("target_cefr", "B1")
+    if default_level not in CEFR_LEVELS:
+        default_level = "B1"
     cefr_level = st.radio(
         "Niveau cible",
-        ["B1", "B2", "C1", "C2"],
+        CEFR_LEVELS,
         horizontal=True,
-        index=1,
+        index=CEFR_LEVELS.index(default_level),
         help="Les dialogues seront générés avec le vocabulaire, la grammaire et les chunks adaptés à ce niveau.",
     )
+    if cefr_level != default_level:
+        update_profile_target_cefr(profile_id, cefr_level)
+        st.session_state["active_profile_target_cefr"] = cefr_level
+
     desc = CEFR_DESCRIPTORS[cefr_level]
     st.markdown(
         f"{desc['badge']} **{desc['label']}** — dialogues calibrés sur ce niveau."
@@ -2003,7 +3382,7 @@ def render_lessons_page():
     voice_pair_label = st.selectbox(
         "Paire de voix pour les audios (Personne A / Personne B)",
         list(VOICE_PAIRS.keys()),
-        key=f"voice-pair-{slugify(theme_name)}-{cefr_level}",
+        key=f"voice-pair-{profile_slug}-{slugify(theme_name)}-{cefr_level}",
     )
     voice_a, voice_b = VOICE_PAIRS[voice_pair_label]
 
@@ -2019,14 +3398,21 @@ def render_lessons_page():
             "2. Cliquez **Generer audio US** pour entendre l'accent americain.\n"
             "3. Ecoutez et repetez chaque replique a voix haute (shadowing).\n"
             "4. Recommencez jusqu'a ce que le rythme soit naturel.\n"
+            "5. Cliquez **Lecon terminee** pour ajouter automatiquement des flashcards (max 10).\n"
             "**Objectif:** internaliser les chunks, les liaisons et le rythme americain."
         )
 
-        var_cache_key = f"quick-variations-ai-{slugify(theme_name)}-{cefr_level}"
+        var_cache_key = (
+            f"quick-variations-ai-{profile_slug}-{slugify(theme_name)}-{cefr_level}"
+        )
 
         # Load from disk into session_state on first render of this theme+level
         if var_cache_key not in st.session_state:
-            saved_vars = load_quick_variations(theme_name, cefr_level)
+            saved_vars = load_quick_variations(
+                theme_name,
+                cefr_level,
+                profile_id=profile_id,
+            )
             if saved_vars:
                 st.session_state[var_cache_key] = saved_vars
 
@@ -2043,7 +3429,12 @@ def render_lessons_page():
                 if err:
                     st.error(f"Erreur generation variations: {err}")
                 else:
-                    save_quick_variations(theme_name, ai_variations, cefr_level)
+                    save_quick_variations(
+                        theme_name,
+                        ai_variations,
+                        cefr_level,
+                        profile_id=profile_id,
+                    )
                     st.session_state[var_cache_key] = ai_variations
                     st.success("10 variations generees et sauvegardees.")
                     st.rerun()
@@ -2077,10 +3468,11 @@ def render_lessons_page():
                     )
                     st.text(item["dialogue"])
 
-                    audio_key = (
-                        f"quick-audio-{slugify(theme_name)}-{cefr_level}-{item['id']}"
+                    audio_key = f"quick-audio-{profile_slug}-{slugify(theme_name)}-{cefr_level}-{item['id']}"
+                    audio_disk_file = (
+                        f"var-{profile_slug}-{slugify(theme_name)}-"
+                        f"{cefr_level.lower()}-{item['id']}.wav"
                     )
-                    audio_disk_file = f"var-{slugify(theme_name)}-{cefr_level.lower()}-{item['id']}.wav"
 
                     # Load from disk if not already in session_state
                     if audio_key not in st.session_state:
@@ -2092,16 +3484,22 @@ def render_lessons_page():
                             }
 
                     if audio_key in st.session_state:
+                        source_lesson_id = _lesson_source_id(
+                            "quick",
+                            theme_name,
+                            cefr_level,
+                            item.get("id"),
+                        )
                         st.audio(
                             st.session_state[audio_key]["bytes"],
                             format=st.session_state[audio_key]["mime"],
                         )
-                        col_regen_v, col_del_v = st.columns([1, 1])
+                        col_regen_v, col_del_v, col_done_v = st.columns([1, 1, 1.4])
                         with col_regen_v:
                             if st.button(
                                 "🔄 Régénérer",
                                 key=f"regen-{audio_key}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 with st.spinner(
                                     f"Régénération ({voice_a} / {voice_b})..."
@@ -2124,18 +3522,80 @@ def render_lessons_page():
                             if st.button(
                                 "🗑️ Supprimer",
                                 key=f"del-{audio_key}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 disk_path = lesson_audio_path(audio_disk_file)
                                 if os.path.exists(disk_path):
                                     os.remove(disk_path)
                                 st.session_state.pop(audio_key, None)
                                 st.rerun()
+                        with col_done_v:
+                            if source_lesson_id in lesson_sources_done:
+                                st.caption("Flashcards deja ajoutees pour cette lecon.")
+                            if st.button(
+                                "✅ Lecon terminee",
+                                key=f"done-{audio_key}",
+                                width="stretch",
+                            ):
+                                added_to_shadowing = register_shadowing_text(
+                                    profile_id=profile_id,
+                                    source_lesson_id=source_lesson_id,
+                                    lesson_kind="quick",
+                                    theme_name=theme_name,
+                                    dialogue_text=item.get("dialogue", ""),
+                                    chunk_focus=item.get("chunk_focus", []),
+                                    cefr_level=item.get("cefr_level", cefr_level),
+                                    lesson_title=item.get("title", ""),
+                                )
+                                with st.spinner(
+                                    "Ajout automatique des flashcards en arriere-plan..."
+                                ):
+                                    result = auto_add_lesson_flashcards(
+                                        profile_id=profile_id,
+                                        source_lesson_id=source_lesson_id,
+                                        lesson_kind="quick",
+                                        theme_name=theme_name,
+                                        dialogue_text=item.get("dialogue", ""),
+                                        chunk_focus=item.get("chunk_focus", []),
+                                        cefr_level=item.get("cefr_level", cefr_level),
+                                        max_cards=LESSON_FLASHCARD_LIMIT,
+                                    )
+                                if result.get("already_done"):
+                                    st.info(
+                                        "Les flashcards de cette lecon sont deja presentes."
+                                    )
+                                    if added_to_shadowing:
+                                        st.success(
+                                            "Texte ajoute au menu Shadowing interactif quotidien."
+                                        )
+                                elif result.get("added", 0) > 0:
+                                    st.success(
+                                        f"{result['added']} flashcards ajoutees (max {LESSON_FLASHCARD_LIMIT})."
+                                    )
+                                    if added_to_shadowing:
+                                        st.success(
+                                            "Texte ajoute au menu Shadowing interactif quotidien."
+                                        )
+                                    if result.get("error") and result.get(
+                                        "used_fallback"
+                                    ):
+                                        st.warning(
+                                            "Extraction IA indisponible: fallback applique depuis les chunks de la lecon."
+                                        )
+                                    st.rerun()
+                                elif result.get("error"):
+                                    st.error(
+                                        f"Erreur ajout flashcards: {result['error']}"
+                                    )
+                                else:
+                                    st.info(
+                                        "Aucune nouvelle flashcard ajoutee (deja existantes)."
+                                    )
                     else:
                         if st.button(
                             "🔊 Générer audio US (2 voix)",
                             key=f"btn-{audio_key}",
-                            use_container_width=True,
+                            width="stretch",
                         ):
                             with st.spinner(
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
@@ -2155,7 +3615,7 @@ def render_lessons_page():
 
     with pack_tab:
         st.subheader("Pack de 5 conversations longues (~5 min chacune)")
-        pack = load_lesson_pack(theme_name, cefr_level)
+        pack = load_lesson_pack(theme_name, cefr_level, profile_id=profile_id)
 
         if pack is None:
             st.info(
@@ -2172,7 +3632,12 @@ def render_lessons_page():
                 if err:
                     st.error(f"Erreur generation pack: {err}")
                 else:
-                    save_lesson_pack(theme_name, generated, cefr_level)
+                    save_lesson_pack(
+                        theme_name,
+                        generated,
+                        cefr_level,
+                        profile_id=profile_id,
+                    )
                     st.success("Pack genere et sauvegarde.")
                     st.rerun()
         else:
@@ -2193,9 +3658,13 @@ def render_lessons_page():
                     )
                     st.text(lesson.get("dialogue", ""))
 
-                    btn_key = f"pack-audio-{slugify(theme_name)}-{cefr_level}-{idx}"
+                    btn_key = (
+                        f"pack-audio-{profile_slug}-{slugify(theme_name)}-"
+                        f"{cefr_level}-{idx}"
+                    )
                     audio_disk_file = (
-                        f"pack-{slugify(theme_name)}-{cefr_level.lower()}-{idx}.wav"
+                        f"pack-{profile_slug}-{slugify(theme_name)}-"
+                        f"{cefr_level.lower()}-{idx}.wav"
                     )
 
                     # Load from disk if not already in session_state
@@ -2208,16 +3677,22 @@ def render_lessons_page():
                             }
 
                     if btn_key in st.session_state:
+                        source_lesson_id = _lesson_source_id(
+                            "pack",
+                            theme_name,
+                            cefr_level,
+                            idx,
+                        )
                         st.audio(
                             st.session_state[btn_key]["bytes"],
                             format=st.session_state[btn_key]["mime"],
                         )
-                        col_regen_p, col_del_p = st.columns([1, 1])
+                        col_regen_p, col_del_p, col_done_p = st.columns([1, 1, 1.4])
                         with col_regen_p:
                             if st.button(
                                 "🔄 Régénérer",
                                 key=f"regen-{btn_key}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 with st.spinner(
                                     f"Régénération ({voice_a} / {voice_b})..."
@@ -2240,18 +3715,80 @@ def render_lessons_page():
                             if st.button(
                                 "🗑️ Supprimer",
                                 key=f"del-{btn_key}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 disk_path = lesson_audio_path(audio_disk_file)
                                 if os.path.exists(disk_path):
                                     os.remove(disk_path)
                                 st.session_state.pop(btn_key, None)
                                 st.rerun()
+                        with col_done_p:
+                            if source_lesson_id in lesson_sources_done:
+                                st.caption("Flashcards deja ajoutees pour cette lecon.")
+                            if st.button(
+                                "✅ Lecon terminee",
+                                key=f"done-{btn_key}",
+                                width="stretch",
+                            ):
+                                added_to_shadowing = register_shadowing_text(
+                                    profile_id=profile_id,
+                                    source_lesson_id=source_lesson_id,
+                                    lesson_kind="pack",
+                                    theme_name=theme_name,
+                                    dialogue_text=lesson.get("dialogue", ""),
+                                    chunk_focus=lesson.get("chunk_focus", []),
+                                    cefr_level=lesson.get("cefr_level", cefr_level),
+                                    lesson_title=lesson.get("title", ""),
+                                )
+                                with st.spinner(
+                                    "Ajout automatique des flashcards en arriere-plan..."
+                                ):
+                                    result = auto_add_lesson_flashcards(
+                                        profile_id=profile_id,
+                                        source_lesson_id=source_lesson_id,
+                                        lesson_kind="pack",
+                                        theme_name=theme_name,
+                                        dialogue_text=lesson.get("dialogue", ""),
+                                        chunk_focus=lesson.get("chunk_focus", []),
+                                        cefr_level=lesson.get("cefr_level", cefr_level),
+                                        max_cards=LESSON_FLASHCARD_LIMIT,
+                                    )
+                                if result.get("already_done"):
+                                    st.info(
+                                        "Les flashcards de cette lecon sont deja presentes."
+                                    )
+                                    if added_to_shadowing:
+                                        st.success(
+                                            "Texte ajoute au menu Shadowing interactif quotidien."
+                                        )
+                                elif result.get("added", 0) > 0:
+                                    st.success(
+                                        f"{result['added']} flashcards ajoutees (max {LESSON_FLASHCARD_LIMIT})."
+                                    )
+                                    if added_to_shadowing:
+                                        st.success(
+                                            "Texte ajoute au menu Shadowing interactif quotidien."
+                                        )
+                                    if result.get("error") and result.get(
+                                        "used_fallback"
+                                    ):
+                                        st.warning(
+                                            "Extraction IA indisponible: fallback applique depuis les chunks de la lecon."
+                                        )
+                                    st.rerun()
+                                elif result.get("error"):
+                                    st.error(
+                                        f"Erreur ajout flashcards: {result['error']}"
+                                    )
+                                else:
+                                    st.info(
+                                        "Aucune nouvelle flashcard ajoutee (deja existantes)."
+                                    )
                     else:
                         if st.button(
                             "🔊 Générer audio US (2 voix)",
                             key=f"btn-{btn_key}",
-                            use_container_width=True,
+                            width="stretch",
                         ):
                             with st.spinner(
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
@@ -2268,6 +3805,352 @@ def render_lessons_page():
                                     "mime": mime_type,
                                 }
                                 st.rerun()
+
+
+def render_shadowing_daily_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
+    st.header("Shadowing interactif quotidien")
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    texts = load_shadowing_texts(profile_id)
+    if not texts:
+        st.info(
+            "Aucun texte disponible pour le shadowing. "
+            "Dans Lecons (Ecoute), termine une lecon pour alimenter ce menu."
+        )
+        return
+
+    # ── Choice: daily random or manual pick ────────────────────────────────
+    mode_key = f"shadow-mode-{profile_id}"
+    mode = st.radio(
+        "Mode de selection",
+        ["Texte du jour (automatique)", "Choisir une lecon"],
+        horizontal=True,
+        key=mode_key,
+    )
+
+    texts_by_id = {str(t.get("source_id")): t for t in texts if t.get("source_id")}
+
+    if mode == "Choisir une lecon":
+        labels = {}
+        for t in texts:
+            sid = str(t.get("source_id", ""))
+            title = str(
+                t.get("lesson_title")
+                or t.get("theme_name")
+                or sid
+            )
+            level = str(t.get("cefr_level", ""))
+            labels[sid] = f"{title} ({level})" if level else title
+
+        chosen_sid = st.selectbox(
+            "Lecon a travailler",
+            list(labels.keys()),
+            format_func=lambda sid: labels.get(sid, sid),
+            key=f"shadow-pick-{profile_id}",
+        )
+        if chosen_sid not in texts_by_id:
+            st.warning("Lecon introuvable.")
+            return
+        chosen_text = texts_by_id[chosen_sid]
+        day_key = utc_now().date().isoformat()
+    else:
+        chosen_text, day_key = pick_daily_shadowing_text(profile_id, texts)
+        if not chosen_text:
+            st.warning("Impossible de selectionner un texte du jour.")
+            return
+
+    daily_text = chosen_text
+
+    assignments = load_shadowing_daily_assignments()
+    profile_map = assignments.get(profile_id, {})
+    if not isinstance(profile_map, dict):
+        profile_map = {}
+    day_state = _shadowing_day_entry_to_state(profile_map.get(day_key))
+    completed_today_ids = [
+        sid for sid in day_state.get("completed_source_ids", []) if str(sid).strip()
+    ]
+
+    if completed_today_ids:
+        with st.expander("Textes deja valides aujourd'hui", expanded=False):
+            shown_ids = list(reversed(completed_today_ids[-10:]))
+            for sid in shown_ids:
+                item = texts_by_id.get(str(sid), {})
+                title = str(item.get("lesson_title") or item.get("theme_name") or sid)
+                runs = get_shadowing_run_history(profile_id, day_key, sid)
+                last_run = runs[-1] if runs else {}
+                avg_score = float(last_run.get("avg_score", 0) or 0)
+                scales = _shadowing_score_scales(avg_score)
+                st.markdown(
+                    f"- {title}: **{scales['on_100']}/100** "
+                    f"({scales['on_20']}/20, {scales['on_10']}/10)"
+                )
+
+    source_id = str(daily_text.get("source_id", ""))
+    full_text = str(daily_text.get("dialogue_text", "")).strip()
+    chunks = daily_text.get("chunks") or _split_shadowing_chunks(full_text)
+    if not chunks:
+        st.warning("Le texte du jour ne contient pas de phrases exploitables.")
+        return
+
+    text_title = str(
+        daily_text.get("lesson_title")
+        or daily_text.get("theme_name")
+        or "N/A"
+    )
+    st.markdown(f"### {text_title}")
+    st.caption(
+        f"Date: {day_key} | Theme: {daily_text.get('theme_name', 'N/A')} | "
+        f"Niveau: {daily_text.get('cefr_level', 'B1')}"
+    )
+    st.text(full_text)
+
+    voice_label = st.selectbox(
+        "Voix pour les phrases",
+        list(STORY_NARRATOR_VOICES.keys()),
+        index=0,
+        key=f"shadowing-voice-{profile_id}",
+    )
+    voice = STORY_NARRATOR_VOICES.get(voice_label, "alloy")
+
+    records = get_shadowing_session_records(profile_id, day_key, source_id)
+    next_idx = get_next_shadowing_chunk_index(records, len(chunks))
+    scores = [int(r.get("score", 0)) for r in records]
+    avg_score_100 = round(sum(scores) / len(scores), 1) if scores else 0
+    avg_scales = _shadowing_score_scales(avg_score_100)
+    source_slug = slugify(source_id)
+    run_history = get_shadowing_run_history(profile_id, day_key, source_id)
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Phrases total", len(chunks))
+    m2.metric("Phrases notees", len(records))
+    m3.metric("Moyenne (/100)", avg_scales["on_100"])
+    st.caption(
+        f"La note principale est sur /100. Les formats /20 et /10 sont la meme note convertie "
+        f"({avg_scales['on_20']}/20 et {avg_scales['on_10']}/10)."
+    )
+
+    with st.expander("Comment la note est calculee", expanded=False):
+        st.markdown(
+            "- Une seule note de base est calculee par phrase: **qualite de repetition sur 100**.\n"
+            "- Cette qualite repose sur la **fidelite au texte cible** et la **fluidite**.\n"
+            "- Le mode actuel est **sans chrono**: tu peux envoyer quand tu veux.\n"
+            "- Les formats **/20** et **/10** sont juste des conversions de la note /100.\n"
+            "- Reperes rapides: 85-100 tres bon, 70-84 bon, 55-69 moyen, <55 a retravailler."
+        )
+
+    if records:
+        with st.expander("Historique des phrases notees aujourd'hui", expanded=False):
+            for rec in records:
+                idx = int(rec.get("chunk_idx", 0)) + 1
+                score = int(rec.get("score", 0))
+                score_scales = _shadowing_score_scales(score)
+                score_label = _shadowing_score_label(score)
+                feedback = rec.get("feedback", "")
+                st.markdown(
+                    f"- Phrase {idx}: **{score_scales['on_100']}/100** "
+                    f"({score_scales['on_20']}/20, {score_scales['on_10']}/10) - "
+                    f"{score_label}. {feedback}"
+                )
+
+    if st.button(
+        "Recommencer ce texte (garder mon historique)",
+        key=f"shadow-restart-{profile_id}-{day_key}-{source_slug}",
+        width="stretch",
+    ):
+        reset_shadowing_session_keep_history(
+            profile_id=profile_id,
+            day_key=day_key,
+            source_id=source_id,
+            chunk_count=len(chunks),
+        )
+        state_prefix = f"shadow-{profile_id}-{day_key}-{source_slug}-"
+        for state_key in list(st.session_state.keys()):
+            if str(state_key).startswith(state_prefix):
+                st.session_state.pop(state_key, None)
+        st.session_state.pop("shadow_last_autoplay_chunk", None)
+        st.rerun()
+
+    if run_history:
+        with st.expander("Historique de mes tentatives", expanded=False):
+            shown = list(reversed(run_history[-10:]))
+            for i, run in enumerate(shown, start=1):
+                archived_at = str(run.get("archived_at", ""))
+                archived_label = (
+                    archived_at.replace("T", " ")[:19] if archived_at else "N/A"
+                )
+                avg_score = run.get("avg_score", 0)
+                avg_scales = _shadowing_score_scales(avg_score)
+                avg_label = _shadowing_score_label(avg_score)
+                phrases_done = int(run.get("phrases_done", 0))
+                chunk_count = int(run.get("chunk_count", len(chunks)))
+                st.markdown(
+                    f"- Tentative {i} ({archived_label}) - moyenne: **{avg_scales['on_100']}/100** "
+                    f"({avg_scales['on_20']}/20, {avg_scales['on_10']}/10) "
+                    f"- {avg_label} ({phrases_done}/{chunk_count} phrases)"
+                )
+
+    if next_idx >= len(chunks):
+        completed_summary = _shadowing_records_summary(records, len(chunks))
+        avg_done = float(completed_summary.get("avg_score", 0) or 0)
+        if maybe_advance_shadowing_daily_text(
+            profile_id=profile_id,
+            day_key=day_key,
+            source_id=source_id,
+            texts=texts,
+            avg_score=avg_done,
+        ):
+            st.success(
+                "Bravo, moyenne >= 80/100. Nouveau texte charge pour aujourd'hui; "
+                "le precedent a ete historise."
+            )
+            st.session_state.pop("shadow_last_autoplay_chunk", None)
+            st.rerun()
+
+        st.success(
+            "Session du jour terminee. Demain, un autre texte sera propose automatiquement."
+        )
+        return
+
+    current_chunk = str(chunks[next_idx]).strip()
+    record_limit = _shadowing_record_seconds(current_chunk)
+
+    st.markdown("### Shadowing actif")
+    st.markdown(f"**Phrase {next_idx + 1} / {len(chunks)}**")
+    st.write(current_chunk)
+    st.caption(
+        "Mode libre: pas de chrono. " f"Repete la phrase puis envoie quand tu es pret."
+    )
+
+    chunk_audio_path, audio_err = ensure_shadowing_chunk_audio(
+        profile_id=profile_id,
+        source_id=source_id,
+        chunk_idx=next_idx,
+        chunk_text=current_chunk,
+        voice=voice,
+    )
+    if audio_err:
+        st.warning(f"Audio phrase indisponible: {audio_err}")
+    elif chunk_audio_path and os.path.exists(chunk_audio_path):
+        autoplay_chunk_marker = f"{profile_id}:{day_key}:{source_id}:{next_idx}"
+        autoplay_state_key = "shadow_last_autoplay_chunk"
+        if st.session_state.get(autoplay_state_key) != autoplay_chunk_marker:
+            try:
+                with open(chunk_audio_path, "rb") as _af:
+                    _ab64 = base64.b64encode(_af.read()).decode("utf-8")
+                st_components.html(
+                    (
+                        '<audio autoplay style="display:none">'
+                        f'<source src="data:audio/wav;base64,{_ab64}">'
+                        "</audio>"
+                    ),
+                    height=0,
+                )
+                st.session_state[autoplay_state_key] = autoplay_chunk_marker
+            except Exception:
+                pass
+        st.audio(chunk_audio_path, format="audio/wav")
+
+    run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"
+    blob_key = f"{run_key}-blob"
+    widget_key = f"{run_key}-widget"
+
+    def _finalize_chunk():
+        audio_bytes = st.session_state.get(blob_key)
+        duration_sec = 0.0
+        user_text = ""
+        score = 0
+        feedback = ""
+
+        if audio_bytes:
+            duration = _audio_duration_seconds(audio_bytes)
+            if duration is not None:
+                duration_sec = float(duration)
+
+            if duration is not None and duration > (record_limit + 0.2):
+                score = 40
+                feedback = (
+                    f"Audio trop long ({duration_sec:.1f}s). "
+                    f"Cible: {record_limit:.1f}s max pour cette phrase."
+                )
+            else:
+                with st.spinner("Transcription et notation..."):
+                    user_text, stt_err = transcribe_audio_with_openrouter(
+                        audio_bytes,
+                        audio_format="wav",
+                    )
+                if stt_err:
+                    score = 30
+                    feedback = f"Transcription indisponible: {stt_err}"
+                    user_text = ""
+                else:
+                    eval_data = evaluate_shadowing_chunk(
+                        current_chunk,
+                        user_text,
+                        cefr_level=daily_text.get("cefr_level", "B1"),
+                    )
+                    score = int(eval_data.get("score", 0))
+                    feedback = str(eval_data.get("feedback", "")).strip()
+                    mismatch_msg = _shadowing_mismatch_feedback(
+                        current_chunk, user_text
+                    )
+                    if mismatch_msg:
+                        feedback = (
+                            f"{feedback} {mismatch_msg}".strip()
+                            if feedback
+                            else mismatch_msg
+                        )
+        else:
+            score = 0
+            feedback = "Aucun audio detecte."
+
+        save_shadowing_chunk_result(
+            profile_id=profile_id,
+            day_key=day_key,
+            source_id=source_id,
+            chunk_idx=next_idx,
+            chunk_text=current_chunk,
+            score=score,
+            feedback=feedback,
+            user_text=user_text,
+            duration_sec=duration_sec,
+            chunk_count=len(chunks),
+        )
+
+        st.session_state.pop(blob_key, None)
+        st.session_state.pop(widget_key, None)
+        st.rerun()
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Envoyer maintenant", key=f"{run_key}-send-btn", width="stretch"):
+            _finalize_chunk()
+    with c2:
+        if st.button("Passer", key=f"{run_key}-skip-btn", width="stretch"):
+            save_shadowing_chunk_result(
+                profile_id=profile_id,
+                day_key=day_key,
+                source_id=source_id,
+                chunk_idx=next_idx,
+                chunk_text=current_chunk,
+                score=0,
+                feedback="Phrase passee manuellement.",
+                user_text="",
+                duration_sec=0.0,
+                chunk_count=len(chunks),
+            )
+            st.session_state.pop(blob_key, None)
+            st.session_state.pop(widget_key, None)
+            st.rerun()
+
+    user_audio_widget = st.audio_input(
+        "Enregistre ta repetition ici",
+        key=widget_key,
+    )
+    if user_audio_widget:
+        st.session_state[blob_key] = user_audio_widget.getvalue()
 
 
 # ── Story persistence ─────────────────────────────────────────────────────────
@@ -2426,22 +4309,45 @@ def _cover_image_url(cover_prompt):
         return None
 
 
-def _collect_tracks_for_slug(slug, theme_label):
-    """Return all WAV audio tracks on disk for a given theme slug (all levels)."""
+def _collect_tracks_for_slug(
+    slug, theme_label, profile_id="default", level_filter="Tous"
+):
+    """Return WAV tracks for a theme slug with profile + optional CEFR filtering."""
     if not os.path.isdir(LESSON_AUDIO_DIR):
         return []
-    var_re = re.compile(rf"^var-{re.escape(slug)}-(.+?)\.wav$")
-    pack_re = re.compile(rf"^pack-{re.escape(slug)}-(.+?)\.wav$")
+    profile_slug = _profile_storage_slug(profile_id)
+    var_re = re.compile(
+        rf"^var-{re.escape(profile_slug)}-{re.escape(slug)}-([a-z0-9]+)-(.+)\.wav$"
+    )
+    pack_re = re.compile(
+        rf"^pack-{re.escape(profile_slug)}-{re.escape(slug)}-([a-z0-9]+)-(.+)\.wav$"
+    )
+    legacy_var_re = re.compile(rf"^var-{re.escape(slug)}-([a-z0-9]+)-(.+)\.wav$")
+    legacy_pack_re = re.compile(rf"^pack-{re.escape(slug)}-([a-z0-9]+)-(.+)\.wav$")
     tracks = []
     for fname in sorted(os.listdir(LESSON_AUDIO_DIR)):
         path = os.path.join(LESSON_AUDIO_DIR, fname)
         m = var_re.match(fname)
+        source = "Var"
+        if not m:
+            m = pack_re.match(fname)
+            source = "Pack"
+        if not m and profile_id == "default":
+            m = legacy_var_re.match(fname)
+            source = "Var"
+        if not m and profile_id == "default":
+            m = legacy_pack_re.match(fname)
+            source = "Pack"
         if m:
-            tracks.append({"label": f"{theme_label} · Var {m.group(1)}", "file": path})
-            continue
-        m = pack_re.match(fname)
-        if m:
-            tracks.append({"label": f"{theme_label} · Pack {m.group(1)}", "file": path})
+            level = m.group(1).upper()
+            if level_filter != "Tous" and level != level_filter:
+                continue
+            tracks.append(
+                {
+                    "label": f"{theme_label} · {source} {level}",
+                    "file": path,
+                }
+            )
     return tracks
 
 
@@ -2546,11 +4452,15 @@ buildOrd();renderList();play(0);
 
 
 def render_stories_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("📖 Histoires en anglais — écoute & immersion")
     st.write(
         "Génère des histoires complètes en anglais américain sur les thèmes qui te passionnent. "
         "Lis, écoute, et immerge-toi dans le récit."
     )
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
 
     # ── Sidebar-style controls ────────────────────────────────────────────────
     col_left, col_right = st.columns([1, 2])
@@ -2580,13 +4490,16 @@ def render_stories_page():
 
         num_chapters = st.slider("Nombre de chapitres", 3, 6, 4, key="story-chapters")
 
+        story_level_default = get_profile_module_level(profile, "stories")
         cefr_level = st.radio(
             "Niveau",
-            ["B1", "B2", "C1", "C2"],
-            index=1,
+            CEFR_LEVELS,
+            index=CEFR_LEVELS.index(story_level_default),
             horizontal=True,
-            key="story-cefr",
+            key=f"story-cefr-{profile_id}",
         )
+        if cefr_level != story_level_default:
+            set_profile_module_level(profile_id, "stories", cefr_level)
         badge = CEFR_DESCRIPTORS[cefr_level]["badge"]
         st.caption(f"{badge} — vocabulaire et style adaptés à ce niveau.")
 
@@ -2601,7 +4514,7 @@ def render_stories_page():
         if st.button(
             "✨ Générer l'histoire",
             key="story-gen-btn",
-            use_container_width=True,
+            width="stretch",
             type="primary",
         ):
             if not topic or not topic.strip():
@@ -2641,9 +4554,7 @@ def render_stories_page():
                 label = f"{s.get('category','')[:2]} {s['title']}" + (
                     f" [{_cefr}]" if _cefr else ""
                 )
-                if st.button(
-                    label, key=f"story-load-{s['id']}", use_container_width=True
-                ):
+                if st.button(label, key=f"story-load-{s['id']}", width="stretch"):
                     st.session_state["story_active_id"] = s["id"]
                     st.rerun()
 
@@ -2682,7 +4593,7 @@ def render_stories_page():
         cover_url = _cover_image_url(story.get("cover_prompt", story["title"]))
         if cover_url:
             try:
-                st.image(cover_url, use_container_width=True)
+                st.image(cover_url, width="stretch")
             except Exception:
                 pass
 
@@ -2747,7 +4658,7 @@ def render_stories_page():
                     if st.button(
                         "🔄 Régénérer audio",
                         key=f"story-regen-{active_id}-{ch_num}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         with st.spinner(f"Régénération chapitre {ch_num}..."):
                             ab, _mime, err = generate_narrator_tts(
@@ -2763,7 +4674,7 @@ def render_stories_page():
                     if st.button(
                         "🗑️ Supprimer audio",
                         key=f"story-del-audio-{active_id}-{ch_num}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         ap = story_chapter_audio_path(active_id, ch_num)
                         if os.path.exists(ap):
@@ -2774,7 +4685,7 @@ def render_stories_page():
                 if st.button(
                     f"🔊 Générer audio — {ch_title}",
                     key=f"story-gen-audio-{active_id}-{ch_num}",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     with st.spinner(
                         f"Synthèse vocale chapitre {ch_num} ({narrator_voice})..."
@@ -2793,7 +4704,21 @@ def render_stories_page():
 
 
 def render_playlist_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("Playlist audio — écoute en continu")
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    playlist_level_default = get_profile_module_level(profile, "playlist")
+    playlist_level = st.selectbox(
+        "Filtrer par niveau",
+        ["Tous"] + CEFR_LEVELS,
+        index=0,
+        key=f"playlist-level-{profile_id}",
+    )
+    if playlist_level in CEFR_LEVELS and playlist_level != playlist_level_default:
+        set_profile_module_level(profile_id, "playlist", playlist_level)
 
     mode = st.radio(
         "Mode d'écoute",
@@ -2814,7 +4739,12 @@ def render_playlist_page():
             filtered = [t for t in THEME_CATEGORIES[category] if t in ESSENTIAL_THEMES]
             theme_name = st.selectbox("Thème", filtered, key="pl-theme")
 
-        tracks = _collect_tracks_for_slug(slugify(theme_name), theme_name)
+        tracks = _collect_tracks_for_slug(
+            slugify(theme_name),
+            theme_name,
+            profile_id=profile_id,
+            level_filter=playlist_level,
+        )
 
         if not tracks:
             st.warning(
@@ -2840,7 +4770,12 @@ def render_playlist_page():
             return
 
         for t in selected_themes:
-            found = _collect_tracks_for_slug(slugify(t), t)
+            found = _collect_tracks_for_slug(
+                slugify(t),
+                t,
+                profile_id=profile_id,
+                level_filter=playlist_level,
+            )
             tracks.extend(found)
 
         if not tracks:
@@ -2867,10 +4802,25 @@ def initialize_state():
 
 
 def render_practice_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("Pratique audio instantanee avec l'IA")
     st.write(
         "Enregistrez votre audio, envoyez-le, puis ecoutez la reponse vocale de l'IA."
     )
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    practice_level_default = get_profile_module_level(profile, "practice")
+    practice_level = st.radio(
+        "Niveau cible de la session",
+        CEFR_LEVELS,
+        index=CEFR_LEVELS.index(practice_level_default),
+        horizontal=True,
+        key=f"practice-level-{profile_id}",
+    )
+    if practice_level != practice_level_default:
+        set_profile_module_level(profile_id, "practice", practice_level)
 
     practice_mode = st.radio(
         "Mode", ["Guide par theme", "Session libre"], horizontal=True
@@ -2933,6 +4883,7 @@ def render_practice_page():
             mode_value,
             theme_value,
             selected_objective,
+            target_cefr=practice_level,
             training_mode=training_mode,
             training_settings=training_settings,
         )
@@ -2940,6 +4891,10 @@ def render_practice_page():
         st.success(f"Session demarree: {st.session_state.active_session['id']}")
 
     session_data = st.session_state.active_session
+    if session_data and session_data.get("profile_id", "default") != profile_id:
+        st.session_state.active_session = None
+        session_data = None
+
     if not session_data:
         st.info("Demarrez une session pour activer les echanges audio.")
         return
@@ -2954,7 +4909,7 @@ def render_practice_page():
         active_drill_key,
     )
     st.caption(
-        f"Session active: {session_data['id']} | Mode: {session_data['mode']} | Theme: {session_data['theme']} | Drill: {active_drill_label}"
+        f"Session active: {session_data['id']} | Mode: {session_data['mode']} | Theme: {session_data['theme']} | Niveau: {session_data.get('target_cefr', 'B1')} | Drill: {active_drill_label}"
     )
 
     with st.expander("🗂 Historique IA recent (sauvegarde automatique)"):
@@ -2978,7 +4933,7 @@ def render_practice_page():
                 if st.button(
                     "📂 Charger cette session",
                     key=f"practice-load-session-{selected_hist.get('id')}",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     st.session_state.active_session = selected_hist
                     st.session_state.pop("practice_last_processed_audio", None)
@@ -3104,12 +5059,12 @@ def render_practice_page():
 
         col_clear, col_eval = st.columns([1, 1])
         with col_clear:
-            if st.button("🗑️ Effacer", use_container_width=True):
+            if st.button("🗑️ Effacer", width="stretch"):
                 st.session_state.pop(audio_key, None)
                 st.session_state.pop("practice_last_processed_audio", None)
                 st.rerun()
         with col_eval:
-            eval_clicked = st.button("📊 Evaluer", use_container_width=True)
+            eval_clicked = st.button("📊 Evaluer", width="stretch")
     else:
         audio_file = None
         auto_send_ready = False
@@ -3119,7 +5074,7 @@ def render_practice_page():
             eval_clicked = st.button(
                 "📊 Obtenir la note de fin de session",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
 
     if auto_send_ready:
@@ -3214,19 +5169,70 @@ def render_practice_page():
 # ── Vocabulary / Flashcard / SRS helpers ─────────────────────────────────────
 
 
-def load_vocab():
+def vocab_file_path(profile_id=None):
+    pid = profile_id or st.session_state.get("active_profile_id", "default")
+    return os.path.join(VOCAB_DIR, f"vocab-{_profile_storage_slug(pid)}.json")
+
+
+def _normalize_vocab_entries(entries, profile_id):
+    normalized = []
+    changed = False
+    for item in entries:
+        if not isinstance(item, dict):
+            changed = True
+            continue
+
+        entry_profile = str(item.get("profile_id", "")).strip()
+        if entry_profile and entry_profile != profile_id:
+            changed = True
+            continue
+
+        if item.get("profile_id") != profile_id:
+            item["profile_id"] = profile_id
+            changed = True
+
+        srs = item.get("srs")
+        if not isinstance(srs, dict):
+            item["srs"] = {
+                "next_review": now_iso(),
+                "interval": 1,
+                "ease": 2.5,
+                "repetitions": 0,
+                "last_result": None,
+            }
+            changed = True
+
+        normalized.append(item)
+    return normalized, changed
+
+
+def load_vocab(profile_id=None):
     """Return the vocabulary list from disk (list of dicts)."""
-    if not os.path.exists(VOCAB_FILE):
+    pid = profile_id or st.session_state.get("active_profile_id", "default")
+    path = vocab_file_path(profile_id=pid)
+    if not os.path.exists(path):
+        # Legacy fallback for default profile.
+        if pid == "default" and os.path.exists(VOCAB_FILE):
+            path = VOCAB_FILE
+        else:
+            return []
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
         return []
-    with open(VOCAB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    normalized, changed = _normalize_vocab_entries(data, pid)
+    if changed:
+        save_vocab(normalized, profile_id=pid)
+    return normalized
 
 
-def save_vocab(entries):
+def save_vocab(entries, profile_id=None):
     """Persist the vocabulary list to disk."""
+    pid = profile_id or st.session_state.get("active_profile_id", "default")
+    normalized, _changed = _normalize_vocab_entries(entries or [], pid)
     os.makedirs(VOCAB_DIR, exist_ok=True)
-    with open(VOCAB_FILE, "w", encoding="utf-8") as f:
-        json.dump(entries, f, ensure_ascii=False, indent=2)
+    with open(vocab_file_path(profile_id=pid), "w", encoding="utf-8") as f:
+        json.dump(normalized, f, ensure_ascii=False, indent=2)
 
 
 def _srs_update_rated(entry, rating: int):
@@ -3269,7 +5275,7 @@ def _srs_update_rated(entry, rating: int):
         reps += 1
         ease = min(4.0, ease + 0.15)
 
-    next_review = (datetime.utcnow() + timedelta(days=interval)).isoformat() + "Z"
+    next_review = utc_iso(utc_now() + timedelta(days=interval))
     entry.update(
         {
             "interval": interval,
@@ -3288,20 +5294,25 @@ def _srs_update(entry, passed: bool):
 
 def get_due_cards(entries):
     """Return vocab entries whose next_review is <= now (due for review)."""
-    now = datetime.utcnow().isoformat() + "Z"
+    now = utc_now()
     due = []
     for e in entries:
         srs = e.get("srs", {})
-        nr = srs.get("next_review", now)
-        if nr <= now:
+        nr_dt = _parse_iso(srs.get("next_review", "")) or now
+        if nr_dt <= now:
             due.append(e)
+    due.sort(key=lambda e: (_parse_iso(e.get("srs", {}).get("next_review", "")) or now))
     return due
 
 
-def translate_and_explain(term: str):
+def translate_and_explain(term: str, target_cefr: str = "B1"):
     """Ask the AI to translate and explain a word or chunk. Returns dict or (None, err)."""
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
     prompt = f"""You are an expert English teacher for French speakers.
 The learner gives you a word or chunk in English (or occasionally in French).
+Target CEFR level for the output examples and explanations: {target}.
 Return a JSON object with these exact keys:
 - "term": the English word/chunk (normalized)
 - "translation": concise French translation
@@ -3369,20 +5380,33 @@ def evaluate_vocab_usage(term: str, context_explanation: str, user_text: str):
 # ── Vocabulary page ───────────────────────────────────────────────────────────
 
 
-def _save_review_audio(entry_id: str, audio_bytes: bytes) -> str:
+def _save_review_audio(
+    entry_id: str, audio_bytes: bytes, profile_id: str = None
+) -> str:
     """Persist flashcard review audio and return the file path."""
     os.makedirs(VOCAB_AUDIO_DIR, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    path = os.path.join(VOCAB_AUDIO_DIR, f"{entry_id}_{ts}.wav")
+    ts = utc_now().strftime("%Y%m%d-%H%M%S")
+    profile_slug = _profile_storage_slug(
+        profile_id or st.session_state.get("active_profile_id", "default")
+    )
+    path = os.path.join(VOCAB_AUDIO_DIR, f"{profile_slug}-{entry_id}_{ts}.wav")
     with open(path, "wb") as f:
         f.write(audio_bytes)
     return path
 
 
-def _save_example_audio(entry_id: str, example_idx: int, audio_bytes: bytes) -> str:
+def _save_example_audio(
+    entry_id: str, example_idx: int, audio_bytes: bytes, profile_id: str = None
+) -> str:
     """Persist example-sentence TTS audio and return the file path."""
     os.makedirs(VOCAB_AUDIO_DIR, exist_ok=True)
-    path = os.path.join(VOCAB_AUDIO_DIR, f"{entry_id}_ex{example_idx}.wav")
+    profile_slug = _profile_storage_slug(
+        profile_id or st.session_state.get("active_profile_id", "default")
+    )
+    path = os.path.join(
+        VOCAB_AUDIO_DIR,
+        f"{profile_slug}-{entry_id}_ex{example_idx}.wav",
+    )
     with open(path, "wb") as f:
         f.write(audio_bytes)
     return path
@@ -3418,7 +5442,22 @@ def evaluate_reverse_flashcard(term: str, user_text: str):
 
 
 def render_vocabulary_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("📖 Vocabulaire, Traduction & Flashcards")
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    vocab_level_default = get_profile_module_level(profile, "vocabulary")
+    vocab_level = st.radio(
+        "Niveau cible vocabulaire",
+        CEFR_LEVELS,
+        index=CEFR_LEVELS.index(vocab_level_default),
+        horizontal=True,
+        key=f"vocab-level-{profile_id}",
+    )
+    if vocab_level != vocab_level_default:
+        set_profile_module_level(profile_id, "vocabulary", vocab_level)
 
     tab_translate, tab_flash, tab_hist = st.tabs(
         ["🔍 Traduction & Explication", "🃏 Flashcards (SRS)", "📚 Historique"]
@@ -3445,7 +5484,7 @@ def render_vocabulary_page():
                 "✨ Analyser",
                 key="vocab-analyze-btn",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
 
         if analyze_btn:
@@ -3457,7 +5496,10 @@ def render_vocabulary_page():
                 for _i in range(10):
                     st.session_state.pop(f"vocab_ex_audio_{_i}", None)
                 with st.spinner("Analyse en cours…"):
-                    result, err = translate_and_explain(term_input.strip())
+                    result, err = translate_and_explain(
+                        term_input.strip(),
+                        target_cefr=vocab_level,
+                    )
                 if err:
                     st.error(f"Erreur IA : {err}")
                 else:
@@ -3484,9 +5526,9 @@ def render_vocabulary_page():
                 if st.button(
                     "💾 Sauvegarder dans mon vocabulaire",
                     key="vocab-save-btn",
-                    use_container_width=True,
+                    width="stretch",
                 ):
-                    entries = load_vocab()
+                    entries = load_vocab(profile_id=profile_id)
                     existing_terms = [e.get("term", "").lower() for e in entries]
                     if result.get("term", "").lower() in existing_terms:
                         st.info("Ce mot est déjà dans ton vocabulaire.")
@@ -3496,11 +5538,19 @@ def render_vocabulary_page():
                         for _ei, _ex in enumerate(result.get("examples", [])):
                             _ab = st.session_state.get(f"vocab_ex_audio_{_ei}")
                             _ap = (
-                                _save_example_audio(entry_id, _ei, _ab) if _ab else None
+                                _save_example_audio(
+                                    entry_id,
+                                    _ei,
+                                    _ab,
+                                    profile_id=profile_id,
+                                )
+                                if _ab
+                                else None
                             )
                             examples_with_audio.append({"text": _ex, "audio_path": _ap})
                         entry = {
                             "id": entry_id,
+                            "profile_id": profile_id,
                             "term": result.get("term", term_input),
                             "created_at": now_iso(),
                             "translation": result.get("translation", ""),
@@ -3519,7 +5569,7 @@ def render_vocabulary_page():
                             "review_history": [],
                         }
                         entries.append(entry)
-                        save_vocab(entries)
+                        save_vocab(entries, profile_id=profile_id)
                         # Clean up current analysis from session state
                         st.session_state.pop("vocab_current", None)
                         for _i in range(10):
@@ -3558,7 +5608,7 @@ def render_vocabulary_page():
         )
         is_reverse = "Inversé" in flash_mode_label
 
-        entries = load_vocab()
+        entries = load_vocab(profile_id=profile_id)
         due = get_due_cards(entries)
 
         total = len(entries)
@@ -3582,15 +5632,17 @@ def render_vocabulary_page():
                 )
             return
 
-        mode_key = f"flash_mode_{is_reverse}"
+        mode_key = f"flash_mode_{profile_id}_{is_reverse}"
         if (
             "flash_idx" not in st.session_state
             or st.session_state.get("flash_due_count") != total_due
             or st.session_state.get("flash_mode_key") != mode_key
+            or st.session_state.get("flash_profile_id") != profile_id
         ):
             st.session_state["flash_idx"] = 0
             st.session_state["flash_due_count"] = total_due
             st.session_state["flash_mode_key"] = mode_key
+            st.session_state["flash_profile_id"] = profile_id
             st.session_state["flash_revealed"] = False
             st.session_state["flash_eval_result"] = None
             st.session_state["flash_user_audio_bytes"] = None
@@ -3624,7 +5676,7 @@ def render_vocabulary_page():
 
         # Audio recorder — use raw flash_idx (never modulo'd) so the key is
         # always unique and Streamlit never restores a previous card's audio.
-        _mic_key = f"flash-mic-{st.session_state.get('flash_idx', 0)}-{is_reverse}"
+        _mic_key = f"flash-mic-{profile_id}-{st.session_state.get('flash_idx', 0)}-{is_reverse}"
         user_audio_widget = st.audio_input(
             "🎤 Enregistre ta réponse",
             key=_mic_key,
@@ -3639,7 +5691,7 @@ def render_vocabulary_page():
                 "✅ Soumettre",
                 key="flash-submit",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             ):
                 user_bytes = st.session_state.get("flash_user_audio_bytes")
                 if not user_bytes:
@@ -3666,19 +5718,21 @@ def render_vocabulary_page():
                             st.error(f"Évaluation : {eval_err}")
                         else:
                             eval_result["user_text"] = user_text
-                            audio_path = _save_review_audio(card["id"], user_bytes)
+                            audio_path = _save_review_audio(
+                                card["id"],
+                                user_bytes,
+                                profile_id=profile_id,
+                            )
                             st.session_state["flash_user_audio_path"] = audio_path
                             st.session_state["flash_eval_result"] = eval_result
                             st.session_state["flash_revealed"] = True
 
         with col_reveal:
-            if st.button(
-                "👁 Voir la réponse", key="flash-reveal", use_container_width=True
-            ):
+            if st.button("👁 Voir la réponse", key="flash-reveal", width="stretch"):
                 st.session_state["flash_revealed"] = True
 
         with col_skip:
-            if st.button("⏭ Passer", key="flash-skip", use_container_width=True):
+            if st.button("⏭ Passer", key="flash-skip", width="stretch"):
                 st.session_state.pop(_mic_key, None)
                 st.session_state["flash_idx"] = st.session_state.get("flash_idx", 0) + 1
                 st.session_state["flash_revealed"] = False
@@ -3729,7 +5783,7 @@ def render_vocabulary_page():
             r0, r1, r2, r3 = st.columns(4)
 
             def _apply_rating(rating: int, label: str):
-                _all = load_vocab()
+                _all = load_vocab(profile_id=profile_id)
                 _eval = st.session_state.get("flash_eval_result")
                 _ap = st.session_state.get("flash_user_audio_path")
                 for e in _all:
@@ -3749,7 +5803,7 @@ def render_vocabulary_page():
                             e["review_history"] = []
                         e["review_history"].append(rev)
                         break
-                save_vocab(_all)
+                save_vocab(_all, profile_id=profile_id)
                 st.session_state.pop(_mic_key, None)
                 st.session_state["flash_idx"] = st.session_state.get("flash_idx", 0) + 1
                 st.session_state["flash_revealed"] = False
@@ -3759,24 +5813,24 @@ def render_vocabulary_page():
                 st.rerun()
 
             with r0:
-                if st.button("❌ À revoir", key="flash-r0", use_container_width=True):
+                if st.button("❌ À revoir", key="flash-r0", width="stretch"):
                     _apply_rating(0, "À revoir")
             with r1:
-                if st.button("😬 Difficile", key="flash-r1", use_container_width=True):
+                if st.button("😬 Difficile", key="flash-r1", width="stretch"):
                     _apply_rating(1, "Difficile")
             with r2:
                 if st.button(
-                    "✅ Bien", key="flash-r2", use_container_width=True, type="primary"
+                    "✅ Bien", key="flash-r2", width="stretch", type="primary"
                 ):
                     _apply_rating(2, "Bien")
             with r3:
-                if st.button("🌟 Facile", key="flash-r3", use_container_width=True):
+                if st.button("🌟 Facile", key="flash-r3", width="stretch"):
                     _apply_rating(3, "Facile")
 
     # ── Tab 3 : History ───────────────────────────────────────────────────────
     with tab_hist:
         st.subheader("Historique de mon vocabulaire")
-        entries = load_vocab()
+        entries = load_vocab(profile_id=profile_id)
         if not entries:
             st.info("Aucun mot sauvegardé pour le moment.")
         else:
@@ -3837,23 +5891,23 @@ def render_vocabulary_page():
                                 if st.button(
                                     "🗑 Supprimer audio",
                                     key=f"vocab-ex-del-{entry['id']}-{ex_idx}",
-                                    use_container_width=True,
+                                    width="stretch",
                                 ):
                                     os.remove(audio_path)
-                                    _all = load_vocab()
+                                    _all = load_vocab(profile_id=profile_id)
                                     for _e in _all:
                                         if _e["id"] == entry["id"] and isinstance(
                                             _e["examples"][ex_idx], dict
                                         ):
                                             _e["examples"][ex_idx]["audio_path"] = None
                                             break
-                                    save_vocab(_all)
+                                    save_vocab(_all, profile_id=profile_id)
                                     st.rerun()
                             with cb:
                                 if st.button(
                                     "🔄 Régénérer audio",
                                     key=f"vocab-ex-regen-{entry['id']}-{ex_idx}",
-                                    use_container_width=True,
+                                    width="stretch",
                                 ):
                                     with st.spinner("Génération audio…"):
                                         _ab, _, _err = text_to_speech_openrouter(
@@ -3863,9 +5917,12 @@ def render_vocabulary_page():
                                         st.error(_err)
                                     else:
                                         _new_path = _save_example_audio(
-                                            entry["id"], ex_idx, _ab
+                                            entry["id"],
+                                            ex_idx,
+                                            _ab,
+                                            profile_id=profile_id,
                                         )
-                                        _all = load_vocab()
+                                        _all = load_vocab(profile_id=profile_id)
                                         for _e in _all:
                                             if _e["id"] == entry["id"] and isinstance(
                                                 _e["examples"][ex_idx], dict
@@ -3874,13 +5931,13 @@ def render_vocabulary_page():
                                                     "audio_path"
                                                 ] = _new_path
                                                 break
-                                        save_vocab(_all)
+                                        save_vocab(_all, profile_id=profile_id)
                                         st.rerun()
                         else:
                             if st.button(
                                 "🔊 Générer audio",
                                 key=f"vocab-ex-gen-{entry['id']}-{ex_idx}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 with st.spinner("Génération audio…"):
                                     _ab, _, _err = text_to_speech_openrouter(
@@ -3890,9 +5947,12 @@ def render_vocabulary_page():
                                     st.error(_err)
                                 else:
                                     _new_path = _save_example_audio(
-                                        entry["id"], ex_idx, _ab
+                                        entry["id"],
+                                        ex_idx,
+                                        _ab,
+                                        profile_id=profile_id,
                                     )
-                                    _all = load_vocab()
+                                    _all = load_vocab(profile_id=profile_id)
                                     for _e in _all:
                                         if _e["id"] == entry["id"]:
                                             if isinstance(_e["examples"][ex_idx], dict):
@@ -3900,7 +5960,7 @@ def render_vocabulary_page():
                                                     "audio_path"
                                                 ] = _new_path
                                             break
-                                    save_vocab(_all)
+                                    save_vocab(_all, profile_id=profile_id)
                                     st.rerun()
 
                     # Review history with audio playback
@@ -3930,17 +5990,19 @@ def render_vocabulary_page():
                         )
                     with col_del:
                         if st.button("🗑 Supprimer", key=f"vocab-del-{entry['id']}"):
-                            all_entries = load_vocab()
+                            all_entries = load_vocab(profile_id=profile_id)
                             all_entries = [
                                 e for e in all_entries if e["id"] != entry["id"]
                             ]
-                            save_vocab(all_entries)
+                            save_vocab(all_entries, profile_id=profile_id)
                             st.rerun()
 
 
 def render_history_page():
+    profile = get_active_profile()
     st.header("Historique complet des sessions audio")
-    sessions = load_all_sessions()
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+    sessions = load_all_sessions(profile_id=profile.get("id", "default"))
     if not sessions:
         st.info("Aucune session sauvegardee pour le moment.")
         return
@@ -3968,18 +6030,33 @@ def render_history_page():
 
 
 def render_podcast_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
     st.header("🎙️ Podcasts du jour")
     st.write(
         "3 podcasts générés chaque jour sur vos sujets favoris : "
         "**News, IA, Football, Manga**. "
-        "Écoutez-les en anglais américain pour développer votre compréhension orale C1/C2."
+        "Écoutez-les en anglais américain au niveau de votre profil."
     )
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+
+    podcast_level_default = get_profile_module_level(profile, "podcasts", "C1")
+    podcast_level = st.radio(
+        "Niveau cible podcasts",
+        CEFR_LEVELS,
+        index=CEFR_LEVELS.index(podcast_level_default),
+        horizontal=True,
+        key=f"podcast-level-{profile_id}",
+    )
+    if podcast_level != podcast_level_default:
+        set_profile_module_level(profile_id, "podcasts", podcast_level)
 
     col_date, col_dur = st.columns([2, 1])
     with col_date:
         date_selected = st.date_input(
             "Date",
-            value=datetime.utcnow().date(),
+            value=utc_now().date(),
         ).strftime("%Y-%m-%d")
     with col_dur:
         duration = st.slider(
@@ -4011,12 +6088,15 @@ def render_podcast_page():
         if st.button(
             "🎙️ Générer 3 podcasts du jour",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=(podcasts is not None),
         ):
             with st.spinner("Génération des 3 podcasts en cours (30-60 secondes)..."):
                 generated, err = generate_podcast_scripts(
-                    date_selected, USER_INTERESTS, duration_minutes=duration
+                    date_selected,
+                    USER_INTERESTS,
+                    duration_minutes=duration,
+                    target_cefr=podcast_level,
                 )
             if err:
                 st.error(f"Erreur génération podcasts: {err}")
@@ -4025,7 +6105,7 @@ def render_podcast_page():
                 st.success("3 podcasts générés et sauvegardés !")
                 st.rerun()
     with col_regen:
-        if podcasts and st.button("🔄 Régénérer", use_container_width=True):
+        if podcasts and st.button("🔄 Régénérer", width="stretch"):
             path = podcast_file_path(date_selected)
             if os.path.exists(path):
                 os.remove(path)
@@ -4084,7 +6164,7 @@ def render_podcast_page():
 
             st.caption(podcast.get("summary", ""))
             st.caption(
-                f"⏱️ ~{podcast.get('estimated_minutes', duration)} min  |  🔴 C1/C2  |  📅 {date_selected}"
+                f"⏱️ ~{podcast.get('estimated_minutes', duration)} min  |  {CEFR_DESCRIPTORS.get(podcast_level, {}).get('badge', podcast_level)}  |  📅 {date_selected}"
             )
 
             if podcast.get("vocabulary_highlights"):
@@ -4106,7 +6186,7 @@ def render_podcast_page():
                     if st.button(
                         "🔄 Régénérer audio",
                         key=f"regen-podcast-audio-{date_selected}-{pid}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         script = podcast.get("script", "")
                         script_norm = re.sub(r"\bHost A\s*:", "A:", script)
@@ -4128,7 +6208,7 @@ def render_podcast_page():
                     if st.button(
                         "🗑️ Supprimer audio",
                         key=f"del-podcast-audio-{date_selected}-{pid}",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         fname = podcast_audio_file_name(date_selected, pid)
                         path = os.path.join(PODCAST_AUDIO_DIR, fname)
@@ -4140,7 +6220,7 @@ def render_podcast_page():
                 if st.button(
                     f"🔊 Générer audio ({podcast_voice_a} / {podcast_voice_b})",
                     key=f"btn-podcast-audio-{date_selected}-{pid}",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     script = podcast.get("script", "")
                     script_norm = re.sub(r"\bHost A\s*:", "A:", script)
@@ -4167,12 +6247,108 @@ def main():
     initialize_state()
 
     st.set_page_config(page_title="English Audio Coach", layout="wide")
-    st.title("English Audio Coach (B1 -> C2)")
+    st.title("English Audio Coach (A1 -> C2)")
 
     if not OPENROUTER_API_KEY:
         st.error(
             "Ajoutez OPENROUTER_API_KEY dans le fichier .env pour activer les fonctions IA/audio."
         )
+
+    st.sidebar.header("Profil")
+    profiles = load_profiles()
+    profile_ids = [p["id"] for p in profiles]
+    if "profile_gate_passed" not in st.session_state:
+        st.session_state["profile_gate_passed"] = False
+
+    current_profile_id = st.session_state.get("active_profile_id", "")
+    if current_profile_id not in profile_ids:
+        current_profile_id = ""
+
+    selectable_profiles = ["__choose__"] + profile_ids
+    if current_profile_id:
+        default_choice = current_profile_id
+    else:
+        default_choice = "__choose__"
+
+    selected_profile_id = st.sidebar.selectbox(
+        "Profil actif",
+        selectable_profiles,
+        index=selectable_profiles.index(default_choice),
+        format_func=lambda pid: next(
+            (
+                f"{p.get('name', pid)} ({p.get('target_cefr', 'B1')})"
+                for p in profiles
+                if p.get("id") == pid
+            ),
+            "Choisir un profil...",
+        ),
+        key="active-profile-required-select",
+    )
+
+    if selected_profile_id in profile_ids:
+        st.session_state["active_profile_id"] = selected_profile_id
+        st.session_state["profile_gate_passed"] = True
+
+    active_profile = None
+    if st.session_state.get("profile_gate_passed"):
+        active_profile = get_active_profile()
+        st.sidebar.caption(
+            f"Niveau lecons par defaut: {active_profile.get('target_cefr', 'B1')}"
+        )
+
+    with st.sidebar.expander("Ajouter / mettre a jour un profil"):
+        st.caption(
+            "Profils existants: " + ", ".join(p.get("name", "") for p in profiles)
+        )
+        with st.form("profile-create-form", clear_on_submit=True):
+            new_profile_name = st.text_input("Nom du profil", key="profile-new-name")
+            new_profile_level = st.selectbox(
+                "Niveau de depart",
+                CEFR_LEVELS,
+                index=CEFR_LEVELS.index("B1"),
+                key="profile-new-level",
+            )
+            save_profile = st.form_submit_button(
+                "Enregistrer le profil",
+                width="stretch",
+            )
+
+        if save_profile:
+            already_exists = any(
+                p.get("name", "").lower() == new_profile_name.strip().lower()
+                for p in profiles
+            )
+            created_profile, profile_err = create_or_update_profile(
+                new_profile_name,
+                target_cefr=new_profile_level,
+            )
+            if profile_err:
+                st.warning(profile_err)
+            else:
+                st.session_state["active_profile_id"] = created_profile["id"]
+                st.session_state["profile_gate_passed"] = True
+                if already_exists:
+                    st.success(f"Profil mis a jour: {created_profile['name']}")
+                else:
+                    st.success(f"Profil cree: {created_profile['name']}")
+                st.rerun()
+
+    if not st.session_state.get("profile_gate_passed"):
+        st.warning("Choisissez un profil pour démarrer l'application.")
+        st.stop()
+
+    previous_profile_id = st.session_state.get("last_active_profile_id")
+    current_active_profile_id = st.session_state.get("active_profile_id")
+    if previous_profile_id and previous_profile_id != current_active_profile_id:
+        st.session_state.active_session = None
+        for k in list(st.session_state.keys()):
+            if k.startswith("flash_") or k.startswith("flash-"):
+                del st.session_state[k]
+            if k.startswith("vocab_") or k.startswith("vocab-"):
+                del st.session_state[k]
+            if k.startswith("shadow_") or k.startswith("shadow-"):
+                del st.session_state[k]
+    st.session_state["last_active_profile_id"] = current_active_profile_id
 
     st.sidebar.header("Navigation")
     page = st.sidebar.radio(
@@ -4185,6 +6361,7 @@ def main():
             "Playlist",
             "Podcasts",
             "Pratique avec l'IA",
+            "Shadowing interactif",
             "Vocabulaire & Flashcards",
             "Historique",
         ],
@@ -4210,6 +6387,8 @@ def main():
         render_podcast_page()
     elif page == "Pratique avec l'IA":
         render_practice_page()
+    elif page == "Shadowing interactif":
+        render_shadowing_daily_page()
     elif page == "Vocabulaire & Flashcards":
         render_vocabulary_page()
     elif page == "Historique":
