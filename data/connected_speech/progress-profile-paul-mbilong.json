@@ -1,0 +1,33 @@
+{
+  "connected_speech_scores": {
+    "gonna": {
+      "date": "2026-04-08T21:50:33Z",
+      "expression": "gonna"
+    },
+    "wanna": {
+      "date": "2026-04-08T21:51:02Z",
+      "expression": "wanna"
+    },
+    "gotta": {
+      "date": "2026-04-08T21:52:46Z",
+      "expression": "gotta"
+    },
+    "hafta": {
+      "date": "2026-04-08T21:53:26Z",
+      "expression": "hafta"
+    },
+    "oughta": {
+      "date": "2026-04-08T21:59:36Z",
+      "expression": "oughta"
+    }
+  },
+  "slang_reviewed": [],
+  "dictation_history": [
+    {
+      "date": "2026-04-08T22:18:56Z",
+      "score": 42,
+      "level": "B1"
+    }
+  ],
+  "quiz_history": []
+}
