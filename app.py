@@ -1977,7 +1977,7 @@ def get_shadowing_session(profile_id, day_key, source_id):
 
 def _render_shadowing_phrase_detail(records):
     """Render per-phrase detail results (used in both column and full-width contexts)."""
-    for rec in records:
+    for rec in reversed(records):
         idx = int(rec.get("chunk_idx", 0)) + 1
         score = int(rec.get("score", 0))
         score_scales = _shadowing_score_scales(score)
@@ -7465,7 +7465,12 @@ def _save_generated_content(profile_id, category, content_id, data):
     os.makedirs(IMMERSION_GENERATED_DIR, exist_ok=True)
     path = _generated_content_path(profile_id, category, content_id)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"id": content_id, "category": category, "saved": now_iso(), **data}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {"id": content_id, "category": category, "saved": now_iso(), **data},
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def _load_generated_content(profile_id, category, content_id):
@@ -7853,21 +7858,30 @@ maitrise au moins 50% du contenu de l'onglet en cours.
         # ── Load saved dictation exercises ───────────────────────────────
         saved_dicts = _list_generated_content(profile_id, "dictation")
         if saved_dicts:
-            with st.expander(f"📂 Dictees sauvegardees ({len(saved_dicts)})", expanded=False):
+            with st.expander(
+                f"📂 Dictees sauvegardees ({len(saved_dicts)})", expanded=False
+            ):
                 for di, saved in enumerate(saved_dicts):
                     date = saved.get("saved", "?")[:10]
                     level = saved.get("level", "?")
                     score = saved.get("last_score", "—")
                     col_load, col_del = st.columns([4, 1])
                     with col_load:
-                        if st.button(f"📖 {date} — Niveau {level} — Score: {score}", key=f"dict_load_{di}"):
-                            st.session_state["dictation_exercise"] = saved.get("exercise")
+                        if st.button(
+                            f"📖 {date} — Niveau {level} — Score: {score}",
+                            key=f"dict_load_{di}",
+                        ):
+                            st.session_state["dictation_exercise"] = saved.get(
+                                "exercise"
+                            )
                             st.session_state.pop("dictation_answers_submitted", None)
                             st.session_state.pop("dictation_audio_current", None)
                             st.rerun()
                     with col_del:
                         if st.button("🗑️", key=f"dict_del_{di}"):
-                            _delete_generated_content(profile_id, "dictation", saved.get("id", ""))
+                            _delete_generated_content(
+                                profile_id, "dictation", saved.get("id", "")
+                            )
                             st.rerun()
 
         if st.button("Generer un exercice de dictee", key="gen_dictation"):
@@ -7913,12 +7927,19 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                             cleaned = re.sub(r"\s*```$", "", cleaned)
                         exercise = json.loads(cleaned)
                         st.session_state["dictation_exercise"] = exercise
-                        st.session_state["dictation_content_id"] = now_iso()[:19].replace(":", "-").replace("T", "-")
-                        _save_generated_content(profile_id, "dictation", st.session_state["dictation_content_id"], {
-                            "exercise": exercise,
-                            "level": dict_level,
-                            "last_score": "—",
-                        })
+                        st.session_state["dictation_content_id"] = (
+                            now_iso()[:19].replace(":", "-").replace("T", "-")
+                        )
+                        _save_generated_content(
+                            profile_id,
+                            "dictation",
+                            st.session_state["dictation_content_id"],
+                            {
+                                "exercise": exercise,
+                                "level": dict_level,
+                                "last_score": "—",
+                            },
+                        )
                         st.session_state.pop("dictation_answers_submitted", None)
                         st.session_state.pop("dictation_audio_current", None)
                     except (json.JSONDecodeError, KeyError) as e:
@@ -8124,10 +8145,14 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 # Update saved file with score
                 dict_cid = st.session_state.get("dictation_content_id")
                 if dict_cid:
-                    saved_data = _load_generated_content(profile_id, "dictation", dict_cid)
+                    saved_data = _load_generated_content(
+                        profile_id, "dictation", dict_cid
+                    )
                     if saved_data:
                         saved_data["last_score"] = f"{score}%"
-                        _save_generated_content(profile_id, "dictation", dict_cid, saved_data)
+                        _save_generated_content(
+                            profile_id, "dictation", dict_cid, saved_data
+                        )
 
     # ── Tab 4: Quiz de comprehension ─────────────────────────────────────────
     with tab_quiz:
@@ -8166,21 +8191,28 @@ maitrise au moins 50% du contenu de l'onglet en cours.
         # ── Load saved quizzes ───────────────────────────────────────────
         saved_quizzes = _list_generated_content(profile_id, "quiz")
         if saved_quizzes:
-            with st.expander(f"📂 Quiz sauvegardes ({len(saved_quizzes)})", expanded=False):
+            with st.expander(
+                f"📂 Quiz sauvegardes ({len(saved_quizzes)})", expanded=False
+            ):
                 for qi, saved in enumerate(saved_quizzes):
                     date = saved.get("saved", "?")[:10]
                     topic = saved.get("topic", "?")
                     score = saved.get("last_score", "—")
                     col_load, col_del = st.columns([4, 1])
                     with col_load:
-                        if st.button(f"📖 {date} — {topic} — Score: {score}", key=f"quiz_load_{qi}"):
+                        if st.button(
+                            f"📖 {date} — {topic} — Score: {score}",
+                            key=f"quiz_load_{qi}",
+                        ):
                             st.session_state["quiz_data"] = saved.get("quiz")
                             st.session_state.pop("quiz_submitted", None)
                             st.session_state.pop("quiz_audio", None)
                             st.rerun()
                     with col_del:
                         if st.button("🗑️", key=f"quiz_del_{qi}"):
-                            _delete_generated_content(profile_id, "quiz", saved.get("id", ""))
+                            _delete_generated_content(
+                                profile_id, "quiz", saved.get("id", "")
+                            )
                             st.rerun()
 
         selected_topic = st.selectbox(
@@ -8316,7 +8348,9 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     saved_data = _load_generated_content(profile_id, "quiz", quiz_cid)
                     if saved_data:
                         saved_data["last_score"] = f"{total_pct}%"
-                        _save_generated_content(profile_id, "quiz", quiz_cid, saved_data)
+                        _save_generated_content(
+                            profile_id, "quiz", quiz_cid, saved_data
+                        )
 
                 # ── Key expressions → flashcards ─────────────────────
                 key_exprs = quiz.get("key_expressions", [])
@@ -8462,31 +8496,61 @@ maitrise au moins 50% du contenu de l'onglet en cours.
         )
         voice_a, voice_b = VOICE_PAIRS[voice_choice]
 
+        # ── Auto-load most recent saved sitcom on page reload ────────
+        saved_sitcoms = _list_generated_content(profile_id, "sitcom")
         if "sitcom_variations" not in st.session_state:
-            st.session_state["sitcom_variations"] = []
+            if saved_sitcoms:
+                latest = saved_sitcoms[0]
+                st.session_state["sitcom_variations"] = latest.get("variations", [])
+                st.session_state["sitcom_var_idx"] = 0
+                st.session_state["sitcom_content_id"] = latest.get("id", "")
+            else:
+                st.session_state["sitcom_variations"] = []
+                st.session_state["sitcom_content_id"] = ""
         if "sitcom_var_idx" not in st.session_state:
             st.session_state["sitcom_var_idx"] = 0
-
-        # ── Load saved sitcom sets ───────────────────────────────────────
-        saved_sitcoms = _list_generated_content(profile_id, "sitcom")
         if saved_sitcoms:
-            with st.expander(f"📂 Dialogues sauvegardes ({len(saved_sitcoms)})", expanded=False):
+            with st.expander(
+                f"📂 Dialogues sauvegardes ({len(saved_sitcoms)})", expanded=False
+            ):
                 for si, saved in enumerate(saved_sitcoms):
                     scen = saved.get("scenario", "?")
                     date = saved.get("saved", "?")[:10]
                     nb = len(saved.get("variations", []))
                     col_load, col_del = st.columns([4, 1])
                     with col_load:
-                        if st.button(f"📖 {date} — {scen} ({nb} var.)", key=f"sitcom_load_{si}"):
-                            st.session_state["sitcom_variations"] = saved.get("variations", [])
+                        if st.button(
+                            f"📖 {date} — {scen} ({nb} var.)", key=f"sitcom_load_{si}"
+                        ):
+                            st.session_state["sitcom_variations"] = saved.get(
+                                "variations", []
+                            )
                             st.session_state["sitcom_var_idx"] = 0
+                            st.session_state["sitcom_content_id"] = saved.get("id", "")
                             for k in list(st.session_state.keys()):
                                 if k.startswith("sitcom_audio_"):
                                     del st.session_state[k]
                             st.rerun()
                     with col_del:
                         if st.button("🗑️", key=f"sitcom_del_{si}"):
-                            _delete_generated_content(profile_id, "sitcom", saved.get("id", ""))
+                            del_id = saved.get("id", "")
+                            _delete_generated_content(profile_id, "sitcom", del_id)
+                            # Also delete associated audio files
+                            for _avi in range(10):
+                                _afp = os.path.join(
+                                    IMMERSION_GENERATED_DIR,
+                                    f"sitcom-audio-{del_id}-{_avi}.mp3",
+                                )
+                                if os.path.exists(_afp):
+                                    os.remove(_afp)
+                            # Reset session if we deleted the currently loaded set
+                            if st.session_state.get("sitcom_content_id") == del_id:
+                                st.session_state.pop("sitcom_variations", None)
+                                st.session_state.pop("sitcom_content_id", None)
+                                st.session_state.pop("sitcom_var_idx", None)
+                                for k in list(st.session_state.keys()):
+                                    if k.startswith("sitcom_audio_"):
+                                        del st.session_state[k]
                             st.rerun()
 
         if st.button("Generer 5 variations de dialogues", key="gen_sitcom"):
@@ -8539,13 +8603,19 @@ maitrise au moins 50% du contenu de l'onglet en cours.
             progress_bar.progress(1.0, text="Termine !")
             if variations:
                 content_id = now_iso()[:19].replace(":", "-").replace("T", "-")
-                _save_generated_content(profile_id, "sitcom", content_id, {
-                    "scenario": sitcom_scenario,
-                    "level": sitcom_level,
-                    "variations": variations,
-                })
+                _save_generated_content(
+                    profile_id,
+                    "sitcom",
+                    content_id,
+                    {
+                        "scenario": sitcom_scenario,
+                        "level": sitcom_level,
+                        "variations": variations,
+                    },
+                )
                 st.session_state["sitcom_variations"] = variations
                 st.session_state["sitcom_var_idx"] = 0
+                st.session_state["sitcom_content_id"] = content_id
                 # Clear all cached audio
                 for k in list(st.session_state.keys()):
                     if k.startswith("sitcom_audio_"):
@@ -8576,8 +8646,27 @@ maitrise au moins 50% du contenu de l'onglet en cours.
             sitcom = variations[var_idx]
             st.text(sitcom["text"])
 
-            # Audio with selected voices
+            # Audio with selected voices — persisted to disk
             audio_key = f"sitcom_audio_{var_idx}"
+            _sitcom_cid = st.session_state.get("sitcom_content_id", "")
+            _sitcom_audio_fpath = (
+                os.path.join(
+                    IMMERSION_GENERATED_DIR, f"sitcom-audio-{_sitcom_cid}-{var_idx}.mp3"
+                )
+                if _sitcom_cid
+                else ""
+            )
+            # Reload audio from disk if not in session
+            if (
+                audio_key not in st.session_state
+                and _sitcom_audio_fpath
+                and os.path.exists(_sitcom_audio_fpath)
+            ):
+                with open(_sitcom_audio_fpath, "rb") as _af:
+                    st.session_state[audio_key] = {
+                        "bytes": _af.read(),
+                        "mime": "audio/mp3",
+                    }
             if audio_key not in st.session_state:
                 if st.button(
                     f"🔊 Ecouter ({voice_choice})", key=f"sitcom_listen_{var_idx}"
@@ -8593,6 +8682,11 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                                 "bytes": audio_bytes,
                                 "mime": mime,
                             }
+                            # Persist audio to disk
+                            if _sitcom_cid:
+                                os.makedirs(IMMERSION_GENERATED_DIR, exist_ok=True)
+                                with open(_sitcom_audio_fpath, "wb") as _af:
+                                    _af.write(audio_bytes)
                             st.rerun()
             else:
                 st.audio(
@@ -8604,6 +8698,9 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     key=f"sitcom_regen_audio_{var_idx}",
                 ):
                     del st.session_state[audio_key]
+                    # Delete old audio file so new one can be generated
+                    if _sitcom_audio_fpath and os.path.exists(_sitcom_audio_fpath):
+                        os.remove(_sitcom_audio_fpath)
                     st.rerun()
 
             if sitcom.get("vocab"):
