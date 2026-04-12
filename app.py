@@ -829,9 +829,21 @@ def _extract_provider_error(raw_text):
     return raw_text
 
 
-def _stream_tts_once(text, model, voice, requested_format):
+def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
     max_retries = 3
     last_conn_err = None
+    # Build system prompt — add tone/emotion guidance when available
+    base_system = (
+        "You are a text-to-speech narrator with a natural American accent. "
+        "Your only job is to read the text provided by the user EXACTLY as written, "
+        "word for word. Do NOT respond to the content, do NOT add commentary, "
+        "do NOT answer questions in the text. "
+        "NEVER read speaker names, labels like 'A:' or 'B:', or character names followed by colons. "
+        "NEVER read stage directions such as (laughs), [sighs], *whispers* or similar annotations. "
+        "Read only the actual spoken words."
+    )
+    if tone_hint:
+        base_system += f" Deliver this line {tone_hint}."
     for attempt in range(max_retries):
         if attempt > 0:
             import time
@@ -850,15 +862,7 @@ def _stream_tts_once(text, model, voice, requested_format):
                     "messages": [
                         {
                             "role": "system",
-                            "content": (
-                                "You are a text-to-speech narrator with a natural American accent. "
-                                "Your only job is to read the text provided by the user EXACTLY as written, "
-                                "word for word. Do NOT respond to the content, do NOT add commentary, "
-                                "do NOT answer questions in the text. "
-                                "If the text is a dialogue with speakers labeled (e.g. 'A:' or 'B:'), "
-                                "read every line naturally as if performing both parts. "
-                                "Read the text verbatim from start to finish."
-                            ),
+                            "content": base_system,
                         },
                         {
                             "role": "user",
@@ -955,7 +959,7 @@ def _stream_tts_once(text, model, voice, requested_format):
     return audio_bytes, _mime_for_audio_format(requested_format), None
 
 
-def text_to_speech_openrouter(text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORMAT):
+def text_to_speech_openrouter(text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORMAT, tone_hint=None):
     if not OPENROUTER_API_KEY:
         return None, None, "OPENROUTER_API_KEY manquante."
 
@@ -975,6 +979,7 @@ def text_to_speech_openrouter(text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORM
                 model=model,
                 voice=candidate_voice,
                 requested_format=requested_format,
+                tone_hint=tone_hint,
             )
             if not err:
                 return audio_bytes, mime_type, None
@@ -1004,10 +1009,62 @@ def concatenate_wav_bytes(wav_bytes_list):
     return out_buf.getvalue()
 
 
+def _clean_dialogue_line_for_tts(text):
+    """Remove stage directions and extract emotional tone from a dialogue line.
+    Strips parenthetical cues like (laughs), [sighs], *rire*, etc.
+    Returns (cleaned_text, tone_hint) where tone_hint is a short emotion description or None.
+    """
+    # Collect stage directions to infer tone
+    tone_cues = []
+    # Match (laughs), (rire), [sighs], *chuckles*, etc.
+    for m in re.finditer(r"[\(\[\*]([^\)\]\*]+)[\)\]\*]", text):
+        cue = m.group(1).strip().lower()
+        if cue:
+            tone_cues.append(cue)
+    # Remove all stage directions: (laughs), [sighs], *rire*
+    cleaned = re.sub(r"\s*[\(\[]\s*[^\)\]]*[\)\]]\s*", " ", text)
+    cleaned = re.sub(r"\s*\*[^\*]+\*\s*", " ", cleaned)
+    # Remove stray speaker-name-only fragments (e.g. leftover "Sam," or "Lisa:")
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    # Map common cues to tone hints
+    _TONE_MAP = {
+        "laughs": "warmly amused, with a light laugh in the voice",
+        "laughing": "warmly amused, with a light laugh in the voice",
+        "rire": "warmly amused, with a light laugh in the voice",
+        "chuckles": "softly amused, gentle chuckle",
+        "sighs": "with a gentle sigh, reflective",
+        "soupire": "with a gentle sigh, reflective",
+        "whispers": "in a soft whisper",
+        "chuchote": "in a soft whisper",
+        "excited": "enthusiastic and excited",
+        "excitedly": "enthusiastic and excited",
+        "sadly": "with a sad, subdued tone",
+        "triste": "with a sad, subdued tone",
+        "angry": "with frustration in the voice",
+        "surprised": "with genuine surprise",
+        "hesitant": "hesitant, slightly uncertain",
+        "sarcastically": "with dry sarcasm",
+        "nervously": "slightly nervous",
+        "smiling": "warm and smiling",
+        "sourit": "warm and smiling",
+        "pauses": "with a thoughtful pause",
+    }
+    tone_hint = None
+    for cue in tone_cues:
+        for key, hint in _TONE_MAP.items():
+            if key in cue:
+                tone_hint = hint
+                break
+        if tone_hint:
+            break
+    return cleaned, tone_hint
+
+
 def parse_dialogue_to_turns(dialogue_text):
-    """Parse 'SpeakerName: ...' lines into [{speaker, text}, ...] dicts.
+    """Parse 'SpeakerName: ...' lines into [{speaker, text, tone}, ...] dicts.
     The first distinct speaker name maps to 'A', the second to 'B'.
     Speaker labels are stripped from the text so they are never read aloud by TTS.
+    Stage directions like (laughs), *rire* are removed and converted to tone hints.
     """
     turns = []
     current_speaker = None
@@ -1036,6 +1093,11 @@ def parse_dialogue_to_turns(dialogue_text):
             current_lines.append(line)
     if current_speaker is not None and current_lines:
         turns.append({"speaker": current_speaker, "text": " ".join(current_lines)})
+    # Clean stage directions and extract tone for each turn
+    for turn in turns:
+        cleaned, tone = _clean_dialogue_line_for_tts(turn["text"])
+        turn["text"] = cleaned
+        turn["tone"] = tone
     return turns
 
 
@@ -1063,10 +1125,11 @@ def generate_dual_voice_tts(dialogue_text, voice_a, voice_b):
     wav_parts = []
     for turn in turns:
         voice = voice_a if turn["speaker"] == "A" else voice_b
+        tone = turn.get("tone")
         # Split long individual turns — keeps speaker context intact
         sub_chunks = split_text_for_tts(turn["text"], max_chars=1200)
         for chunk in sub_chunks:
-            audio_bytes, _, err = text_to_speech_openrouter(chunk, voice=voice)
+            audio_bytes, _, err = text_to_speech_openrouter(chunk, voice=voice, tone_hint=tone)
             if err:
                 return None, None, f"Erreur voix {turn['speaker']}: {err}"
             wav_parts.append(audio_bytes)
