@@ -56,6 +56,38 @@ TTS_FALLBACK_VOICES = [
     if item.strip()
 ]
 
+# ── ElevenLabs TTS ──────────────────────────────────────────────────────────
+ELEVENLABS_API_KEY = _cfg("ELEVENLABS_API_KEY")
+ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
+# Natural American voices (voice IDs from ElevenLabs)
+ELEVENLABS_VOICES = {
+    "Rachel (femme US)": "21m00Tcm4TlvDq8ikWAM",
+    "Drew (homme US)": "29vD33N1CtxCmqQRPOHJ",
+    "Clyde (homme US grave)": "2EiwWnXFnvU5JabPnv8n",
+    "Dave (homme US)": "CYw3kZ02Hs0563khs1Fj",
+    "Fin (homme US jeune)": "D38z5RcWu1voky8WS1ja",
+    "Sarah (femme US)": "EXAVITQu4vr4xnSDxMaL",
+    "Laura (femme US)": "FGY2WhTYpPnrIDTdsKH5",
+    "Charlie (homme US)": "IKne3meq5aSn9XLyUdCD",
+    "Charlotte (femme US)": "XB0fDUnXU5powFXDhCwa",
+    "Emily (femme US)": "LcfcDJNUP1GQjkzn1xUU",
+    "Josh (homme US)": "TxGEqnHWrfWFTfGW9XjX",
+    "Adam (homme US)": "pNInz6obpgDQGcFmaJgB",
+    "Sam (homme US)": "yoZ06aMxZJJ28mfd3POQ",
+    "Dorothy (femme US agee)": "ThT5KcBeYPX3keUQqHPh",
+}
+# Voice pairs for ElevenLabs dialogues
+ELEVENLABS_VOICE_PAIRS = {
+    "Homme + Femme (Josh + Rachel)": ("TxGEqnHWrfWFTfGW9XjX", "21m00Tcm4TlvDq8ikWAM"),
+    "Femme + Homme (Sarah + Adam)": ("EXAVITQu4vr4xnSDxMaL", "pNInz6obpgDQGcFmaJgB"),
+    "Homme + Homme (Josh + Adam)": ("TxGEqnHWrfWFTfGW9XjX", "pNInz6obpgDQGcFmaJgB"),
+    "Femme + Femme (Rachel + Laura)": ("21m00Tcm4TlvDq8ikWAM", "FGY2WhTYpPnrIDTdsKH5"),
+    "Homme + Femme (Drew + Charlotte)": (
+        "29vD33N1CtxCmqQRPOHJ",
+        "XB0fDUnXU5powFXDhCwa",
+    ),
+}
+
 DATA_DIR = "data"
 LESSON_PACK_DIR = os.path.join(DATA_DIR, "lesson_packs")
 LESSON_AUDIO_DIR = os.path.join(DATA_DIR, "lesson_audio")
@@ -959,7 +991,9 @@ def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
     return audio_bytes, _mime_for_audio_format(requested_format), None
 
 
-def text_to_speech_openrouter(text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORMAT, tone_hint=None):
+def text_to_speech_openrouter(
+    text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORMAT, tone_hint=None
+):
     if not OPENROUTER_API_KEY:
         return None, None, "OPENROUTER_API_KEY manquante."
 
@@ -989,6 +1023,141 @@ def text_to_speech_openrouter(text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORM
         # Keep message concise while still showing the latest provider feedback.
         return None, None, " | ".join(attempts[-3:])
     return None, None, "Aucune tentative TTS n'a pu etre executee."
+
+
+# ── ElevenLabs TTS engine ────────────────────────────────────────────────────
+
+
+def _elevenlabs_quota_ok():
+    """Check remaining ElevenLabs character quota. Returns (ok, message)."""
+    if not ELEVENLABS_API_KEY:
+        return False, "Cle API ElevenLabs manquante."
+    try:
+        resp = requests.get(
+            f"{ELEVENLABS_BASE_URL}/user/subscription",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return (
+                False,
+                f"Erreur ElevenLabs API ({resp.status_code}): {resp.text[:200]}",
+            )
+        data = resp.json()
+        remaining = data.get("character_limit", 0) - data.get("character_count", 0)
+        if remaining <= 0:
+            return False, (
+                "Tokens ElevenLabs epuises ! "
+                f"Limite: {data.get('character_limit', '?')} caracteres, "
+                f"utilises: {data.get('character_count', '?')}. "
+                "Repassez en TTS par defaut ou attendez le renouvellement."
+            )
+        return True, f"ElevenLabs: {remaining:,} caracteres restants."
+    except Exception as exc:
+        return False, f"Impossible de verifier le quota ElevenLabs: {exc}"
+
+
+def text_to_speech_elevenlabs(text, voice_id=None):
+    """Generate speech using ElevenLabs API. Returns (audio_bytes, mime_type, error)."""
+    if not ELEVENLABS_API_KEY:
+        return None, None, "Cle API ElevenLabs manquante."
+
+    ok, msg = _elevenlabs_quota_ok()
+    if not ok:
+        st.warning(msg)
+        return None, None, msg
+
+    if voice_id is None:
+        voice_id = list(ELEVENLABS_VOICES.values())[0]  # Rachel par defaut
+
+    try:
+        resp = requests.post(
+            f"{ELEVENLABS_BASE_URL}/text-to-speech/{voice_id}",
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg",
+            },
+            json={
+                "text": text,
+                "model_id": "eleven_turbo_v2_5",
+                "voice_settings": {
+                    "stability": 0.5,
+                    "similarity_boost": 0.75,
+                    "style": 0.3,
+                    "use_speaker_boost": True,
+                },
+            },
+            timeout=120,
+        )
+        if resp.status_code == 401:
+            return None, None, "Cle API ElevenLabs invalide."
+        if resp.status_code == 429:
+            msg = "Tokens ElevenLabs epuises ! Repassez en TTS par defaut."
+            st.warning(msg)
+            return None, None, msg
+        if resp.status_code != 200:
+            return (
+                None,
+                None,
+                f"Erreur ElevenLabs ({resp.status_code}): {resp.text[:200]}",
+            )
+        return resp.content, "audio/mpeg", None
+    except Exception as exc:
+        return None, None, f"Erreur ElevenLabs: {exc}"
+
+
+def generate_dual_voice_elevenlabs(dialogue_text, voice_a_id, voice_b_id):
+    """Generate dialogue audio using ElevenLabs with two voices."""
+    turns = parse_dialogue_to_turns(dialogue_text)
+    if not turns:
+        sub_chunks = split_text_for_tts(dialogue_text, max_chars=2000)
+        audio_parts = []
+        for chunk in sub_chunks:
+            ab, mime, err = text_to_speech_elevenlabs(chunk, voice_id=voice_a_id)
+            if err:
+                return None, None, err
+            audio_parts.append(ab)
+        if not audio_parts:
+            return None, None, "Aucun audio genere."
+        return b"".join(audio_parts), "audio/mpeg", None
+
+    audio_parts = []
+    for turn in turns:
+        vid = voice_a_id if turn["speaker"] == "A" else voice_b_id
+        sub_chunks = split_text_for_tts(turn["text"], max_chars=2000)
+        for chunk in sub_chunks:
+            ab, mime, err = text_to_speech_elevenlabs(chunk, voice_id=vid)
+            if err:
+                return None, None, f"Erreur voix {turn['speaker']}: {err}"
+            audio_parts.append(ab)
+
+    if not audio_parts:
+        return None, None, "Aucun audio genere."
+    return b"".join(audio_parts), "audio/mpeg", None
+
+
+def get_tts_engine():
+    """Return current TTS engine choice from session state."""
+    return st.session_state.get("tts_engine", "default")
+
+
+def tts_smart(text, voice=TTS_VOICE, voice_elevenlabs_id=None, tone_hint=None):
+    """Unified TTS: routes to ElevenLabs or default based on session choice."""
+    engine = get_tts_engine()
+    if engine == "elevenlabs":
+        return text_to_speech_elevenlabs(text, voice_id=voice_elevenlabs_id)
+    return text_to_speech_openrouter(text, voice=voice, tone_hint=tone_hint)
+
+
+def dual_voice_tts_smart(
+    dialogue_text, voice_a, voice_b, el_voice_a=None, el_voice_b=None
+):
+    """Unified dual-voice TTS: routes to ElevenLabs or default."""
+    engine = get_tts_engine()
+    if engine == "elevenlabs":
+        return generate_dual_voice_elevenlabs(dialogue_text, el_voice_a, el_voice_b)
+    return generate_dual_voice_tts(dialogue_text, voice_a, voice_b)
 
 
 def concatenate_wav_bytes(wav_bytes_list):
@@ -1129,7 +1298,9 @@ def generate_dual_voice_tts(dialogue_text, voice_a, voice_b):
         # Split long individual turns — keeps speaker context intact
         sub_chunks = split_text_for_tts(turn["text"], max_chars=1200)
         for chunk in sub_chunks:
-            audio_bytes, _, err = text_to_speech_openrouter(chunk, voice=voice, tone_hint=tone)
+            audio_bytes, _, err = text_to_speech_openrouter(
+                chunk, voice=voice, tone_hint=tone
+            )
             if err:
                 return None, None, f"Erreur voix {turn['speaker']}: {err}"
             wav_parts.append(audio_bytes)
@@ -1163,6 +1334,81 @@ def split_text_for_tts(text, max_chars=1200):
     if current:
         chunks.append(" ".join(current))
     return chunks
+
+
+def _audio_player_with_repeat(audio_bytes, mime_type="audio/wav", key="audio_rpt"):
+    """Render an HTML5 audio player with repeat (loop / 20x) controls."""
+    b64 = base64.b64encode(audio_bytes).decode()
+    uid = key.replace("-", "_")
+    html = f"""
+    <div id="ap_{uid}">
+      <audio id="aud_{uid}" controls style="width:100%">
+        <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
+      </audio>
+      <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+        <button id="btn_loop_{uid}" onclick="toggleLoop_{uid}()"
+          style="padding:4px 12px;border:1px solid #555;border-radius:6px;
+                 background:#222;color:#eee;cursor:pointer;font-size:13px;">
+          🔁 Boucle infinie: OFF
+        </button>
+        <button id="btn_20_{uid}" onclick="play20_{uid}()"
+          style="padding:4px 12px;border:1px solid #555;border-radius:6px;
+                 background:#222;color:#eee;cursor:pointer;font-size:13px;">
+          🔂 Repeter 20x
+        </button>
+        <span id="cnt_{uid}" style="color:#aaa;font-size:12px;"></span>
+      </div>
+    </div>
+    <script>
+    (function() {{
+      var a = document.getElementById("aud_{uid}");
+      var looping = false;
+      var countMode = false;
+      var maxCount = 0;
+      var played = 0;
+
+      window.toggleLoop_{uid} = function() {{
+        looping = !looping;
+        countMode = false;
+        a.loop = looping;
+        document.getElementById("btn_loop_{uid}").innerText =
+          looping ? "🔁 Boucle infinie: ON" : "🔁 Boucle infinie: OFF";
+        document.getElementById("btn_loop_{uid}").style.background =
+          looping ? "#1a6b1a" : "#222";
+        document.getElementById("cnt_{uid}").innerText = "";
+        if (looping) a.play();
+      }};
+
+      window.play20_{uid} = function() {{
+        looping = false;
+        a.loop = false;
+        document.getElementById("btn_loop_{uid}").innerText = "🔁 Boucle infinie: OFF";
+        document.getElementById("btn_loop_{uid}").style.background = "#222";
+        countMode = true;
+        maxCount = 20;
+        played = 0;
+        document.getElementById("cnt_{uid}").innerText = "0 / 20";
+        a.currentTime = 0;
+        a.play();
+      }};
+
+      a.addEventListener("ended", function() {{
+        if (countMode) {{
+          played++;
+          document.getElementById("cnt_{uid}").innerText = played + " / " + maxCount;
+          if (played < maxCount) {{
+            a.currentTime = 0;
+            a.play();
+          }} else {{
+            countMode = false;
+            document.getElementById("cnt_{uid}").innerText = "20/20 ✅";
+          }}
+        }}
+      }});
+    }})();
+    </script>
+    """
+    st_components.html(html, height=110)
 
 
 def extract_json_from_text(text):
@@ -3185,7 +3431,8 @@ def render_ai_lessons_page():
                 )
                 st.markdown(f"**{ex_idx + 1}.** {text}")
                 if audio_path and os.path.exists(audio_path):
-                    st.audio(audio_path, format="audio/wav")
+                    with open(audio_path, "rb") as _af:
+                        _audio_player_with_repeat(_af.read(), "audio/wav", key=f"ai_les_{lid}_{ex_idx}")
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(
@@ -3611,9 +3858,10 @@ def render_lessons_page():
                             cefr_level,
                             item.get("id"),
                         )
-                        st.audio(
+                        _audio_player_with_repeat(
                             st.session_state[audio_key]["bytes"],
-                            format=st.session_state[audio_key]["mime"],
+                            st.session_state[audio_key]["mime"],
+                            key=f"rpt_{audio_key}",
                         )
                         col_regen_v, col_del_v, col_done_v = st.columns([1, 1, 1.4])
                         with col_regen_v:
@@ -3804,9 +4052,10 @@ def render_lessons_page():
                             cefr_level,
                             idx,
                         )
-                        st.audio(
+                        _audio_player_with_repeat(
                             st.session_state[btn_key]["bytes"],
-                            format=st.session_state[btn_key]["mime"],
+                            st.session_state[btn_key]["mime"],
+                            key=f"rpt_{btn_key}",
                         )
                         col_regen_p, col_del_p, col_done_p = st.columns([1, 1, 1.4])
                         with col_regen_p:
@@ -4166,7 +4415,8 @@ def render_shadowing_daily_page():
                     st.session_state[autoplay_state_key] = autoplay_chunk_marker
                 except Exception:
                     pass
-            st.audio(chunk_audio_path, format="audio/wav")
+            with open(chunk_audio_path, "rb") as _af:
+                _audio_player_with_repeat(_af.read(), "audio/wav", key=f"shd_{source_slug}_{next_idx}")
 
         run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"
         blob_key = f"{run_key}-blob"
@@ -4820,7 +5070,7 @@ def render_stories_page():
                     st.session_state[audio_key] = cached
 
             if audio_key in st.session_state:
-                st.audio(st.session_state[audio_key], format="audio/wav")
+                _audio_player_with_repeat(st.session_state[audio_key], "audio/wav", key=f"story_{active_id}_{ch_num}")
                 c1, c2 = st.columns([1, 1])
                 with c1:
                     if st.button(
@@ -5764,7 +6014,7 @@ def render_vocabulary_page():
                             st.session_state[f"vocab_ex_audio_{i}"] = audio_bytes
                 audio_key = f"vocab_ex_audio_{i}"
                 if st.session_state.get(audio_key):
-                    st.audio(st.session_state[audio_key], format="audio/wav")
+                    _audio_player_with_repeat(st.session_state[audio_key], "audio/wav", key=f"voc_{audio_key}")
 
     # ── Tab 2 : Flashcards SRS ────────────────────────────────────────────────
     with tab_flash:
@@ -5939,7 +6189,8 @@ def render_vocabulary_page():
                     )
                     st.markdown(f"- {txt}")
                     if ex_audio and os.path.exists(ex_audio):
-                        st.audio(ex_audio, format="audio/wav")
+                        with open(ex_audio, "rb") as _af:
+                            _audio_player_with_repeat(_af.read(), "audio/wav", key=f"flash_ex_{vi}")
 
             eval_result = st.session_state.get("flash_eval_result")
             if eval_result:
@@ -6063,7 +6314,8 @@ def render_vocabulary_page():
 
                         st.markdown(f"**{ex_idx + 1}.** {txt}")
                         if audio_path and os.path.exists(audio_path):
-                            st.audio(audio_path, format="audio/wav")
+                            with open(audio_path, "rb") as _af:
+                                _audio_player_with_repeat(_af.read(), "audio/wav", key=f"vrev_{entry['id']}_{ex_idx}")
                             ca, cb = st.columns(2)
                             with ca:
                                 if st.button(
@@ -6158,7 +6410,8 @@ def render_vocabulary_page():
                             )
                             ap = rev.get("audio_path")
                             if ap and os.path.exists(ap):
-                                st.audio(ap, format="audio/wav")
+                                with open(ap, "rb") as _af:
+                                    _audio_player_with_repeat(_af.read(), "audio/wav", key=f"vhist_{entry['id']}_{ri}")
 
                     col_srs, col_del = st.columns([3, 1])
                     with col_srs:
@@ -6355,9 +6608,10 @@ def render_podcast_page():
                 st.text(podcast.get("script", ""))
 
             if audio_cache_key in st.session_state:
-                st.audio(
+                _audio_player_with_repeat(
                     st.session_state[audio_cache_key]["bytes"],
-                    format=st.session_state[audio_cache_key]["mime"],
+                    st.session_state[audio_cache_key]["mime"],
+                    key=f"pod_{audio_cache_key}",
                 )
                 col_regen_pod, col_del_pod = st.columns([1, 1])
                 with col_regen_pod:
@@ -7698,7 +7952,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
 
                 if os.path.exists(audio_file):
                     with open(audio_file, "rb") as af:
-                        st.audio(af.read(), format="audio/wav")
+                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"cs_{rule_id}")
                 else:
                     if st.button(f"🔊 Ecouter la prononciation", key=f"cs-tts-{idx}"):
                         with st.spinner("Generation audio..."):
@@ -7789,7 +8043,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 )
                 if os.path.exists(slang_audio_file):
                     with open(slang_audio_file, "rb") as af:
-                        st.audio(af.read(), format="audio/wav")
+                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"slang_{sid}")
                 else:
                     if st.button("🔊 Ecouter", key=f"slang-tts-{si}"):
                         with st.spinner("Generation audio..."):
@@ -8033,9 +8287,10 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                             }
                             st.rerun()
             else:
-                st.audio(
+                _audio_player_with_repeat(
                     st.session_state[dict_audio_key]["bytes"],
-                    format=st.session_state[dict_audio_key]["mime"],
+                    st.session_state[dict_audio_key]["mime"],
+                    key="dict_rpt",
                 )
 
             st.markdown("**Remplissez les trous:**")
@@ -8351,9 +8606,10 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                             }
                             st.rerun()
             else:
-                st.audio(
+                _audio_player_with_repeat(
                     st.session_state["quiz_audio"]["bytes"],
-                    format=st.session_state["quiz_audio"]["mime"],
+                    st.session_state["quiz_audio"]["mime"],
+                    key="quiz_rpt",
                 )
 
             with st.expander("Lire le dialogue (texte)"):
@@ -8757,9 +9013,10 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                                     _af.write(audio_bytes)
                             st.rerun()
             else:
-                st.audio(
+                _audio_player_with_repeat(
                     st.session_state[audio_key]["bytes"],
-                    format=st.session_state[audio_key]["mime"],
+                    st.session_state[audio_key]["mime"],
+                    key=f"sitcom_rpt_{var_idx}",
                 )
                 if st.button(
                     "🔄 Regenerer l'audio avec d'autres voix",
@@ -8945,7 +9202,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
 
         if "speed_audio" in st.session_state:
             sa = st.session_state["speed_audio"]
-            st.audio(sa["bytes"], format=sa["mime"])
+            _audio_player_with_repeat(sa["bytes"], sa["mime"], key="speed_rpt")
             st.caption(
                 "💡 **Astuce**: utilisez les commandes de vitesse de votre lecteur "
                 "multimedia pour ajuster la vitesse de lecture (la plupart des navigateurs "
@@ -9283,7 +9540,9 @@ REAL_ENGLISH_LEVEL_INSTRUCTIONS = {
 
 
 def _real_english_progress_path(profile_id):
-    return os.path.join(REAL_ENGLISH_DIR, f"progress-{_profile_storage_slug(profile_id)}.json")
+    return os.path.join(
+        REAL_ENGLISH_DIR, f"progress-{_profile_storage_slug(profile_id)}.json"
+    )
 
 
 def _load_real_english_progress(profile_id):
@@ -9307,8 +9566,15 @@ def _real_english_lesson_path(profile_id, lesson_id):
 
 def _save_real_english_lesson(profile_id, lesson_id, data):
     os.makedirs(REAL_ENGLISH_DIR, exist_ok=True)
-    with open(_real_english_lesson_path(profile_id, lesson_id), "w", encoding="utf-8") as f:
-        json.dump({"id": lesson_id, "saved": now_iso(), **data}, f, ensure_ascii=False, indent=2)
+    with open(
+        _real_english_lesson_path(profile_id, lesson_id), "w", encoding="utf-8"
+    ) as f:
+        json.dump(
+            {"id": lesson_id, "saved": now_iso(), **data},
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def _load_real_english_lesson(profile_id, lesson_id):
@@ -9352,13 +9618,15 @@ def render_real_english_page():
     progress = _load_real_english_progress(profile_id)
     all_lessons = _list_real_english_lessons(profile_id)
 
-    tab_episodes, tab_listen, tab_vocab, tab_shadow, tab_progress = st.tabs([
-        "Episodes & Dialogues",
-        "Ecouter la scene",
-        "Vocabulaire, Chunks & Idioms",
-        "Pratiquer (Shadowing)",
-        "Ma progression",
-    ])
+    tab_episodes, tab_listen, tab_vocab, tab_shadow, tab_progress = st.tabs(
+        [
+            "Episodes & Dialogues",
+            "Ecouter la scene",
+            "Vocabulaire, Chunks & Idioms",
+            "Pratiquer (Shadowing)",
+            "Ma progression",
+        ]
+    )
 
     # ── Tab 1: Episodes — Generate/browse mini-series ──────────────────────
     with tab_episodes:
@@ -9376,9 +9644,7 @@ def render_real_english_page():
         )
 
         series_names = list(REAL_ENGLISH_SERIES.keys())
-        series_labels = [
-            f"{REAL_ENGLISH_SERIES[s]['icon']} {s}" for s in series_names
-        ]
+        series_labels = [f"{REAL_ENGLISH_SERIES[s]['icon']} {s}" for s in series_names]
         selected_idx = st.selectbox(
             "Mini-serie",
             range(len(series_names)),
@@ -9404,7 +9670,9 @@ def render_real_english_page():
         is_completed = episode_id in progress.get("completed_lessons", [])
 
         if existing_lesson:
-            st.success("Cet episode est deja genere. Naviguez dans les onglets pour l'explorer.")
+            st.success(
+                "Cet episode est deja genere. Naviguez dans les onglets pour l'explorer."
+            )
             if is_completed:
                 st.markdown("✅ **Lecon terminee**")
             st.session_state["re_current_lesson"] = existing_lesson
@@ -9415,7 +9683,9 @@ def render_real_english_page():
 
         # ── Load saved lessons browser ───────────────────────────────
         if all_lessons:
-            with st.expander(f"Mes episodes generes ({len(all_lessons)})", expanded=False):
+            with st.expander(
+                f"Mes episodes generes ({len(all_lessons)})", expanded=False
+            ):
                 for li, lesson in enumerate(all_lessons):
                     lid = lesson.get("id", "")
                     title = lesson.get("episode", "?")
@@ -9438,10 +9708,13 @@ def render_real_english_page():
                             path = _real_english_lesson_path(profile_id, lid)
                             if os.path.exists(path):
                                 os.remove(path)
-                            # Remove audio
-                            audio_path = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.wav")
-                            if os.path.exists(audio_path):
-                                os.remove(audio_path)
+                            # Remove audio (both formats)
+                            for ext in (".wav", ".mp3"):
+                                audio_path = os.path.join(
+                                    REAL_ENGLISH_AUDIO_DIR, f"{lid}{ext}"
+                                )
+                                if os.path.exists(audio_path):
+                                    os.remove(audio_path)
                             if lid in progress.get("completed_lessons", []):
                                 progress["completed_lessons"].remove(lid)
                                 _save_real_english_progress(profile_id, progress)
@@ -9456,8 +9729,8 @@ def render_real_english_page():
                 prompt = (
                     f"You are a scriptwriter for an American TV show. Write a REALISTIC, "
                     f"natural American English dialogue for this scene:\n\n"
-                    f"Series: \"{selected_series}\"\n"
-                    f"Episode scenario: \"{selected_episode}\"\n"
+                    f'Series: "{selected_series}"\n'
+                    f'Episode scenario: "{selected_episode}"\n'
                     f"CEFR level for the learner: {re_level}\n\n"
                     f"Language level instructions: {level_instr}\n\n"
                     f"CRITICAL RULES — READ CAREFULLY:\n"
@@ -9469,14 +9742,22 @@ def render_real_english_page():
                     f"- Include reactions: No way!, Seriously?, Dude!, Come on!, Oh my God!\n"
                     f"- Include interrupted sentences, self-corrections, and trailing off.\n"
                     f"- Greetings: Hey! / What's up? / How's it goin'? (NEVER 'Hello, how are you?')\n"
-                    f"- 15-25 lines between 2-3 characters with American names\n"
+                    f"- 10-16 lines between 2 characters with American names\n"
+                    f"- Keep the dialogue SHORT and PUNCHY — like a real quick conversation, not a screenplay.\n"
                     f"- Include [stage directions] for tone/action\n"
                     f"- Mini-story with beginning, middle, and end\n"
                     f"- If someone would say 'going to' in real life, write 'gonna' instead.\n"
                     f"- If someone would say 'want to', write 'wanna'. Same for gotta, kinda, etc.\n"
                     f"- EVERY line should sound like something you'd hear in Friends, The Office, or a podcast.\n\n"
+                    f"DIALOGUE FORMAT RULES (VERY IMPORTANT):\n"
+                    f"- Use ONLY 'A:' and 'B:' as speaker labels in the dialogue text.\n"
+                    f"- NEVER write character names before each line (e.g. 'Jake: ...' is WRONG).\n"
+                    f"- Use 'A:' for the first speaker and 'B:' for the second speaker.\n"
+                    f"- Put the actual character names ONLY in the 'characters' field of the JSON.\n"
+                    f"- Example: 'A: Hey, what's up?\\nB: Not much, just chillin'.' (CORRECT)\n"
+                    f"- Example: 'Jake: Hey, what's up?\\nMike: Not much.' (WRONG — names will be read aloud by TTS)\n\n"
                     f"After the dialogue, provide:\n"
-                    f"1. KEY_VOCABULARY: 8-12 important informal expressions, chunks, phrasal verbs, "
+                    f"1. KEY_VOCABULARY: 6-10 important informal expressions, chunks, phrasal verbs, "
                     f"idioms, and reductions used in the dialogue. For each give: the expression, "
                     f"its standard/full form, the French translation, and the type "
                     f"(chunk/idiom/reduction/phrasal verb/slang).\n"
@@ -9485,11 +9766,11 @@ def render_real_english_page():
                     f"3. COMPREHENSION_QS: 3 quick comprehension questions about the dialogue "
                     f"(in English) with answers.\n\n"
                     f"Format as JSON:\n"
-                    f'{{"dialogue": "full dialogue text with [stage directions]", '
+                    f'{{"dialogue": "full dialogue text using A: and B: labels with [stage directions]", '
                     f'"characters": ["Name1", "Name2"], '
                     f'"vocabulary": ['
                     f'{{"expression": "...", "full_form": "...", "french": "...", "type": "chunk"}}, ...'
-                    f'], '
+                    f"], "
                     f'"cultural_note": "...", '
                     f'"comprehension": ['
                     f'{{"question": "...", "answer": "..."}}, ...'
@@ -9554,36 +9835,72 @@ def render_real_english_page():
     with tab_listen:
         st.subheader("Ecouter le dialogue")
 
-        # Voice selection (shared for generation)
-        voice_pairs_re = {
-            "Homme / Femme (echo / nova)": ("echo", "nova"),
-            "Femme / Homme (nova / echo)": ("nova", "echo"),
-            "Homme / Homme (echo / onyx)": ("echo", "onyx"),
-            "Femme / Femme (nova / shimmer)": ("nova", "shimmer"),
-        }
-        voice_choice = st.selectbox(
-            "Voix du dialogue",
-            list(voice_pairs_re.keys()),
-            key="re_voice_pair",
-        )
-        va, vb = voice_pairs_re[voice_choice]
+        tts_engine = get_tts_engine()
+
+        # Voice selection — depends on TTS engine
+        if tts_engine == "elevenlabs":
+            st.caption("Moteur: **ElevenLabs** (voix americaines naturelles)")
+            voice_pairs_re_el = ELEVENLABS_VOICE_PAIRS
+            voice_choice_el = st.selectbox(
+                "Voix du dialogue (ElevenLabs)",
+                list(voice_pairs_re_el.keys()),
+                key="re_voice_pair_el",
+            )
+            el_va, el_vb = voice_pairs_re_el[voice_choice_el]
+            # Fallback OpenRouter voices (in case of engine switch)
+            va, vb = "echo", "nova"
+        else:
+            st.caption("Moteur: **TTS par defaut** (OpenRouter)")
+            el_va, el_vb = None, None
+            voice_pairs_re = {
+                "Homme / Femme (echo / nova)": ("echo", "nova"),
+                "Femme / Homme (nova / echo)": ("nova", "echo"),
+                "Homme / Homme (echo / onyx)": ("echo", "onyx"),
+                "Femme / Femme (nova / shimmer)": ("nova", "shimmer"),
+            }
+            voice_choice = st.selectbox(
+                "Voix du dialogue",
+                list(voice_pairs_re.keys()),
+                key="re_voice_pair",
+            )
+            va, vb = voice_pairs_re[voice_choice]
+
+        # Audio file extension depends on engine
+        audio_ext = ".mp3" if tts_engine == "elevenlabs" else ".wav"
+        audio_mime = "audio/mpeg" if tts_engine == "elevenlabs" else "audio/wav"
 
         # ── Bibliotheque audio : tous les episodes avec audio deja genere ────
         audio_library = []
         for ls in all_lessons:
             lid = ls.get("id", "")
-            afp = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.wav")
-            has_audio = os.path.exists(afp)
-            audio_library.append({
-                "id": lid,
-                "series": ls.get("series", ""),
-                "episode": ls.get("episode", ""),
-                "level": ls.get("level", ""),
-                "icon": ls.get("series_icon", "📺"),
-                "has_audio": has_audio,
-                "audio_path": afp,
-                "dialogue": ls.get("dialogue", ""),
-            })
+            # Check for both .wav and .mp3 audio files
+            afp_wav = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.wav")
+            afp_mp3 = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.mp3")
+            if os.path.exists(afp_mp3):
+                afp = afp_mp3
+                has_audio = True
+                af_mime = "audio/mpeg"
+            elif os.path.exists(afp_wav):
+                afp = afp_wav
+                has_audio = True
+                af_mime = "audio/wav"
+            else:
+                afp = afp_wav
+                has_audio = False
+                af_mime = "audio/wav"
+            audio_library.append(
+                {
+                    "id": lid,
+                    "series": ls.get("series", ""),
+                    "episode": ls.get("episode", ""),
+                    "level": ls.get("level", ""),
+                    "icon": ls.get("series_icon", "📺"),
+                    "has_audio": has_audio,
+                    "audio_path": afp,
+                    "audio_mime": af_mime,
+                    "dialogue": ls.get("dialogue", ""),
+                }
+            )
 
         episodes_with_audio = [a for a in audio_library if a["has_audio"]]
         episodes_without_audio = [a for a in audio_library if not a["has_audio"]]
@@ -9592,13 +9909,17 @@ def render_real_english_page():
             st.markdown(f"### 🎧 Mes audios generes ({len(episodes_with_audio)})")
             st.caption("Cliquez pour reecouter un episode a tout moment.")
             for ai, ep in enumerate(episodes_with_audio):
-                is_current = (ep["id"] == st.session_state.get("re_current_lesson_id"))
+                is_current = ep["id"] == st.session_state.get("re_current_lesson_id")
                 marker = " ◀️ *en cours*" if is_current else ""
                 with st.expander(
                     f"{ep['icon']} {ep['series']} — {ep['episode']} ({ep['level']}){marker}"
                 ):
                     with open(ep["audio_path"], "rb") as af:
-                        st.audio(af.read(), format="audio/wav")
+                        _audio_player_with_repeat(
+                            af.read(),
+                            mime_type=ep.get("audio_mime", "audio/wav"),
+                            key=f"re_lib_audio_{ai}",
+                        )
 
                     col_text, col_regen, col_select = st.columns([2, 1, 1])
                     with col_text:
@@ -9635,34 +9956,56 @@ def render_real_english_page():
 
         if not lesson:
             if not episodes_with_audio:
-                st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+                st.info(
+                    "Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord."
+                )
         else:
-            audio_file = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lesson_id}.wav")
-            if not os.path.exists(audio_file):
+            audio_file_wav = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lesson_id}.wav")
+            audio_file_mp3 = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lesson_id}.mp3")
+            audio_exists = os.path.exists(audio_file_wav) or os.path.exists(
+                audio_file_mp3
+            )
+            if not audio_exists:
                 st.markdown(
                     f"### 🔊 Episode actuel sans audio : "
                     f"{lesson.get('series_icon', '📺')} {lesson.get('series', '')} — "
                     f"{lesson.get('episode', '')} ({lesson.get('level', '')})"
                 )
-                if st.button("🔊 Generer l'audio du dialogue", key="re_gen_audio"):
+                engine_label = (
+                    "ElevenLabs" if tts_engine == "elevenlabs" else "OpenRouter"
+                )
+                if st.button(
+                    f"🔊 Generer l'audio ({engine_label})", key="re_gen_audio"
+                ):
                     with st.spinner("Generation audio 2 voix..."):
-                        audio_bytes, mime, err = generate_dual_voice_tts(
-                            lesson["dialogue"], va, vb
+                        audio_bytes, mime, err = dual_voice_tts_smart(
+                            lesson["dialogue"],
+                            va,
+                            vb,
+                            el_voice_a=el_va,
+                            el_voice_b=el_vb,
                         )
                         if err:
                             st.error(f"Erreur TTS: {err}")
                         else:
                             os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
-                            with open(audio_file, "wb") as af:
+                            out_ext = ".mp3" if tts_engine == "elevenlabs" else ".wav"
+                            out_path = os.path.join(
+                                REAL_ENGLISH_AUDIO_DIR, f"{lesson_id}{out_ext}"
+                            )
+                            with open(out_path, "wb") as af:
                                 af.write(audio_bytes)
                             st.rerun()
 
         # ── Episodes sans audio (generation en attente) ──────────────────────
         if episodes_without_audio:
             with st.expander(
-                f"📋 Episodes sans audio ({len(episodes_without_audio)})", expanded=False
+                f"📋 Episodes sans audio ({len(episodes_without_audio)})",
+                expanded=False,
             ):
-                st.caption("Ces episodes ont ete generes mais n'ont pas encore d'audio.")
+                st.caption(
+                    "Ces episodes ont ete generes mais n'ont pas encore d'audio."
+                )
                 for wi, ep in enumerate(episodes_without_audio):
                     col_name, col_gen = st.columns([3, 1])
                     with col_name:
@@ -9674,12 +10017,27 @@ def render_real_english_page():
                             loaded = _load_real_english_lesson(profile_id, ep["id"])
                             if loaded:
                                 with st.spinner("Generation audio..."):
-                                    ab, mime, err = generate_dual_voice_tts(
-                                        loaded.get("dialogue", ""), va, vb
+                                    ab, mime, err = dual_voice_tts_smart(
+                                        loaded.get("dialogue", ""),
+                                        va,
+                                        vb,
+                                        el_voice_a=el_va,
+                                        el_voice_b=el_vb,
                                     )
                                     if not err:
-                                        os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
-                                        with open(ep["audio_path"], "wb") as af:
+                                        os.makedirs(
+                                            REAL_ENGLISH_AUDIO_DIR, exist_ok=True
+                                        )
+                                        out_ext = (
+                                            ".mp3"
+                                            if tts_engine == "elevenlabs"
+                                            else ".wav"
+                                        )
+                                        out_path = os.path.join(
+                                            REAL_ENGLISH_AUDIO_DIR,
+                                            f"{ep['id']}{out_ext}",
+                                        )
+                                        with open(out_path, "wb") as af:
                                             af.write(ab)
                                 st.rerun()
 
@@ -9695,7 +10053,9 @@ def render_real_english_page():
         lesson = st.session_state.get("re_current_lesson")
 
         if not lesson:
-            st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+            st.info(
+                "Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord."
+            )
         else:
             vocab_items = lesson.get("vocabulary", [])
             if not vocab_items:
@@ -9708,7 +10068,9 @@ def render_real_english_page():
 
                 vocab_entries = load_vocab(profile_id=profile_id)
                 existing_terms = {
-                    e.get("term", "").lower() for e in vocab_entries if isinstance(e, dict)
+                    e.get("term", "").lower()
+                    for e in vocab_entries
+                    if isinstance(e, dict)
                 }
 
                 # Group by type
@@ -9744,19 +10106,42 @@ def render_real_english_page():
                                 f"{icon} **{expr}** ({full}) → {french} [{type_label}]"
                             )
                     with col_audio:
-                        expr_audio_file = os.path.join(
+                        expr_audio_wav = os.path.join(
                             REAL_ENGLISH_AUDIO_DIR, f"vocab-{slugify(expr)}.wav"
                         )
-                        if os.path.exists(expr_audio_file):
-                            with open(expr_audio_file, "rb") as af:
-                                st.audio(af.read(), format="audio/wav")
+                        expr_audio_mp3 = os.path.join(
+                            REAL_ENGLISH_AUDIO_DIR, f"vocab-{slugify(expr)}.mp3"
+                        )
+                        if os.path.exists(expr_audio_mp3):
+                            with open(expr_audio_mp3, "rb") as af:
+                                _audio_player_with_repeat(af.read(), "audio/mpeg", key=f"re_voc_{vi}")
+                        elif os.path.exists(expr_audio_wav):
+                            with open(expr_audio_wav, "rb") as af:
+                                _audio_player_with_repeat(af.read(), "audio/wav", key=f"re_voc_{vi}")
                         else:
                             if st.button("🔊", key=f"re_vocab_tts_{vi}"):
                                 with st.spinner("Audio..."):
-                                    ab, mime, err = text_to_speech_openrouter(expr, voice="echo")
+                                    ab, mime, err = tts_smart(
+                                        expr,
+                                        voice="echo",
+                                        voice_elevenlabs_id=list(
+                                            ELEVENLABS_VOICES.values()
+                                        )[0],
+                                    )
                                     if not err:
-                                        os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
-                                        with open(expr_audio_file, "wb") as af:
+                                        os.makedirs(
+                                            REAL_ENGLISH_AUDIO_DIR, exist_ok=True
+                                        )
+                                        out_ext = (
+                                            ".mp3"
+                                            if get_tts_engine() == "elevenlabs"
+                                            else ".wav"
+                                        )
+                                        out_path = os.path.join(
+                                            REAL_ENGLISH_AUDIO_DIR,
+                                            f"vocab-{slugify(expr)}{out_ext}",
+                                        )
+                                        with open(out_path, "wb") as af:
                                             af.write(ab)
                                         st.audio(ab, format=mime)
                                         st.rerun()
@@ -9770,7 +10155,8 @@ def render_real_english_page():
                                     "part_of_speech": vtype,
                                     "explanation": (
                                         f"Forme complete: {full}. Construisez une phrase avec '{expr}'."
-                                        if full else f"Construisez une phrase avec '{expr}'."
+                                        if full
+                                        else f"Construisez une phrase avec '{expr}'."
                                     ),
                                     "examples": [],
                                     "synonyms": [],
@@ -9791,7 +10177,8 @@ def render_real_english_page():
 
                 # Bulk add button
                 not_added = [
-                    v for v in vocab_items
+                    v
+                    for v in vocab_items
                     if v.get("expression", "").strip()
                     and v.get("expression", "").strip().lower() not in existing_terms
                 ]
@@ -9838,7 +10225,9 @@ def render_real_english_page():
         lesson_id = st.session_state.get("re_current_lesson_id")
 
         if not lesson:
-            st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+            st.info(
+                "Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord."
+            )
         else:
             st.markdown(
                 f"**{lesson.get('series_icon', '📺')} {lesson.get('series', '')} — "
@@ -9855,7 +10244,8 @@ def render_real_english_page():
 
             # Extract chunk focus from vocabulary
             chunk_focus = [
-                v.get("expression", "") for v in lesson.get("vocabulary", [])
+                v.get("expression", "")
+                for v in lesson.get("vocabulary", [])
                 if v.get("expression", "")
             ]
 
@@ -9876,7 +10266,9 @@ def render_real_english_page():
                         "Allez dans l'onglet 'Shadowing interactif' pour le pratiquer."
                     )
                 else:
-                    st.info("Ce dialogue est deja dans votre liste de shadowing (mis a jour).")
+                    st.info(
+                        "Ce dialogue est deja dans votre liste de shadowing (mis a jour)."
+                    )
 
     # ── Tab 5: Ma progression ────────────────────────────────────────────────
     with tab_progress:
@@ -9885,7 +10277,9 @@ def render_real_english_page():
         lesson_id = st.session_state.get("re_current_lesson_id")
 
         completed = progress.get("completed_lessons", [])
-        total_episodes = sum(len(s["episodes"]) * len(CEFR_LEVELS) for s in REAL_ENGLISH_SERIES.values())
+        total_episodes = sum(
+            len(s["episodes"]) * len(CEFR_LEVELS) for s in REAL_ENGLISH_SERIES.values()
+        )
         total_completed = len(completed)
 
         st.markdown(f"### Episodes termines: {total_completed}")
@@ -9920,25 +10314,29 @@ def render_real_english_page():
                 st.success(f"✅ Cet episode est marque comme termine !")
                 if st.button("Annuler (remettre en cours)", key="re_uncomplete"):
                     progress["completed_lessons"].remove(lesson_id)
-                    progress.setdefault("lesson_history", []).append({
-                        "action": "uncompleted",
-                        "lesson_id": lesson_id,
-                        "date": now_iso(),
-                    })
+                    progress.setdefault("lesson_history", []).append(
+                        {
+                            "action": "uncompleted",
+                            "lesson_id": lesson_id,
+                            "date": now_iso(),
+                        }
+                    )
                     _save_real_english_progress(profile_id, progress)
                     st.rerun()
             else:
                 st.warning("Cet episode n'est pas encore marque comme termine.")
                 if st.button("✅ Marquer comme termine", key="re_complete"):
                     progress.setdefault("completed_lessons", []).append(lesson_id)
-                    progress.setdefault("lesson_history", []).append({
-                        "action": "completed",
-                        "lesson_id": lesson_id,
-                        "series": lesson.get("series", ""),
-                        "episode": lesson.get("episode", ""),
-                        "level": lesson.get("level", ""),
-                        "date": now_iso(),
-                    })
+                    progress.setdefault("lesson_history", []).append(
+                        {
+                            "action": "completed",
+                            "lesson_id": lesson_id,
+                            "series": lesson.get("series", ""),
+                            "episode": lesson.get("episode", ""),
+                            "level": lesson.get("level", ""),
+                            "date": now_iso(),
+                        }
+                    )
                     _save_real_english_progress(profile_id, progress)
 
                     # Auto-add vocabulary to flashcards
@@ -9947,7 +10345,8 @@ def render_real_english_page():
                         vocab_entries = load_vocab(profile_id=profile_id)
                         existing_terms = {
                             e.get("term", "").lower()
-                            for e in vocab_entries if isinstance(e, dict)
+                            for e in vocab_entries
+                            if isinstance(e, dict)
                         }
                         added = 0
                         for v in vocab_items[:LESSON_FLASHCARD_LIMIT]:
@@ -9980,19 +10379,25 @@ def render_real_english_page():
                             added += 1
                         if added > 0:
                             save_vocab(vocab_entries, profile_id=profile_id)
-                            st.info(f"{added} flashcards ajoutees automatiquement depuis cette lecon.")
+                            st.info(
+                                f"{added} flashcards ajoutees automatiquement depuis cette lecon."
+                            )
 
                     st.success("Episode marque comme termine !")
                     st.rerun()
         else:
-            st.info("Selectionnez un episode dans l'onglet 'Episodes & Dialogues' pour le marquer comme termine.")
+            st.info(
+                "Selectionnez un episode dans l'onglet 'Episodes & Dialogues' pour le marquer comme termine."
+            )
 
         # Recent history
         history = progress.get("lesson_history", [])
         if history:
             with st.expander(f"Historique recent ({len(history)} actions)"):
                 for h in reversed(history[-20:]):
-                    action = "✅ Termine" if h.get("action") == "completed" else "↩️ Annule"
+                    action = (
+                        "✅ Termine" if h.get("action") == "completed" else "↩️ Annule"
+                    )
                     date = h.get("date", "")[:10]
                     series = h.get("series", "")
                     ep = h.get("episode", "")
@@ -10132,6 +10537,27 @@ def main():
         st.caption(f"Chat: {CHAT_MODEL}")
         st.caption(f"Evaluation: {EVAL_MODEL}")
         st.caption(f"TTS: {TTS_MODEL} ({TTS_VOICE})")
+
+    # ── TTS Engine selector ──────────────────────────────────────────────
+    with st.sidebar.expander("Moteur TTS"):
+        tts_options = ["TTS par defaut (OpenRouter)"]
+        if ELEVENLABS_API_KEY:
+            tts_options.append("ElevenLabs (voix US naturelles)")
+        tts_choice = st.radio(
+            "Moteur de synthese vocale",
+            tts_options,
+            index=0 if get_tts_engine() != "elevenlabs" else 1,
+            key="tts_engine_radio",
+        )
+        if "ElevenLabs" in tts_choice:
+            st.session_state["tts_engine"] = "elevenlabs"
+            ok, msg = _elevenlabs_quota_ok()
+            if ok:
+                st.success(msg)
+            else:
+                st.warning(msg)
+        else:
+            st.session_state["tts_engine"] = "default"
 
     if page == "Accueil":
         render_home()
