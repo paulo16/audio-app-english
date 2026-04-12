@@ -1,0 +1,78 @@
+{
+  "id": "at-the-coffee-shop-ordering-coffee-and-chatting-about-the-weekend-b1",
+  "saved": "2026-04-11T23:49:19Z",
+  "dialogue": "[Coffee shop ambiance in the background. JESS and SAM walk up to the counter.]\n\nJESS: Hey! What’s up?\n\nSAM: Not much, just tryin’ to figure out what I wanna get. You?\n\nJESS: Same! I’m, like, kinda leaning towards a caramel macchiato, but I dunno. What do you think?\n\nSAM: Oh, for real? I was thinkin’ more like a plain old black coffee. I mean, you can’t go wrong, right?\n\nJESS: True, but sometimes you gotta treat yourself, you know? \n\nSAM: Right? Like, what’s the point of coffee if it ain’t gonna be a little fancy?\n\nJESS: Exactly! So, um, how was your weekend? Did you do anything fun?\n\nSAM: Oh, man, it was wild. I ended up going hiking, and I totally thought I was gonna freak out at the top 'cause it was, like, super steep.\n\nJESS: No way! I would’ve been, like, passing out up there.\n\nSAM: Seriously! But once I got up there, the view was a piece of cake. Totally worth it.\n\nJESS: That’s awesome! I just chilled at home, watched a ton of Netflix. You know, just took it easy.\n\nSAM: Nice! Sometimes you just gotta do that. What’d you watch?\n\nJESS: Oh! I finally picked up on that new series everyone’s talkin’ about. The one with the, um, the time travel?\n\nSAM: Oh, yeah! I heard it’s pretty good. Lemme guess, you’re hooked now?\n\nJESS: Totally! I binged, like, three episodes in a row. At the end of the day, I'm just a sucker for that stuff.\n\nSAM: Haha! We should, like, hang out and watch it together. It’d be way more fun.\n\nJESS: For sure! Let’s do that next weekend.\n\nSAM: Cool! So, you wanna grab these coffees and go plan our binge-watch?\n\nJESS: I’m down! Lemme get my order in first.\n\n[They approach the counter to order.]",
+  "characters": [
+    "JESS",
+    "SAM"
+  ],
+  "vocabulary": [
+    {
+      "expression": "wanna",
+      "full_form": "want to",
+      "french": "vouloir",
+      "type": "reduction"
+    },
+    {
+      "expression": "gotta",
+      "full_form": "got to",
+      "french": "devoir",
+      "type": "reduction"
+    },
+    {
+      "expression": "kinda",
+      "full_form": "kind of",
+      "french": "un peu",
+      "type": "reduction"
+    },
+    {
+      "expression": "gonna",
+      "full_form": "going to",
+      "french": "aller",
+      "type": "reduction"
+    },
+    {
+      "expression": "for real",
+      "full_form": "for real",
+      "french": "vraiment",
+      "type": "slang"
+    },
+    {
+      "expression": "pick up on",
+      "full_form": "to become aware of",
+      "french": "prendre conscience de",
+      "type": "phrasal verb"
+    },
+    {
+      "expression": "piece of cake",
+      "full_form": "something easy",
+      "french": "un jeu d'enfant",
+      "type": "idiom"
+    },
+    {
+      "expression": "hang out",
+      "full_form": "spend time together",
+      "french": "passer du temps ensemble",
+      "type": "phrasal verb"
+    }
+  ],
+  "cultural_note": "Dans la culture américaine, se retrouver dans un café pour discuter et passer du temps ensemble est très courant. Les jeunes adultes aiment se détendre avec un café, échanger des histoires sur leur week-end et planifier des activités. Cela crée un environnement social décontracté et amical.",
+  "comprehension": [
+    {
+      "question": "What kind of coffee does Jess consider getting?",
+      "answer": "A caramel macchiato."
+    },
+    {
+      "question": "What did Sam do over the weekend?",
+      "answer": "Went hiking."
+    },
+    {
+      "question": "What series did Jess start watching?",
+      "answer": "A new time travel series."
+    }
+  ],
+  "series": "At the Coffee Shop",
+  "episode": "Ordering coffee and chatting about the weekend",
+  "level": "B1",
+  "series_icon": "☕"
+}

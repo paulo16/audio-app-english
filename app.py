@@ -496,6 +496,8 @@ def ensure_directories():
         CONNECTED_SPEECH_AUDIO_DIR,
         SLANG_DIR,
         IMMERSION_GENERATED_DIR,
+        REAL_ENGLISH_DIR,
+        REAL_ENGLISH_AUDIO_DIR,
     ]:
         os.makedirs(path, exist_ok=True)
 
@@ -6364,6 +6366,9 @@ CONNECTED_SPEECH_AUDIO_DIR = os.path.join(DATA_DIR, "connected_speech_audio")
 SLANG_DIR = os.path.join(DATA_DIR, "slang_idioms")
 IMMERSION_GENERATED_DIR = os.path.join(DATA_DIR, "immersion_generated")
 
+REAL_ENGLISH_DIR = os.path.join(DATA_DIR, "real_english")
+REAL_ENGLISH_AUDIO_DIR = os.path.join(DATA_DIR, "real_english_audio")
+
 CONNECTED_SPEECH_RULES = [
     {
         "full": "going to",
@@ -9025,6 +9030,913 @@ maitrise au moins 50% du contenu de l'onglet en cours.
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LECONS ANGLAIS REEL — Mini-series americaines (A1 -> C2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+REAL_ENGLISH_SERIES = {
+    "At the Coffee Shop": {
+        "description": "Deux amis se retrouvent chaque jour au coffee shop. Small talk, commandes, potins.",
+        "icon": "☕",
+        "episodes": [
+            "Ordering coffee and chatting about the weekend",
+            "Running into an old friend at the register",
+            "The barista messes up the order — polite complaint",
+            "Catching up on gossip while waiting for lattes",
+            "Debating whether to try the new seasonal drink",
+            "Meeting someone new and making small talk",
+        ],
+    },
+    "Roommates": {
+        "description": "La vie en colocation a la americaine. Conflits, rires, vie quotidienne.",
+        "icon": "🏠",
+        "episodes": [
+            "Deciding who does the dishes tonight",
+            "The apartment is a mess before guests arrive",
+            "Splitting the rent and bills fairly",
+            "One roommate throws a party without asking",
+            "Arguing about the thermostat temperature",
+            "Helping each other get ready for a date",
+        ],
+    },
+    "At Work": {
+        "description": "Bureau americain : reunions, pauses cafe, drames entre collegues.",
+        "icon": "💼",
+        "episodes": [
+            "Monday morning small talk at the coffee machine",
+            "A coworker takes credit for your idea",
+            "Awkward elevator conversation with the boss",
+            "Planning a surprise farewell party for a colleague",
+            "Complaining about a pointless meeting",
+            "Asking for a raise — rehearsing with a friend",
+        ],
+    },
+    "Family Dinner": {
+        "description": "Repas de famille americain : traditions, tensions, retrouvailles.",
+        "icon": "🍽️",
+        "episodes": [
+            "Thanksgiving dinner chaos — who's cooking what",
+            "Grandma asks about your love life — again",
+            "The family argues about politics at the table",
+            "Surprising the family with big news",
+            "Catching up with a cousin you haven't seen in years",
+            "Convincing parents you don't need a 'real' job",
+        ],
+    },
+    "Road Trip": {
+        "description": "Road trip entre amis a travers les USA. Aventures sur la route.",
+        "icon": "🚗",
+        "episodes": [
+            "Planning the route and arguing about stops",
+            "Getting lost and asking locals for directions",
+            "Car breaks down on a lonely highway",
+            "Stopping at a sketchy diner in the middle of nowhere",
+            "Singing along to the radio and telling stories",
+            "Checking into a cheap motel for the night",
+        ],
+    },
+    "Dating in America": {
+        "description": "Rendez-vous, apps de dating, premiers dates maladroits.",
+        "icon": "💕",
+        "episodes": [
+            "Swiping through dating apps with a friend",
+            "Awkward first date at a fancy restaurant",
+            "Texting back and forth — does she like me?",
+            "Meeting the friends for the first time",
+            "The 'what are we' conversation",
+            "Getting dating advice from your mom",
+        ],
+    },
+    "Neighborhood Life": {
+        "description": "La vie de quartier : voisins curieux, barbecues, petits drames locaux.",
+        "icon": "🏘️",
+        "episodes": [
+            "Meeting the neighbors when you move in",
+            "The neighbor's dog won't stop barking",
+            "Backyard barbecue invitation and small talk",
+            "Package delivered to the wrong house",
+            "Block party planning and drama",
+            "Complaining about construction noise",
+        ],
+    },
+    "Shopping & Errands": {
+        "description": "Courses, retours en magasin, deals, galeres du quotidien.",
+        "icon": "🛒",
+        "episodes": [
+            "Black Friday madness — fighting for deals",
+            "Returning a broken item without a receipt",
+            "Grocery shopping debate — organic or regular?",
+            "Trying on clothes and asking for opinions",
+            "The self-checkout machine is broken again",
+            "Haggling at a yard sale",
+        ],
+    },
+}
+
+REAL_ENGLISH_LEVEL_INSTRUCTIONS = {
+    "A1": (
+        "Use basic everyday vocabulary BUT with REAL spoken forms — NOT textbook English. "
+        "Short sentences (5-8 words). Present simple tense only. "
+        "MANDATORY reductions: gonna (going to), wanna (want to), gotta (got to). "
+        "Use fillers: um, uh, well, so. "
+        "Use chunks: What's up?, No way!, That's cool, I dunno, Come on!, Oh my God. "
+        "Greetings: Hey!, What's up?, How's it going? (NOT 'Hello, how are you?'). "
+        "NEVER use 'shall', 'whom', or formal structures. Sound like a real person talking."
+    ),
+    "A2": (
+        "Simple daily vocabulary with HEAVY spoken American forms. "
+        "Short sentences with connectors (and, but, so, 'cause). "
+        "MANDATORY reductions: gonna, wanna, gotta, kinda, lemme, gimme, c'mon. "
+        "Chunks: a lot of, kind of, sort of, no big deal, hang on, hold on, check it out, "
+        "that sucks, my bad, for real, you know what I mean?, right? "
+        "Phrasal verbs: hang out, figure out, pick up, drop off, show up, work out. "
+        "Fillers: like, you know, well, so, um, I mean. "
+        "Reactions: No way!, Seriously?, Oh come on!, That's awesome!, Dude! "
+        "NEVER write formal English. This is how Americans ACTUALLY talk."
+    ),
+    "B1": (
+        "Natural conversational vocabulary FULL of spoken American patterns. "
+        "MANDATORY reductions: gonna, wanna, gotta, kinda, dunno, lemme, gimme, hafta, "
+        "shoulda, coulda, woulda, 'cause, y'all, ain't (informal). "
+        "Chunks & collocations: the thing is, to be honest, at the end of the day, "
+        "I was like, he was all like, no worries, it's all good, that makes sense, "
+        "I'm good (= no thanks), my bad, for real though, I feel you. "
+        "Phrasal verbs: figure out, hang out, come up with, look into, end up, "
+        "pick up on, get along with, run into, blow off, freak out, chill out. "
+        "Idioms: break the ice, hit it off, on the same page, a piece of cake, "
+        "no brainer, the whole nine yards. "
+        "Fillers & discourse: like, you know, I mean, basically, honestly, right?, "
+        "so anyway, long story short. Natural pace."
+    ),
+    "B2": (
+        "Rich informal American vocabulary with DENSE use of idioms, chunks and phrasal verbs. "
+        "MANDATORY heavy connected speech: gonna, wanna, gotta, kinda, dunno, lemme, "
+        "shoulda, coulda, woulda, hafta, oughta, musta, prolly, 'cause, c'mon, "
+        "tryna (trying to), finna (fixing to), gotcha, betcha, whatcha, "
+        "y'all, ain't, outta (out of), lotta (lot of). "
+        "Idioms REQUIRED (use 5+ per dialogue): spill the tea, throw shade, "
+        "low-key, high-key, no cap, slay, it hits different, vibe, salty, ghosted, "
+        "on point, I'm dead (= that's hilarious), it's giving..., sus, rent-free, "
+        "keep it 100, pull up, bet, say less, the tea is hot. "
+        "Chunks: at this point, I'm not gonna lie, that being said, it is what it is, "
+        "you do you, I can't even, I'm over it, same though, facts, period. "
+        "Sarcasm, humor, and cultural references. Natural rapid American pace. "
+        "Discourse markers: I mean, basically, honestly, the thing is, "
+        "not gonna lie, real talk, for real for real."
+    ),
+    "C1": (
+        "Fully natural American speech — sounds like an UNSCRIPTED conversation between friends. "
+        "ALL reductions mandatory: gonna, wanna, gotta, kinda, dunno, lemme, gimme, hafta, "
+        "shoulda, coulda, woulda, musta, oughta, prolly, tryna, finna, gotcha, betcha, "
+        "whatcha, y'all, ain't, outta, lotta, sorta, buncha. "
+        "Advanced idioms REQUIRED (8+ per dialogue): read the room, the elephant in the room, "
+        "move the needle, circle back, deep dive, it's not rocket science, drop the ball, "
+        "go down a rabbit hole, take it with a grain of salt, hit the ground running, "
+        "the ball is in your court, cut to the chase, think outside the box, sleep on it, "
+        "a dime a dozen, the whole shebang, when push comes to shove, by the skin of your teeth. "
+        "Heavy phrasal verbs: blow something off, come through, pull through, live up to, "
+        "brush off, crack down on, get carried away, put up with, call someone out, "
+        "play it by ear, go all out, knock it out (of the park). "
+        "Rapid-fire exchanges with interruptions, sarcasm, irony, cultural references to "
+        "American TV (Friends, The Office, Seinfeld), sports, politics. Near-native speed."
+    ),
+    "C2": (
+        "Completely authentic — indistinguishable from native Americans having a real conversation. "
+        "ALL spoken forms, ALL reductions, ALL elisions — no holds barred. "
+        "MANDATORY: gonna, wanna, gotta, kinda, dunno, lemme, gimme, hafta, shoulda, coulda, "
+        "woulda, musta, oughta, prolly, tryna, finna, gotcha, betcha, whatcha, y'all, ain't, "
+        "outta, lotta, sorta, buncha, 'bout, 'em, 'til, d'you, didja, doncha, wouldja, "
+        "innit (borrowed), aight, bruh, fam, lowkey, highkey, no cap, deadass, hella, "
+        "sus, slay, yeet, bussin', fire, mid, based, cap, periodt. "
+        "Include: trailing off mid-sentence ('I was gonna... never mind'), self-corrections "
+        "('Wait no, I mean—'), overlapping dialogue, mumbling, sarcastic tone markers. "
+        "Regional expressions: y'all (South), hella (NorCal), wicked (Boston), "
+        "jawn (Philly), deadass (NYC). "
+        "Pop culture deep cuts, memes referenced in speech, spontaneous humor. "
+        "Think: unscripted podcast between close friends after a few beers. "
+        "NO simplification. NO textbook structures. Pure raw American English."
+    ),
+}
+
+
+def _real_english_progress_path(profile_id):
+    return os.path.join(REAL_ENGLISH_DIR, f"progress-{_profile_storage_slug(profile_id)}.json")
+
+
+def _load_real_english_progress(profile_id):
+    path = _real_english_progress_path(profile_id)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"completed_lessons": [], "lesson_history": []}
+
+
+def _save_real_english_progress(profile_id, data):
+    os.makedirs(REAL_ENGLISH_DIR, exist_ok=True)
+    with open(_real_english_progress_path(profile_id), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _real_english_lesson_path(profile_id, lesson_id):
+    slug = _profile_storage_slug(profile_id)
+    return os.path.join(REAL_ENGLISH_DIR, f"lesson-{slug}-{lesson_id}.json")
+
+
+def _save_real_english_lesson(profile_id, lesson_id, data):
+    os.makedirs(REAL_ENGLISH_DIR, exist_ok=True)
+    with open(_real_english_lesson_path(profile_id, lesson_id), "w", encoding="utf-8") as f:
+        json.dump({"id": lesson_id, "saved": now_iso(), **data}, f, ensure_ascii=False, indent=2)
+
+
+def _load_real_english_lesson(profile_id, lesson_id):
+    path = _real_english_lesson_path(profile_id, lesson_id)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
+def _list_real_english_lessons(profile_id):
+    slug = _profile_storage_slug(profile_id)
+    prefix = f"lesson-{slug}-"
+    items = []
+    if not os.path.exists(REAL_ENGLISH_DIR):
+        return items
+    for fname in sorted(os.listdir(REAL_ENGLISH_DIR), reverse=True):
+        if fname.startswith(prefix) and fname.endswith(".json"):
+            fpath = os.path.join(REAL_ENGLISH_DIR, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    items.append(json.load(f))
+            except (json.JSONDecodeError, OSError):
+                pass
+    return items
+
+
+def render_real_english_page():
+    profile = get_active_profile()
+    profile_id = profile.get("id", "default")
+
+    st.header("Lecons Anglais Reel — Mini-series americaines")
+    st.caption(f"Profil actif: {profile.get('name', 'Profil principal')}")
+    st.info(
+        "Ce module vous plonge dans **l'anglais americain de tous les jours** "
+        "a travers des mini-series de la vie quotidienne. Chaque episode est un dialogue "
+        "authentique avec du slang, des contractions et le rythme reel des conversations "
+        "americaines — exactement ce que vous entendez dans les films et series."
+    )
+
+    progress = _load_real_english_progress(profile_id)
+    all_lessons = _list_real_english_lessons(profile_id)
+
+    tab_episodes, tab_listen, tab_vocab, tab_shadow, tab_progress = st.tabs([
+        "Episodes & Dialogues",
+        "Ecouter la scene",
+        "Vocabulaire, Chunks & Idioms",
+        "Pratiquer (Shadowing)",
+        "Ma progression",
+    ])
+
+    # ── Tab 1: Episodes — Generate/browse mini-series ──────────────────────
+    with tab_episodes:
+        st.subheader("Choisissez une mini-serie et un episode")
+
+        default_level = profile.get("target_cefr", "B1")
+        if default_level not in CEFR_LEVELS:
+            default_level = "B1"
+        re_level = st.radio(
+            "Niveau CEFR",
+            CEFR_LEVELS,
+            horizontal=True,
+            index=CEFR_LEVELS.index(default_level),
+            key="re_level",
+        )
+
+        series_names = list(REAL_ENGLISH_SERIES.keys())
+        series_labels = [
+            f"{REAL_ENGLISH_SERIES[s]['icon']} {s}" for s in series_names
+        ]
+        selected_idx = st.selectbox(
+            "Mini-serie",
+            range(len(series_names)),
+            format_func=lambda i: series_labels[i],
+            key="re_series",
+        )
+        selected_series = series_names[selected_idx]
+        series_info = REAL_ENGLISH_SERIES[selected_series]
+
+        st.caption(series_info["description"])
+
+        episodes = series_info["episodes"]
+        selected_episode = st.selectbox(
+            "Episode",
+            episodes,
+            key="re_episode",
+        )
+
+        # Check if this episode already exists
+        episode_id = slugify(f"{selected_series}-{selected_episode}-{re_level}")
+
+        existing_lesson = _load_real_english_lesson(profile_id, episode_id)
+        is_completed = episode_id in progress.get("completed_lessons", [])
+
+        if existing_lesson:
+            st.success("Cet episode est deja genere. Naviguez dans les onglets pour l'explorer.")
+            if is_completed:
+                st.markdown("✅ **Lecon terminee**")
+            st.session_state["re_current_lesson"] = existing_lesson
+            st.session_state["re_current_lesson_id"] = episode_id
+        else:
+            st.session_state.pop("re_current_lesson", None)
+            st.session_state.pop("re_current_lesson_id", None)
+
+        # ── Load saved lessons browser ───────────────────────────────
+        if all_lessons:
+            with st.expander(f"Mes episodes generes ({len(all_lessons)})", expanded=False):
+                for li, lesson in enumerate(all_lessons):
+                    lid = lesson.get("id", "")
+                    title = lesson.get("episode", "?")
+                    series = lesson.get("series", "?")
+                    level = lesson.get("level", "?")
+                    done = lid in progress.get("completed_lessons", [])
+                    icon = "✅" if done else "📺"
+                    date = lesson.get("saved", "")[:10]
+                    col_load, col_del = st.columns([4, 1])
+                    with col_load:
+                        if st.button(
+                            f"{icon} {date} — {series} — {title} ({level})",
+                            key=f"re_load_{li}",
+                        ):
+                            st.session_state["re_current_lesson"] = lesson
+                            st.session_state["re_current_lesson_id"] = lid
+                            st.rerun()
+                    with col_del:
+                        if st.button("🗑️", key=f"re_del_{li}"):
+                            path = _real_english_lesson_path(profile_id, lid)
+                            if os.path.exists(path):
+                                os.remove(path)
+                            # Remove audio
+                            audio_path = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.wav")
+                            if os.path.exists(audio_path):
+                                os.remove(audio_path)
+                            if lid in progress.get("completed_lessons", []):
+                                progress["completed_lessons"].remove(lid)
+                                _save_real_english_progress(profile_id, progress)
+                            if st.session_state.get("re_current_lesson_id") == lid:
+                                st.session_state.pop("re_current_lesson", None)
+                                st.session_state.pop("re_current_lesson_id", None)
+                            st.rerun()
+
+        if st.button("Generer cet episode", key="re_generate"):
+            with st.spinner("L'IA ecrit un dialogue authentique..."):
+                level_instr = REAL_ENGLISH_LEVEL_INSTRUCTIONS.get(re_level, "")
+                prompt = (
+                    f"You are a scriptwriter for an American TV show. Write a REALISTIC, "
+                    f"natural American English dialogue for this scene:\n\n"
+                    f"Series: \"{selected_series}\"\n"
+                    f"Episode scenario: \"{selected_episode}\"\n"
+                    f"CEFR level for the learner: {re_level}\n\n"
+                    f"Language level instructions: {level_instr}\n\n"
+                    f"CRITICAL RULES — READ CAREFULLY:\n"
+                    f"- This is NOT a textbook. NEVER write formal/academic English.\n"
+                    f"- Write EXACTLY how Americans ACTUALLY speak in daily life.\n"
+                    f"- Characters MUST use: gonna, wanna, gotta, kinda, dunno and other reductions.\n"
+                    f"- Characters MUST use American idioms, chunks, and phrasal verbs — NOT single words.\n"
+                    f"- Include filler words: like, you know, I mean, basically, honestly, um, right?\n"
+                    f"- Include reactions: No way!, Seriously?, Dude!, Come on!, Oh my God!\n"
+                    f"- Include interrupted sentences, self-corrections, and trailing off.\n"
+                    f"- Greetings: Hey! / What's up? / How's it goin'? (NEVER 'Hello, how are you?')\n"
+                    f"- 15-25 lines between 2-3 characters with American names\n"
+                    f"- Include [stage directions] for tone/action\n"
+                    f"- Mini-story with beginning, middle, and end\n"
+                    f"- If someone would say 'going to' in real life, write 'gonna' instead.\n"
+                    f"- If someone would say 'want to', write 'wanna'. Same for gotta, kinda, etc.\n"
+                    f"- EVERY line should sound like something you'd hear in Friends, The Office, or a podcast.\n\n"
+                    f"After the dialogue, provide:\n"
+                    f"1. KEY_VOCABULARY: 8-12 important informal expressions, chunks, phrasal verbs, "
+                    f"idioms, and reductions used in the dialogue. For each give: the expression, "
+                    f"its standard/full form, the French translation, and the type "
+                    f"(chunk/idiom/reduction/phrasal verb/slang).\n"
+                    f"2. CULTURAL_NOTE: 2-3 sentences in French explaining any American cultural "
+                    f"context in this dialogue.\n"
+                    f"3. COMPREHENSION_QS: 3 quick comprehension questions about the dialogue "
+                    f"(in English) with answers.\n\n"
+                    f"Format as JSON:\n"
+                    f'{{"dialogue": "full dialogue text with [stage directions]", '
+                    f'"characters": ["Name1", "Name2"], '
+                    f'"vocabulary": ['
+                    f'{{"expression": "...", "full_form": "...", "french": "...", "type": "chunk"}}, ...'
+                    f'], '
+                    f'"cultural_note": "...", '
+                    f'"comprehension": ['
+                    f'{{"question": "...", "answer": "..."}}, ...'
+                    f"]}}"
+                )
+                response, err = openrouter_chat(
+                    [{"role": "user", "content": prompt}],
+                    model=CHAT_MODEL,
+                    temperature=0.8,
+                    max_tokens=2500,
+                )
+                if err:
+                    st.error(f"Erreur: {err}")
+                else:
+                    try:
+                        cleaned = response.strip()
+                        if cleaned.startswith("```"):
+                            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+                            cleaned = re.sub(r"\s*```$", "", cleaned)
+                        lesson_data = json.loads(cleaned)
+                        lesson_data["series"] = selected_series
+                        lesson_data["episode"] = selected_episode
+                        lesson_data["level"] = re_level
+                        lesson_data["series_icon"] = series_info["icon"]
+                        _save_real_english_lesson(profile_id, episode_id, lesson_data)
+                        st.session_state["re_current_lesson"] = lesson_data
+                        st.session_state["re_current_lesson_id"] = episode_id
+                        st.rerun()
+                    except (json.JSONDecodeError, KeyError) as e:
+                        st.error(f"Erreur de format IA: {e}")
+                        st.code(response)
+
+        # Display current lesson dialogue
+        lesson = st.session_state.get("re_current_lesson")
+        if lesson:
+            st.markdown("---")
+            st.markdown(
+                f"### {lesson.get('series_icon', '📺')} {lesson.get('series', '')} — "
+                f"*{lesson.get('episode', '')}*  ({lesson.get('level', '')})"
+            )
+            chars = lesson.get("characters", [])
+            if chars:
+                st.caption(f"Personnages: {', '.join(chars)}")
+            st.text(lesson.get("dialogue", ""))
+
+            # Cultural note
+            cultural = lesson.get("cultural_note", "")
+            if cultural:
+                with st.expander("🇺🇸 Note culturelle"):
+                    st.markdown(cultural)
+
+            # Comprehension questions
+            comp_qs = lesson.get("comprehension", [])
+            if comp_qs:
+                with st.expander("❓ Questions de comprehension"):
+                    for qi, cq in enumerate(comp_qs):
+                        st.markdown(f"**Q{qi+1}.** {cq.get('question', '')}")
+                        if st.button(f"Voir la reponse Q{qi+1}", key=f"re_comp_{qi}"):
+                            st.info(cq.get("answer", ""))
+
+    # ── Tab 2: Ecouter la scene ──────────────────────────────────────────────
+    with tab_listen:
+        st.subheader("Ecouter le dialogue")
+
+        # Voice selection (shared for generation)
+        voice_pairs_re = {
+            "Homme / Femme (echo / nova)": ("echo", "nova"),
+            "Femme / Homme (nova / echo)": ("nova", "echo"),
+            "Homme / Homme (echo / onyx)": ("echo", "onyx"),
+            "Femme / Femme (nova / shimmer)": ("nova", "shimmer"),
+        }
+        voice_choice = st.selectbox(
+            "Voix du dialogue",
+            list(voice_pairs_re.keys()),
+            key="re_voice_pair",
+        )
+        va, vb = voice_pairs_re[voice_choice]
+
+        # ── Bibliotheque audio : tous les episodes avec audio deja genere ────
+        audio_library = []
+        for ls in all_lessons:
+            lid = ls.get("id", "")
+            afp = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lid}.wav")
+            has_audio = os.path.exists(afp)
+            audio_library.append({
+                "id": lid,
+                "series": ls.get("series", ""),
+                "episode": ls.get("episode", ""),
+                "level": ls.get("level", ""),
+                "icon": ls.get("series_icon", "📺"),
+                "has_audio": has_audio,
+                "audio_path": afp,
+                "dialogue": ls.get("dialogue", ""),
+            })
+
+        episodes_with_audio = [a for a in audio_library if a["has_audio"]]
+        episodes_without_audio = [a for a in audio_library if not a["has_audio"]]
+
+        if episodes_with_audio:
+            st.markdown(f"### 🎧 Mes audios generes ({len(episodes_with_audio)})")
+            st.caption("Cliquez pour reecouter un episode a tout moment.")
+            for ai, ep in enumerate(episodes_with_audio):
+                is_current = (ep["id"] == st.session_state.get("re_current_lesson_id"))
+                marker = " ◀️ *en cours*" if is_current else ""
+                with st.expander(
+                    f"{ep['icon']} {ep['series']} — {ep['episode']} ({ep['level']}){marker}"
+                ):
+                    with open(ep["audio_path"], "rb") as af:
+                        st.audio(af.read(), format="audio/wav")
+
+                    col_text, col_regen, col_select = st.columns([2, 1, 1])
+                    with col_text:
+                        if ep["dialogue"]:
+                            with st.expander("Lire le texte"):
+                                st.text(ep["dialogue"])
+                    with col_regen:
+                        if st.button("🔄 Regenerer", key=f"re_lib_regen_{ai}"):
+                            if os.path.exists(ep["audio_path"]):
+                                os.remove(ep["audio_path"])
+                            with st.spinner("Regeneration audio..."):
+                                ab, mime, err = generate_dual_voice_tts(
+                                    ep["dialogue"], va, vb
+                                )
+                                if not err:
+                                    os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
+                                    with open(ep["audio_path"], "wb") as af:
+                                        af.write(ab)
+                            st.rerun()
+                    with col_select:
+                        if not is_current:
+                            if st.button("📂 Charger", key=f"re_lib_load_{ai}"):
+                                loaded = _load_real_english_lesson(profile_id, ep["id"])
+                                if loaded:
+                                    st.session_state["re_current_lesson"] = loaded
+                                    st.session_state["re_current_lesson_id"] = ep["id"]
+                                    st.rerun()
+
+        st.markdown("---")
+
+        # ── Episode actuel sans audio ────────────────────────────────────────
+        lesson = st.session_state.get("re_current_lesson")
+        lesson_id = st.session_state.get("re_current_lesson_id")
+
+        if not lesson:
+            if not episodes_with_audio:
+                st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+        else:
+            audio_file = os.path.join(REAL_ENGLISH_AUDIO_DIR, f"{lesson_id}.wav")
+            if not os.path.exists(audio_file):
+                st.markdown(
+                    f"### 🔊 Episode actuel sans audio : "
+                    f"{lesson.get('series_icon', '📺')} {lesson.get('series', '')} — "
+                    f"{lesson.get('episode', '')} ({lesson.get('level', '')})"
+                )
+                if st.button("🔊 Generer l'audio du dialogue", key="re_gen_audio"):
+                    with st.spinner("Generation audio 2 voix..."):
+                        audio_bytes, mime, err = generate_dual_voice_tts(
+                            lesson["dialogue"], va, vb
+                        )
+                        if err:
+                            st.error(f"Erreur TTS: {err}")
+                        else:
+                            os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
+                            with open(audio_file, "wb") as af:
+                                af.write(audio_bytes)
+                            st.rerun()
+
+        # ── Episodes sans audio (generation en attente) ──────────────────────
+        if episodes_without_audio:
+            with st.expander(
+                f"📋 Episodes sans audio ({len(episodes_without_audio)})", expanded=False
+            ):
+                st.caption("Ces episodes ont ete generes mais n'ont pas encore d'audio.")
+                for wi, ep in enumerate(episodes_without_audio):
+                    col_name, col_gen = st.columns([3, 1])
+                    with col_name:
+                        st.markdown(
+                            f"{ep['icon']} {ep['series']} — {ep['episode']} ({ep['level']})"
+                        )
+                    with col_gen:
+                        if st.button("🔊 Generer", key=f"re_lib_gen_{wi}"):
+                            loaded = _load_real_english_lesson(profile_id, ep["id"])
+                            if loaded:
+                                with st.spinner("Generation audio..."):
+                                    ab, mime, err = generate_dual_voice_tts(
+                                        loaded.get("dialogue", ""), va, vb
+                                    )
+                                    if not err:
+                                        os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
+                                        with open(ep["audio_path"], "wb") as af:
+                                            af.write(ab)
+                                st.rerun()
+
+        st.markdown(
+            "💡 **Astuce**: Ecoutez d'abord **sans** lire le texte. "
+            "Notez ce que vous comprenez. Puis reecoutez en lisant. "
+            "Repetez jusqu'a comprendre chaque mot."
+        )
+
+    # ── Tab 3: Vocabulaire, Chunks & Idioms ──────────────────────────────────
+    with tab_vocab:
+        st.subheader("Vocabulaire, Chunks & Idioms de l'episode")
+        lesson = st.session_state.get("re_current_lesson")
+
+        if not lesson:
+            st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+        else:
+            vocab_items = lesson.get("vocabulary", [])
+            if not vocab_items:
+                st.warning("Aucun vocabulaire extrait pour cet episode.")
+            else:
+                st.markdown(
+                    f"**{len(vocab_items)} expressions cles** de cet episode. "
+                    "Ajoutez-les a vos flashcards pour les memoriser avec le systeme SRS."
+                )
+
+                vocab_entries = load_vocab(profile_id=profile_id)
+                existing_terms = {
+                    e.get("term", "").lower() for e in vocab_entries if isinstance(e, dict)
+                }
+
+                # Group by type
+                type_icons = {
+                    "chunk": "🧩",
+                    "idiom": "💬",
+                    "reduction": "🔗",
+                    "phrasal verb": "🔀",
+                    "slang": "🗣️",
+                }
+
+                for vi, item in enumerate(vocab_items):
+                    expr = item.get("expression", "").strip()
+                    full = item.get("full_form", "").strip()
+                    french = item.get("french", "").strip()
+                    vtype = item.get("type", "chunk").strip().lower()
+                    if not expr:
+                        continue
+
+                    already = expr.lower() in existing_terms
+                    icon = type_icons.get(vtype, "📝")
+
+                    col_info, col_audio, col_btn = st.columns([3, 1, 1])
+                    with col_info:
+                        type_label = vtype.capitalize()
+                        if already:
+                            st.markdown(
+                                f"✅ {icon} **{expr}** ({full}) → {french} "
+                                f"[{type_label}] — *deja dans vos flashcards*"
+                            )
+                        else:
+                            st.markdown(
+                                f"{icon} **{expr}** ({full}) → {french} [{type_label}]"
+                            )
+                    with col_audio:
+                        expr_audio_file = os.path.join(
+                            REAL_ENGLISH_AUDIO_DIR, f"vocab-{slugify(expr)}.wav"
+                        )
+                        if os.path.exists(expr_audio_file):
+                            with open(expr_audio_file, "rb") as af:
+                                st.audio(af.read(), format="audio/wav")
+                        else:
+                            if st.button("🔊", key=f"re_vocab_tts_{vi}"):
+                                with st.spinner("Audio..."):
+                                    ab, mime, err = text_to_speech_openrouter(expr, voice="echo")
+                                    if not err:
+                                        os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
+                                        with open(expr_audio_file, "wb") as af:
+                                            af.write(ab)
+                                        st.audio(ab, format=mime)
+                                        st.rerun()
+                    with col_btn:
+                        if not already:
+                            if st.button("📝 Flashcard", key=f"re_vocab_flash_{vi}"):
+                                new_card = {
+                                    "id": str(uuid.uuid4())[:8],
+                                    "term": expr,
+                                    "translation": french,
+                                    "part_of_speech": vtype,
+                                    "explanation": (
+                                        f"Forme complete: {full}. Construisez une phrase avec '{expr}'."
+                                        if full else f"Construisez une phrase avec '{expr}'."
+                                    ),
+                                    "examples": [],
+                                    "synonyms": [],
+                                    "cefr_level": lesson.get("level", "B1"),
+                                    "added": now_iso(),
+                                    "next_review": now_iso(),
+                                    "interval": 1,
+                                    "ease": 2.5,
+                                    "repetitions": 0,
+                                    "review_history": [],
+                                    "source_lesson_id": f"real-{st.session_state.get('re_current_lesson_id', '')}",
+                                    "profile_id": profile_id,
+                                }
+                                vocab_entries.append(new_card)
+                                save_vocab(vocab_entries, profile_id=profile_id)
+                                existing_terms.add(expr.lower())
+                                st.success(f"Flashcard ajoutee: {expr}")
+
+                # Bulk add button
+                not_added = [
+                    v for v in vocab_items
+                    if v.get("expression", "").strip()
+                    and v.get("expression", "").strip().lower() not in existing_terms
+                ]
+                if len(not_added) > 1:
+                    st.markdown("---")
+                    if st.button(
+                        f"📝 Ajouter les {len(not_added)} expressions aux flashcards",
+                        key="re_vocab_flash_all",
+                    ):
+                        vocab_entries = load_vocab(profile_id=profile_id)
+                        added = 0
+                        for vi2, v2 in enumerate(not_added):
+                            et = v2.get("expression", "").strip()
+                            new_card = {
+                                "id": str(uuid.uuid4())[:8],
+                                "term": et,
+                                "translation": v2.get("french", ""),
+                                "part_of_speech": v2.get("type", "chunk"),
+                                "explanation": (
+                                    f"Forme complete: {v2.get('full_form', '')}. "
+                                    f"Construisez une phrase avec '{et}'."
+                                ),
+                                "examples": [],
+                                "synonyms": [],
+                                "cefr_level": lesson.get("level", "B1"),
+                                "added": now_iso(),
+                                "next_review": now_iso(),
+                                "interval": 1,
+                                "ease": 2.5,
+                                "repetitions": 0,
+                                "review_history": [],
+                                "source_lesson_id": f"real-{st.session_state.get('re_current_lesson_id', '')}",
+                                "profile_id": profile_id,
+                            }
+                            vocab_entries.append(new_card)
+                            added += 1
+                        save_vocab(vocab_entries, profile_id=profile_id)
+                        st.success(f"{added} flashcards ajoutees d'un coup !")
+
+    # ── Tab 4: Pratiquer (Shadowing) ─────────────────────────────────────────
+    with tab_shadow:
+        st.subheader("Pratiquer ce dialogue en Shadowing")
+        lesson = st.session_state.get("re_current_lesson")
+        lesson_id = st.session_state.get("re_current_lesson_id")
+
+        if not lesson:
+            st.info("Generez ou selectionnez un episode dans l'onglet 'Episodes & Dialogues' d'abord.")
+        else:
+            st.markdown(
+                f"**{lesson.get('series_icon', '📺')} {lesson.get('series', '')} — "
+                f"{lesson.get('episode', '')}** ({lesson.get('level', '')})"
+            )
+            st.markdown(
+                "Envoyez ce dialogue vers le **Shadowing interactif** pour le pratiquer "
+                "phrase par phrase. Vous ecouterez chaque replique et la repeterez."
+            )
+
+            # Show dialogue preview
+            with st.expander("Apercu du dialogue"):
+                st.text(lesson.get("dialogue", ""))
+
+            # Extract chunk focus from vocabulary
+            chunk_focus = [
+                v.get("expression", "") for v in lesson.get("vocabulary", [])
+                if v.get("expression", "")
+            ]
+
+            if st.button("Envoyer vers le Shadowing interactif", key="re_to_shadowing"):
+                added = register_shadowing_text(
+                    profile_id=profile_id,
+                    source_lesson_id=f"real-english-{lesson_id}",
+                    lesson_kind="real_english",
+                    theme_name=f"{lesson.get('series', '')} — {lesson.get('episode', '')}",
+                    dialogue_text=lesson.get("dialogue", ""),
+                    chunk_focus=chunk_focus,
+                    cefr_level=lesson.get("level", "B1"),
+                    lesson_title=f"[Real English] {lesson.get('series', '')} — {lesson.get('episode', '')}",
+                )
+                if added:
+                    st.success(
+                        "Dialogue ajoute au Shadowing interactif ! "
+                        "Allez dans l'onglet 'Shadowing interactif' pour le pratiquer."
+                    )
+                else:
+                    st.info("Ce dialogue est deja dans votre liste de shadowing (mis a jour).")
+
+    # ── Tab 5: Ma progression ────────────────────────────────────────────────
+    with tab_progress:
+        st.subheader("Ma progression — Anglais reel")
+        lesson = st.session_state.get("re_current_lesson")
+        lesson_id = st.session_state.get("re_current_lesson_id")
+
+        completed = progress.get("completed_lessons", [])
+        total_episodes = sum(len(s["episodes"]) * len(CEFR_LEVELS) for s in REAL_ENGLISH_SERIES.values())
+        total_completed = len(completed)
+
+        st.markdown(f"### Episodes termines: {total_completed}")
+        if total_completed > 0:
+            st.progress(min(total_completed / max(total_episodes, 1), 1.0))
+
+        # Stats by series
+        st.markdown("#### Par serie")
+        for series_name, series_data in REAL_ENGLISH_SERIES.items():
+            series_completed = [
+                c for c in completed if c.startswith(slugify(series_name))
+            ]
+            total_series = len(series_data["episodes"]) * len(CEFR_LEVELS)
+            icon = series_data["icon"]
+            st.markdown(
+                f"{icon} **{series_name}**: {len(series_completed)}/{total_series} episodes"
+            )
+
+        # Stats by level
+        st.markdown("#### Par niveau")
+        for level in CEFR_LEVELS:
+            level_completed = [c for c in completed if c.endswith(f"-{level.lower()}")]
+            badge = CEFR_DESCRIPTORS[level]["badge"]
+            st.markdown(f"{badge}: {len(level_completed)} episodes termines")
+
+        st.markdown("---")
+
+        # Mark current lesson as completed
+        if lesson and lesson_id:
+            is_completed = lesson_id in completed
+            if is_completed:
+                st.success(f"✅ Cet episode est marque comme termine !")
+                if st.button("Annuler (remettre en cours)", key="re_uncomplete"):
+                    progress["completed_lessons"].remove(lesson_id)
+                    progress.setdefault("lesson_history", []).append({
+                        "action": "uncompleted",
+                        "lesson_id": lesson_id,
+                        "date": now_iso(),
+                    })
+                    _save_real_english_progress(profile_id, progress)
+                    st.rerun()
+            else:
+                st.warning("Cet episode n'est pas encore marque comme termine.")
+                if st.button("✅ Marquer comme termine", key="re_complete"):
+                    progress.setdefault("completed_lessons", []).append(lesson_id)
+                    progress.setdefault("lesson_history", []).append({
+                        "action": "completed",
+                        "lesson_id": lesson_id,
+                        "series": lesson.get("series", ""),
+                        "episode": lesson.get("episode", ""),
+                        "level": lesson.get("level", ""),
+                        "date": now_iso(),
+                    })
+                    _save_real_english_progress(profile_id, progress)
+
+                    # Auto-add vocabulary to flashcards
+                    vocab_items = lesson.get("vocabulary", [])
+                    if vocab_items:
+                        vocab_entries = load_vocab(profile_id=profile_id)
+                        existing_terms = {
+                            e.get("term", "").lower()
+                            for e in vocab_entries if isinstance(e, dict)
+                        }
+                        added = 0
+                        for v in vocab_items[:LESSON_FLASHCARD_LIMIT]:
+                            et = v.get("expression", "").strip()
+                            if not et or et.lower() in existing_terms:
+                                continue
+                            new_card = {
+                                "id": str(uuid.uuid4())[:8],
+                                "term": et,
+                                "translation": v.get("french", ""),
+                                "part_of_speech": v.get("type", "chunk"),
+                                "explanation": (
+                                    f"Forme complete: {v.get('full_form', '')}. "
+                                    f"Construisez une phrase avec '{et}'."
+                                ),
+                                "examples": [],
+                                "synonyms": [],
+                                "cefr_level": lesson.get("level", "B1"),
+                                "added": now_iso(),
+                                "next_review": now_iso(),
+                                "interval": 1,
+                                "ease": 2.5,
+                                "repetitions": 0,
+                                "review_history": [],
+                                "source_lesson_id": f"real-{lesson_id}",
+                                "profile_id": profile_id,
+                            }
+                            vocab_entries.append(new_card)
+                            existing_terms.add(et.lower())
+                            added += 1
+                        if added > 0:
+                            save_vocab(vocab_entries, profile_id=profile_id)
+                            st.info(f"{added} flashcards ajoutees automatiquement depuis cette lecon.")
+
+                    st.success("Episode marque comme termine !")
+                    st.rerun()
+        else:
+            st.info("Selectionnez un episode dans l'onglet 'Episodes & Dialogues' pour le marquer comme termine.")
+
+        # Recent history
+        history = progress.get("lesson_history", [])
+        if history:
+            with st.expander(f"Historique recent ({len(history)} actions)"):
+                for h in reversed(history[-20:]):
+                    action = "✅ Termine" if h.get("action") == "completed" else "↩️ Annule"
+                    date = h.get("date", "")[:10]
+                    series = h.get("series", "")
+                    ep = h.get("episode", "")
+                    lvl = h.get("level", "")
+                    st.markdown(f"- {action} — {date} — {series} — {ep} ({lvl})")
+
+
 def main():
     ensure_directories()
     initialize_state()
@@ -9141,6 +10053,7 @@ def main():
             "Lecons (Ecoute)",
             "Lecons basees sur echanges IA",
             "Anglais naturel",
+            "Anglais reel (Mini-series)",
             "Histoires",
             "Playlist",
             "Podcasts",
@@ -9165,6 +10078,8 @@ def main():
         render_ai_lessons_page()
     elif page == "Anglais naturel":
         render_natural_english_page()
+    elif page == "Anglais reel (Mini-series)":
+        render_real_english_page()
     elif page == "Histoires":
         render_stories_page()
     elif page == "Playlist":

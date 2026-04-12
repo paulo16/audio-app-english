@@ -1,0 +1,102 @@
+{
+  "id": "at-the-coffee-shop-running-into-an-old-friend-at-the-register-b1",
+  "saved": "2026-04-11T23:50:30Z",
+  "dialogue": "[The coffee shop is buzzing with customers. JEN is waiting at the register, scrolling through her phone. MIKE walks in and spots her.]\n\nMIKE: [grinning] Hey! Jen, right?\n\nJEN: [looks up, surprised] Oh my God, Mike! Is that you?\n\nMIKE: Yeah, it’s me! I, like, totally didn’t expect to run into you here!\n\nJEN: Seriously? I come here all the time. I’m just gonna grab my usual. What about you?\n\nMIKE: Same! I’m gonna get a latte. [pauses] I was just thinkin’ about how we used to hang out back in college.\n\nJEN: Right? Those were the days! We were, like, always at that one diner, remember?\n\nMIKE: Oh yeah! The one with the milkshakes. Man, I could go for one of those right now.\n\nJEN: [laughs] For real though! I mean, it was a piece of cake to just chill there for hours.\n\nMIKE: Totally! So, what’s new with you? Still in the same job?\n\nJEN: Um, kinda. I switched departments, though. It’s a lot better, honestly. What about you? Still working for that startup?\n\nMIKE: Nah, I left that place. Ended up at a marketing agency. It’s, like, way more chill.\n\nJEN: Nice! Sounds like you found your groove. You gotta tell me more.\n\nMIKE: For sure! We should, like, grab coffee or something sometime. Catch up properly.\n\nJEN: Yeah, let’s do it! I’d love that. Just gimme your number.\n\nMIKE: [pulls out his phone] Here, lemme punch it in for ya.\n\nJEN: Awesome! Alright, I gotta go, but it was really great seeing you!\n\nMIKE: You too! Don’t be a stranger, okay?\n\nJEN: [smiling] Promise! Bye!\n\n[They wave goodbye and JEN walks away, feeling happy about reconnecting.]",
+  "characters": [
+    "JEN",
+    "MIKE"
+  ],
+  "vocabulary": [
+    {
+      "expression": "gonna",
+      "full_form": "going to",
+      "french": "aller",
+      "type": "reduction"
+    },
+    {
+      "expression": "wanna",
+      "full_form": "want to",
+      "french": "vouloir",
+      "type": "reduction"
+    },
+    {
+      "expression": "kinda",
+      "full_form": "kind of",
+      "french": "un peu",
+      "type": "reduction"
+    },
+    {
+      "expression": "gotta",
+      "full_form": "got to",
+      "french": "devoir",
+      "type": "reduction"
+    },
+    {
+      "expression": "for real though",
+      "full_form": "for real though",
+      "french": "pour de vrai",
+      "type": "idiom"
+    },
+    {
+      "expression": "hit it off",
+      "full_form": "to get along well",
+      "french": "bien s'entendre",
+      "type": "idiom"
+    },
+    {
+      "expression": "end up",
+      "full_form": "to finally be in a particular situation",
+      "french": "finir par",
+      "type": "phrasal verb"
+    },
+    {
+      "expression": "gimme",
+      "full_form": "give me",
+      "french": "donne-moi",
+      "type": "slang"
+    },
+    {
+      "expression": "chill out",
+      "full_form": "calm down",
+      "french": "se détendre",
+      "type": "phrasal verb"
+    },
+    {
+      "expression": "break the ice",
+      "full_form": "to initiate conversation",
+      "french": "briser la glace",
+      "type": "idiom"
+    },
+    {
+      "expression": "pick up on",
+      "full_form": "to notice or become aware of",
+      "french": "remarquer",
+      "type": "phrasal verb"
+    },
+    {
+      "expression": "no worries",
+      "full_form": "it's okay",
+      "french": "pas de soucis",
+      "type": "chunk"
+    }
+  ],
+  "cultural_note": "Dans les cafés américains, il est courant de discuter et de renouer des liens avec des amis ou des connaissances. Les jeunes adultes aiment souvent se retrouver dans ces lieux pour socialiser et échanger des nouvelles, ce qui reflète une culture de convivialité et d'amitié informelle.",
+  "comprehension": [
+    {
+      "question": "What drink does Mike decide to order?",
+      "answer": "A latte."
+    },
+    {
+      "question": "Where do Jen and Mike plan to meet up again?",
+      "answer": "For coffee."
+    },
+    {
+      "question": "What job did Mike leave to join a marketing agency?",
+      "answer": "He left a startup."
+    }
+  ],
+  "series": "At the Coffee Shop",
+  "episode": "Running into an old friend at the register",
+  "level": "B1",
+  "series_icon": "☕"
+}
