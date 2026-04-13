@@ -493,6 +493,10 @@ PRACTICE_DRILL_MODES = {
         "key": "no_translation",
         "description": "English-only reformulation when a word is missing.",
     },
+    "French -> English challenge": {
+        "key": "fr_to_en",
+        "description": "The AI gives short French prompts and you answer in natural English.",
+    },
     "Tense switch": {
         "key": "tense_switch",
         "description": "Practice one tense target and reformulate across tenses.",
@@ -2637,6 +2641,230 @@ def ensure_shadowing_chunk_audio(profile_id, source_id, chunk_idx, chunk_text, v
     return path, None
 
 
+def _theme_label_from_slug(theme_slug):
+    target_slug = str(theme_slug or "").strip()
+    if not target_slug:
+        return ""
+    for theme_name in ESSENTIAL_THEMES.keys():
+        if slugify(theme_name) == target_slug:
+            return theme_name
+    return target_slug.replace("-", " ").strip().title()
+
+
+def _extract_theme_slug_from_variation_file_name(file_name, profile_slug):
+    name = str(file_name or "")
+    profile_slug_esc = re.escape(profile_slug)
+    patterns = [
+        rf"^(?P<slug>.+)-(a1|a2|b1|b2|c1|c2)-{profile_slug_esc}_variations\.json$",
+        r"^(?P<slug>.+)-(a1|a2|b1|b2|c1|c2)_variations\.json$",
+        r"^(?P<slug>.+)_variations\.json$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, name, flags=re.IGNORECASE)
+        if match:
+            return str(match.group("slug")).strip().lower()
+    return ""
+
+
+def _extract_theme_slug_from_pack_file_name(file_name, profile_slug):
+    name = str(file_name or "")
+    profile_slug_esc = re.escape(profile_slug)
+    patterns = [
+        rf"^(?P<slug>.+)-(a1|a2|b1|b2|c1|c2)-{profile_slug_esc}\.json$",
+        r"^(?P<slug>.+)-(a1|a2|b1|b2|c1|c2)\.json$",
+        r"^(?P<slug>.+)\.json$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, name, flags=re.IGNORECASE)
+        if match:
+            return str(match.group("slug")).strip().lower()
+    return ""
+
+
+def _collect_generated_lesson_themes(profile_id):
+    profile_slug = _profile_storage_slug(profile_id)
+    known_theme_by_slug = {
+        slugify(theme_name): theme_name for theme_name in ESSENTIAL_THEMES.keys()
+    }
+    found_slugs = set()
+
+    if os.path.exists(VARIATIONS_DIR):
+        for fname in os.listdir(VARIATIONS_DIR):
+            slug = _extract_theme_slug_from_variation_file_name(fname, profile_slug)
+            if slug in known_theme_by_slug:
+                found_slugs.add(slug)
+
+    if os.path.exists(LESSON_PACK_DIR):
+        for fname in os.listdir(LESSON_PACK_DIR):
+            slug = _extract_theme_slug_from_pack_file_name(fname, profile_slug)
+            if slug in known_theme_by_slug:
+                found_slugs.add(slug)
+
+    ordered = []
+    for theme_name in ESSENTIAL_THEMES.keys():
+        if slugify(theme_name) in found_slugs:
+            ordered.append(theme_name)
+    return ordered
+
+
+def _collect_practice_lesson_catalog(profile_id):
+    status_rank = {"en cours": 1, "terminee": 2}
+    catalog_map = {}
+
+    profile_vocab_entries = load_vocab(profile_id=profile_id)
+    completed_regular_ids = {
+        str(entry.get("source_lesson_id", "")).strip()
+        for entry in profile_vocab_entries
+        if isinstance(entry, dict)
+        and str(entry.get("source_lesson_id", "")).strip().startswith(("quick:", "pack:"))
+    }
+
+    real_progress = _load_real_english_progress(profile_id)
+    completed_real_ids = {
+        str(lesson_id).strip()
+        for lesson_id in real_progress.get("completed_lessons", [])
+        if str(lesson_id).strip()
+    }
+
+    def _upsert_item(item):
+        key = item.get("key")
+        if not key:
+            return
+        current = catalog_map.get(key)
+        if not current:
+            catalog_map[key] = item
+            return
+        if status_rank.get(item.get("status", "en cours"), 0) > status_rank.get(
+            current.get("status", "en cours"), 0
+        ):
+            catalog_map[key] = item
+
+    shadowing_items = load_shadowing_texts(profile_id)
+    for entry in shadowing_items:
+        if not isinstance(entry, dict):
+            continue
+        source_id = str(entry.get("source_id", "")).strip()
+        if not source_id:
+            continue
+        lesson_kind = str(entry.get("lesson_kind", "")).strip().lower()
+        theme_name = str(entry.get("theme_name", "")).strip()
+        title = str(entry.get("lesson_title") or theme_name or source_id).strip()
+        level = str(entry.get("cefr_level") or "B1").upper()
+
+        source_type = "Lecons audio"
+        status = "en cours"
+        if lesson_kind in {"quick", "pack"}:
+            status = "terminee" if source_id in completed_regular_ids else "en cours"
+            if not theme_name and ":" in source_id:
+                parts = source_id.split(":")
+                if len(parts) >= 2:
+                    theme_name = _theme_label_from_slug(parts[1])
+        elif lesson_kind == "real_english":
+            source_type = "Anglais reel"
+            raw_id = source_id.replace("real-english-", "", 1)
+            status = "terminee" if raw_id in completed_real_ids else "en cours"
+
+        if not theme_name:
+            theme_name = title
+
+        _upsert_item(
+            {
+                "key": source_id,
+                "source_id": source_id,
+                "source_type": source_type,
+                "status": status,
+                "theme": theme_name,
+                "title": title,
+                "level": level,
+                "lesson_kind": lesson_kind,
+            }
+        )
+
+    for lesson in _list_real_english_lessons(profile_id):
+        if not isinstance(lesson, dict):
+            continue
+        lesson_id = str(lesson.get("id", "")).strip()
+        if not lesson_id:
+            continue
+        source_id = f"real-english-{lesson_id}"
+        series = str(lesson.get("series", "")).strip()
+        episode = str(lesson.get("episode", "")).strip()
+        title = f"{series} - {episode}".strip(" -")
+        if not title:
+            title = lesson_id
+        status = "terminee" if lesson_id in completed_real_ids else "en cours"
+        _upsert_item(
+            {
+                "key": source_id,
+                "source_id": source_id,
+                "source_type": "Anglais reel",
+                "status": status,
+                "theme": title,
+                "title": title,
+                "level": str(lesson.get("level") or "B1").upper(),
+                "lesson_kind": "real_english",
+            }
+        )
+
+    existing_audio_themes = {
+        str(item.get("theme", "")).strip()
+        for item in catalog_map.values()
+        if item.get("source_type") == "Lecons audio"
+    }
+    for generated_theme in _collect_generated_lesson_themes(profile_id):
+        if generated_theme in existing_audio_themes:
+            continue
+        _upsert_item(
+            {
+                "key": f"generated-theme:{slugify(generated_theme)}",
+                "source_id": "",
+                "source_type": "Lecons audio",
+                "status": "en cours",
+                "theme": generated_theme,
+                "title": generated_theme,
+                "level": "",
+                "lesson_kind": "generated",
+            }
+        )
+
+    items = list(catalog_map.values())
+    items.sort(
+        key=lambda item: (
+            0 if item.get("status") == "terminee" else 1,
+            0 if item.get("source_type") == "Lecons audio" else 1,
+            str(item.get("theme", "")).lower(),
+            str(item.get("title", "")).lower(),
+        )
+    )
+
+    topic_pool = []
+    seen_topics = set()
+    for item in items:
+        topic = str(item.get("title") or item.get("theme") or "").strip()
+        if topic and topic.lower() not in seen_topics:
+            topic_pool.append(topic)
+            seen_topics.add(topic.lower())
+
+    completed_count = sum(1 for item in items if item.get("status") == "terminee")
+    in_progress_count = sum(1 for item in items if item.get("status") == "en cours")
+    return {
+        "items": items,
+        "completed_count": completed_count,
+        "in_progress_count": in_progress_count,
+        "topic_pool": topic_pool,
+    }
+
+
+def _practice_catalog_item_label(item):
+    status_icon = "✅" if item.get("status") == "terminee" else "🟡"
+    level = str(item.get("level") or "").strip()
+    level_part = f" ({level})" if level else ""
+    return (
+        f"{status_icon} {item.get('source_type', 'Lecon')} - "
+        f"{item.get('title', item.get('theme', 'N/A'))}{level_part}"
+    )
+
+
 def build_tutor_system_prompt(
     mode,
     theme,
@@ -2644,8 +2872,10 @@ def build_tutor_system_prompt(
     target_cefr="B1",
     training_mode="standard",
     training_settings=None,
+    lesson_context=None,
 ):
     training_settings = training_settings or {}
+    lesson_context = lesson_context or {}
     target = str(target_cefr or "B1").upper()
     if target not in CEFR_LEVELS:
         target = "B1"
@@ -2661,6 +2891,31 @@ def build_tutor_system_prompt(
         else "Objective: improve fluency and naturalness."
     )
 
+    lesson_context_instruction = ""
+    focus_items = lesson_context.get("focus_items", [])
+    if isinstance(focus_items, list) and focus_items:
+        lines = []
+        for item in focus_items[:8]:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                f"- [{item.get('status', 'en cours')}] {item.get('source_type', 'Lecon')}: "
+                f"{item.get('title', item.get('theme', 'N/A'))}"
+            )
+        if lines:
+            if mode == "free":
+                lesson_context_instruction = (
+                    "Lesson context pool for this free dialogue session (prioritize these topics):\n"
+                    + "\n".join(lines)
+                    + "\nIn free mode, rotate naturally across this pool while staying practical and coherent."
+                )
+            else:
+                lesson_context_instruction = (
+                    "Lesson context for this guided session:\n"
+                    + "\n".join(lines)
+                    + "\nStay anchored to this lesson context and recycle its chunks naturally."
+                )
+
     stress_reply_seconds = int(training_settings.get("stress_reply_seconds", 10))
     target_tense = training_settings.get("target_tense", "present")
     if training_mode == "conversation_stress":
@@ -2672,6 +2927,13 @@ def build_tutor_system_prompt(
         training_instruction = (
             "Training drill: NO TRANSLATION. Keep everything in English. If the learner asks in French or gets stuck, "
             "guide them to paraphrase in simple English without giving French translations."
+        )
+    elif training_mode == "fr_to_en":
+        training_instruction = (
+            "Training drill: FRENCH TO ENGLISH CHALLENGE. Regularly give one short everyday sentence in French, "
+            "then explicitly ask the learner to say it in natural American English. "
+            "After the learner answers, recast naturally in English and continue with one follow-up question. "
+            "Do not provide long grammar explanations during the live exchange."
         )
     elif training_mode == "tense_switch":
         training_instruction = (
@@ -2695,13 +2957,16 @@ def build_tutor_system_prompt(
         "Example: learner says 'I goed to the store' → you reply 'Oh nice, you went to the store! What did you get?' — correction embedded, conversation continues. "
         "Your only job during the conversation is to keep talking naturally, ask follow-up questions, and model correct American English through your own speech. "
         "All detailed corrections and feedback are saved for the end-of-session evaluation — do NOT give them during the conversation. "
-        f"Mode: {mode}. {topic_instruction} {objective_instruction} {training_instruction} "
+        f"Mode: {mode}. {topic_instruction} {objective_instruction} {lesson_context_instruction} {training_instruction} "
         "Use natural chunking, rhythm, stress patterns, and fillers that American native speakers actually use."
     )
 
 
-def choose_theme_with_ai():
-    choices = list(ESSENTIAL_THEMES.keys())
+def choose_theme_with_ai(choices=None):
+    choices = choices or list(ESSENTIAL_THEMES.keys())
+    choices = [str(item).strip() for item in choices if str(item).strip()]
+    if not choices:
+        choices = list(ESSENTIAL_THEMES.keys())
     prompt = (
         "Choose one theme for today's speaking session from this exact list and return only the theme name:\n"
         + "\n".join(f"- {item}" for item in choices)
@@ -2728,8 +2993,10 @@ def new_session(
     target_cefr=None,
     training_mode="standard",
     training_settings=None,
+    lesson_context=None,
 ):
     training_settings = training_settings or {}
+    lesson_context = lesson_context or {}
     profile = get_active_profile()
     session_target_cefr = str(target_cefr or profile.get("target_cefr", "B1")).upper()
     if session_target_cefr not in CEFR_LEVELS:
@@ -2747,6 +3014,7 @@ def new_session(
         "target_cefr": session_target_cefr,
         "training_mode": training_mode,
         "training_settings": training_settings,
+        "lesson_context": lesson_context,
         "messages": [
             {
                 "role": "system",
@@ -2757,6 +3025,7 @@ def new_session(
                     target_cefr=session_target_cefr,
                     training_mode=training_mode,
                     training_settings=training_settings,
+                    lesson_context=lesson_context,
                 ),
             }
         ],
@@ -2962,6 +3231,21 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
     messages = list(session_data["messages"])
     training_mode = session_data.get("training_mode", "standard")
     training_settings = session_data.get("training_settings", {})
+    lesson_context = session_data.get("lesson_context") or {}
+
+    topic_pool = lesson_context.get("topic_pool", [])
+    if isinstance(topic_pool, list) and topic_pool:
+        short_pool = [str(topic).strip() for topic in topic_pool[:8] if str(topic).strip()]
+        if short_pool:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "SESSION CONTEXT REMINDER: stay anchored to these learner lessons/topics when possible: "
+                        + ", ".join(short_pool)
+                    ),
+                }
+            )
 
     if training_mode == "conversation_stress":
         messages.append(
@@ -2988,6 +3272,15 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
                 "role": "system",
                 "content": (
                     "DRILL ACTIVE: No translation. Keep the learner in English and push paraphrasing when vocabulary is missing."
+                ),
+            }
+        )
+    elif training_mode == "fr_to_en":
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "DRILL ACTIVE: French to English challenge. Frequently provide one short French sentence, ask the learner to say it in natural English, then recast and continue the conversation with one follow-up question."
                 ),
             }
         )
@@ -5240,8 +5533,22 @@ def render_practice_page():
     if practice_level != practice_level_default:
         set_profile_module_level(profile_id, "practice", practice_level)
 
+    practice_catalog = _collect_practice_lesson_catalog(profile_id)
+    practice_items = practice_catalog.get("items", [])
+    if practice_items:
+        st.info(
+            f"Base de pratique detectee: {practice_catalog.get('completed_count', 0)} lecon(s) terminee(s) + "
+            f"{practice_catalog.get('in_progress_count', 0)} en cours (Lecons audio + Anglais reel)."
+        )
+    else:
+        st.warning(
+            "Aucune lecon terminee/en cours detectee. La pratique IA utilisera les themes generaux par defaut."
+        )
+
     practice_mode = st.radio(
-        "Mode", ["Guide par theme", "Session libre"], horizontal=True
+        "Mode",
+        ["Guide par mes lecons", "Dialogue libre sur toutes mes lecons"],
+        horizontal=True,
     )
 
     drill_label = st.selectbox(
@@ -5274,29 +5581,101 @@ def render_practice_page():
 
     selected_theme = None
     selected_objective = ""
-    if practice_mode == "Guide par theme":
-        pick_mode = st.radio(
-            "Choix du theme", ["Je choisis", "L'IA choisit"], horizontal=True
-        )
-        if pick_mode == "Je choisis":
-            selected_theme = st.selectbox(
-                "Theme de la session", list(ESSENTIAL_THEMES.keys())
+    selected_lesson_context = {}
+    if practice_mode == "Guide par mes lecons":
+        if practice_items:
+            item_options = []
+            item_map = {}
+            for idx, item in enumerate(practice_items):
+                label = f"{_practice_catalog_item_label(item)} #{idx + 1}"
+                item_options.append(label)
+                item_map[label] = item
+
+            pick_mode = st.radio(
+                "Choix de la lecon",
+                ["Je choisis une lecon", "L'IA choisit"],
+                horizontal=True,
+            )
+            if pick_mode == "Je choisis une lecon":
+                selected_label = st.selectbox(
+                    "Lecon de reference", item_options, key=f"practice-lesson-{profile_id}"
+                )
+            else:
+                auto_pick_key = f"practice-auto-lesson-{profile_id}"
+                if st.button("Choisir une lecon automatiquement"):
+                    st.session_state[auto_pick_key] = choose_theme_with_ai(item_options)
+                selected_label = st.session_state.get(auto_pick_key, item_options[0])
+                st.info(f"Lecon proposee: {selected_label}")
+
+            selected_item = item_map.get(selected_label, practice_items[0])
+            selected_theme = str(
+                selected_item.get("theme")
+                or selected_item.get("title")
+                or "General conversation"
+            )
+            selected_lesson_context = {
+                "focus_items": [selected_item],
+                "topic_pool": [
+                    selected_theme,
+                    str(selected_item.get("title") or selected_theme),
+                ],
+            }
+            selected_objective = st.text_input(
+                "Objectif de la session (optionnel)",
+                value=(
+                    f"Reuse chunks from this lesson: {selected_item.get('title', selected_theme)}. "
+                    "Stay natural and fluent in American English."
+                ),
             )
         else:
-            if st.button("Choisir un theme automatiquement"):
-                st.session_state.auto_theme = choose_theme_with_ai()
-            selected_theme = st.session_state.get(
-                "auto_theme", list(ESSENTIAL_THEMES.keys())[0]
+            pick_mode = st.radio(
+                "Choix du theme", ["Je choisis", "L'IA choisit"], horizontal=True
             )
-            st.info(f"Theme propose: {selected_theme}")
-        selected_objective = st.text_input(
-            "Objectif de la session (optionnel)",
-            value="Practice natural chunks and stay fluent in this topic.",
-        )
+            if pick_mode == "Je choisis":
+                selected_theme = st.selectbox(
+                    "Theme de la session", list(ESSENTIAL_THEMES.keys())
+                )
+            else:
+                if st.button("Choisir un theme automatiquement"):
+                    st.session_state.auto_theme = choose_theme_with_ai()
+                selected_theme = st.session_state.get(
+                    "auto_theme", list(ESSENTIAL_THEMES.keys())[0]
+                )
+                st.info(f"Theme propose: {selected_theme}")
+            selected_objective = st.text_input(
+                "Objectif de la session (optionnel)",
+                value="Practice natural chunks and stay fluent in this topic.",
+            )
+    else:
+        if practice_items:
+            selected_theme = "Mes lecons (audio + anglais reel)"
+            selected_lesson_context = {
+                "focus_items": practice_items,
+                "topic_pool": practice_catalog.get("topic_pool", []),
+            }
+            with st.expander(
+                f"Themes utilises en dialogue libre ({len(practice_items)})",
+                expanded=False,
+            ):
+                for item in practice_items:
+                    st.markdown(f"- {_practice_catalog_item_label(item)}")
+            selected_objective = st.text_input(
+                "Objectif de la session (optionnel)",
+                value=(
+                    "Dialogue libre base sur toutes mes lecons terminees/en cours. "
+                    "Reutiliser les expressions et varier les situations reels."
+                ),
+            )
+        else:
+            selected_theme = "Free conversation"
+            selected_objective = st.text_input(
+                "Objectif de la session (optionnel)",
+                value="Keep the conversation practical and natural in daily-life contexts.",
+            )
 
     if st.button("Demarrer une nouvelle session"):
-        mode_value = "guided" if practice_mode == "Guide par theme" else "free"
-        theme_value = selected_theme if mode_value == "guided" else "Free conversation"
+        mode_value = "guided" if practice_mode == "Guide par mes lecons" else "free"
+        theme_value = selected_theme or "Free conversation"
         st.session_state.active_session = new_session(
             mode_value,
             theme_value,
@@ -5304,6 +5683,7 @@ def render_practice_page():
             target_cefr=practice_level,
             training_mode=training_mode,
             training_settings=training_settings,
+            lesson_context=selected_lesson_context,
         )
         st.session_state.pop("practice_last_processed_audio", None)
         st.success(f"Session demarree: {st.session_state.active_session['id']}")
@@ -9602,6 +9982,67 @@ def _list_real_english_lessons(profile_id):
     return items
 
 
+def _mark_real_english_lesson_completed(profile_id, progress, lesson_id, lesson):
+    completed = progress.setdefault("completed_lessons", [])
+    if lesson_id in completed:
+        return {"already_completed": True, "added_flashcards": 0}
+
+    completed.append(lesson_id)
+    progress.setdefault("lesson_history", []).append(
+        {
+            "action": "completed",
+            "lesson_id": lesson_id,
+            "series": lesson.get("series", ""),
+            "episode": lesson.get("episode", ""),
+            "level": lesson.get("level", ""),
+            "date": now_iso(),
+        }
+    )
+    _save_real_english_progress(profile_id, progress)
+
+    vocab_items = lesson.get("vocabulary", [])
+    added = 0
+    if vocab_items:
+        vocab_entries = load_vocab(profile_id=profile_id)
+        existing_terms = {
+            e.get("term", "").lower() for e in vocab_entries if isinstance(e, dict)
+        }
+        for vocab in vocab_items[:LESSON_FLASHCARD_LIMIT]:
+            expr = str(vocab.get("expression", "")).strip()
+            if not expr or expr.lower() in existing_terms:
+                continue
+            vocab_entries.append(
+                {
+                    "id": str(uuid.uuid4())[:8],
+                    "term": expr,
+                    "translation": vocab.get("french", ""),
+                    "part_of_speech": vocab.get("type", "chunk"),
+                    "explanation": (
+                        f"Forme complete: {vocab.get('full_form', '')}. "
+                        f"Construisez une phrase avec '{expr}'."
+                    ),
+                    "examples": [],
+                    "synonyms": [],
+                    "cefr_level": lesson.get("level", "B1"),
+                    "added": now_iso(),
+                    "next_review": now_iso(),
+                    "interval": 1,
+                    "ease": 2.5,
+                    "repetitions": 0,
+                    "review_history": [],
+                    "source_lesson_id": f"real-{lesson_id}",
+                    "profile_id": profile_id,
+                }
+            )
+            existing_terms.add(expr.lower())
+            added += 1
+
+        if added > 0:
+            save_vocab(vocab_entries, profile_id=profile_id)
+
+    return {"already_completed": False, "added_flashcards": added}
+
+
 def render_real_english_page():
     profile = get_active_profile()
     profile_id = profile.get("id", "default")
@@ -10249,26 +10690,47 @@ def render_real_english_page():
                 if v.get("expression", "")
             ]
 
-            if st.button("Envoyer vers le Shadowing interactif", key="re_to_shadowing"):
-                added = register_shadowing_text(
-                    profile_id=profile_id,
-                    source_lesson_id=f"real-english-{lesson_id}",
-                    lesson_kind="real_english",
-                    theme_name=f"{lesson.get('series', '')} — {lesson.get('episode', '')}",
-                    dialogue_text=lesson.get("dialogue", ""),
-                    chunk_focus=chunk_focus,
-                    cefr_level=lesson.get("level", "B1"),
-                    lesson_title=f"[Real English] {lesson.get('series', '')} — {lesson.get('episode', '')}",
-                )
-                if added:
-                    st.success(
-                        "Dialogue ajoute au Shadowing interactif ! "
-                        "Allez dans l'onglet 'Shadowing interactif' pour le pratiquer."
+            col_shadow_send, col_shadow_complete = st.columns(2)
+            with col_shadow_send:
+                if st.button("Envoyer vers le Shadowing interactif", key="re_to_shadowing"):
+                    added = register_shadowing_text(
+                        profile_id=profile_id,
+                        source_lesson_id=f"real-english-{lesson_id}",
+                        lesson_kind="real_english",
+                        theme_name=f"{lesson.get('series', '')} — {lesson.get('episode', '')}",
+                        dialogue_text=lesson.get("dialogue", ""),
+                        chunk_focus=chunk_focus,
+                        cefr_level=lesson.get("level", "B1"),
+                        lesson_title=f"[Real English] {lesson.get('series', '')} — {lesson.get('episode', '')}",
                     )
-                else:
-                    st.info(
-                        "Ce dialogue est deja dans votre liste de shadowing (mis a jour)."
+                    if added:
+                        st.success(
+                            "Dialogue ajoute au Shadowing interactif ! "
+                            "Allez dans l'onglet 'Shadowing interactif' pour le pratiquer."
+                        )
+                    else:
+                        st.info(
+                            "Ce dialogue est deja dans votre liste de shadowing (mis a jour)."
+                        )
+
+            with col_shadow_complete:
+                already_done = lesson_id in progress.get("completed_lessons", [])
+                if already_done:
+                    st.success("Cet episode est deja termine.")
+                elif st.button("✅ Terminer cet episode", key="re_complete_from_shadow"):
+                    completion_result = _mark_real_english_lesson_completed(
+                        profile_id=profile_id,
+                        progress=progress,
+                        lesson_id=lesson_id,
+                        lesson=lesson,
                     )
+                    added_cards = int(completion_result.get("added_flashcards", 0))
+                    if added_cards > 0:
+                        st.info(
+                            f"{added_cards} flashcards ajoutees automatiquement depuis cette lecon."
+                        )
+                    st.success("Episode marque comme termine !")
+                    st.rerun()
 
     # ── Tab 5: Ma progression ────────────────────────────────────────────────
     with tab_progress:
@@ -10326,62 +10788,17 @@ def render_real_english_page():
             else:
                 st.warning("Cet episode n'est pas encore marque comme termine.")
                 if st.button("✅ Marquer comme termine", key="re_complete"):
-                    progress.setdefault("completed_lessons", []).append(lesson_id)
-                    progress.setdefault("lesson_history", []).append(
-                        {
-                            "action": "completed",
-                            "lesson_id": lesson_id,
-                            "series": lesson.get("series", ""),
-                            "episode": lesson.get("episode", ""),
-                            "level": lesson.get("level", ""),
-                            "date": now_iso(),
-                        }
+                    completion_result = _mark_real_english_lesson_completed(
+                        profile_id=profile_id,
+                        progress=progress,
+                        lesson_id=lesson_id,
+                        lesson=lesson,
                     )
-                    _save_real_english_progress(profile_id, progress)
-
-                    # Auto-add vocabulary to flashcards
-                    vocab_items = lesson.get("vocabulary", [])
-                    if vocab_items:
-                        vocab_entries = load_vocab(profile_id=profile_id)
-                        existing_terms = {
-                            e.get("term", "").lower()
-                            for e in vocab_entries
-                            if isinstance(e, dict)
-                        }
-                        added = 0
-                        for v in vocab_items[:LESSON_FLASHCARD_LIMIT]:
-                            et = v.get("expression", "").strip()
-                            if not et or et.lower() in existing_terms:
-                                continue
-                            new_card = {
-                                "id": str(uuid.uuid4())[:8],
-                                "term": et,
-                                "translation": v.get("french", ""),
-                                "part_of_speech": v.get("type", "chunk"),
-                                "explanation": (
-                                    f"Forme complete: {v.get('full_form', '')}. "
-                                    f"Construisez une phrase avec '{et}'."
-                                ),
-                                "examples": [],
-                                "synonyms": [],
-                                "cefr_level": lesson.get("level", "B1"),
-                                "added": now_iso(),
-                                "next_review": now_iso(),
-                                "interval": 1,
-                                "ease": 2.5,
-                                "repetitions": 0,
-                                "review_history": [],
-                                "source_lesson_id": f"real-{lesson_id}",
-                                "profile_id": profile_id,
-                            }
-                            vocab_entries.append(new_card)
-                            existing_terms.add(et.lower())
-                            added += 1
-                        if added > 0:
-                            save_vocab(vocab_entries, profile_id=profile_id)
-                            st.info(
-                                f"{added} flashcards ajoutees automatiquement depuis cette lecon."
-                            )
+                    added_cards = int(completion_result.get("added_flashcards", 0))
+                    if added_cards > 0:
+                        st.info(
+                            f"{added_cards} flashcards ajoutees automatiquement depuis cette lecon."
+                        )
 
                     st.success("Episode marque comme termine !")
                     st.rerun()
