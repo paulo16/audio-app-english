@@ -3049,6 +3049,21 @@ def _question_prompt_from_target(session_data, target, direction="fr_to_en"):
     return _translate_target_to_french(session_data, target)
 
 
+def _starter_translation_question_text(session_data):
+    meta = session_data.get("starter_drill_meta")
+    if not isinstance(meta, dict):
+        return str(session_data.get("starter_ai_text") or "").strip()
+
+    direction = str(meta.get("direction") or "fr_to_en")
+    prompt_text = str(meta.get("prompt_text") or "").strip()
+    if not prompt_text:
+        return str(session_data.get("starter_ai_text") or "").strip()
+
+    if direction == "en_to_fr":
+        return f"Comment dit-on en français : {prompt_text} ?"
+    return f"Comment dit-on en anglais : {prompt_text} ?"
+
+
 def _evaluate_translation_attempt(
     session_data,
     target,
@@ -3354,6 +3369,9 @@ def new_session(
         "translation_prompt_cache": {},
         "starter_ai_text": "",
         "starter_drill_meta": None,
+        "starter_ai_audio_path": "",
+        "starter_ai_audio_mime": "audio/wav",
+        "starter_ai_audio_played": False,
         "messages": [
             {
                 "role": "system",
@@ -6553,6 +6571,84 @@ def render_practice_page():
         if session_data.get("training_mode") == "fr_to_en" and starter_text:
             with st.chat_message("assistant"):
                 st.markdown(starter_text)
+
+                starter_audio_path = str(
+                    session_data.get("starter_ai_audio_path") or ""
+                ).strip()
+                starter_audio_mime = str(
+                    session_data.get("starter_ai_audio_mime") or "audio/wav"
+                ).strip() or "audio/wav"
+
+                if not starter_audio_path or not os.path.exists(starter_audio_path):
+                    speech_text = _starter_translation_question_text(session_data)
+                    if speech_text:
+                        with st.spinner(
+                            "Lecture automatique de la premiere phrase de revision..."
+                        ):
+                            audio_bytes, audio_mime, err = text_to_speech_openrouter(
+                                speech_text
+                            )
+                        if (err or not audio_bytes) and ELEVENLABS_API_KEY:
+                            fallback_audio, fallback_mime, fallback_err = (
+                                text_to_speech_elevenlabs(speech_text)
+                            )
+                            if not fallback_err and fallback_audio:
+                                audio_bytes, audio_mime, err = (
+                                    fallback_audio,
+                                    fallback_mime,
+                                    None,
+                                )
+
+                        if err or not audio_bytes:
+                            st.warning(
+                                "Audio indisponible pour la premiere phrase (TTS)."
+                            )
+                        elif audio_bytes:
+                            audio_ext = ext_from_mime(audio_mime)
+                            audio_name = (
+                                f"{session_data['id']}-starter-ai.{audio_ext}"
+                            )
+                            starter_audio_path = save_audio_bytes(
+                                audio_name, audio_bytes
+                            )
+                            starter_audio_mime = audio_mime
+                            session_data["starter_ai_audio_path"] = starter_audio_path
+                            session_data["starter_ai_audio_mime"] = starter_audio_mime
+                            save_session(session_data)
+                            st.session_state.active_session = session_data
+                            st.rerun()
+
+                if starter_audio_path and os.path.exists(starter_audio_path):
+                                        starter_audio_dom_id = (
+                                                "starter_ai_audio_"
+                                                + re.sub(
+                                                        r"[^a-zA-Z0-9_]",
+                                                        "_",
+                                                        str(session_data.get("id") or "starter"),
+                                                )
+                                        )
+                    with open(starter_audio_path, "rb") as _sf:
+                        _sab64 = base64.b64encode(_sf.read()).decode()
+                    st_components.html(
+                        f"""
+                                                <audio id="{starter_audio_dom_id}" autoplay controls style="width:100%">
+                          <source src="data:{starter_audio_mime};base64,{_sab64}">
+                        </audio>
+                        <script>
+                          (function() {{
+                                                        const a = document.getElementById("{starter_audio_dom_id}");
+                            if (!a) return;
+                            const tryPlay = () => a.play().catch(() => {{}});
+                            tryPlay();
+                            document.addEventListener("click", tryPlay, {{ once: true }});
+                            document.addEventListener("keydown", tryPlay, {{ once: true }});
+                            document.addEventListener("touchstart", tryPlay, {{ once: true }});
+                          }})();
+                        </script>
+                        """,
+                                                height=80,
+                    )
+                    st.audio(starter_audio_path)
         else:
             st.write(
                 "Aucun echange pour le moment — enregistrez votre premier message ci-dessous."
@@ -6593,6 +6689,16 @@ def render_practice_page():
         st.markdown(session_data["evaluation"]["text"])
 
     st.divider()
+
+    if session_data.get("evaluation"):
+        st.info(
+            "Session terminee. Pour continuer, demarrez une nouvelle session."
+        )
+        if st.button("🔁 Recommencer une nouvelle session", type="primary"):
+            st.session_state.active_session = None
+            st.session_state.pop("practice_last_processed_audio", None)
+            st.rerun()
+        return
 
     # ── Audio input EN BAS (toujours visible, suit la conversation) ──
     # Clé dynamique basée sur le nombre de tours : force le reset du widget après chaque envoi
