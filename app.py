@@ -2948,6 +2948,165 @@ def _build_translation_targets(
     return targets
 
 
+def _translation_target_key(target):
+    source_id = str(target.get("source_id") or "").strip()
+    expected = str(target.get("expected_english") or "").strip().lower()
+    return f"{source_id}|{expected}"
+
+
+def _translate_target_to_french(session_data, target):
+    if not isinstance(target, dict):
+        return ""
+
+    expected = str(target.get("expected_english") or "").strip()
+    if not expected:
+        return ""
+
+    cache = session_data.setdefault("translation_prompt_cache", {})
+    cache_key = expected.lower()
+    cached = cache.get(cache_key)
+    if cached:
+        return str(cached)
+
+    prompt = (
+        "Translate this English sentence into natural French. "
+        "Keep the same meaning and everyday tone. "
+        "Return ONLY the French sentence, no quotes, no explanation.\n"
+        f"English: {expected}"
+    )
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.2,
+        max_tokens=120,
+    )
+    if err or not text:
+        return expected
+
+    fr_sentence = str(text).strip()
+    fr_sentence = re.sub(r"^```[a-z]*\n?|```$", "", fr_sentence, flags=re.MULTILINE)
+    fr_sentence = fr_sentence.strip().strip('"').strip("'")
+    fr_sentence = re.sub(r"\s+", " ", fr_sentence).strip()
+    if not fr_sentence:
+        return expected
+
+    cache[cache_key] = fr_sentence
+    return fr_sentence
+
+
+def _select_next_translation_target(
+    session_data, prefer_lesson=None, exclude_expected=None
+):
+    targets = session_data.get("translation_targets", [])
+    if not isinstance(targets, list) or not targets:
+        return None
+
+    mastered = set(session_data.get("translation_mastered", []))
+    exclude_expected_norm = str(exclude_expected or "").strip().lower()
+
+    unresolved = []
+    for target in targets:
+        if not isinstance(target, dict):
+            continue
+        key = _translation_target_key(target)
+        if key in mastered:
+            continue
+        expected_norm = str(target.get("expected_english") or "").strip().lower()
+        if exclude_expected_norm and expected_norm == exclude_expected_norm:
+            continue
+        unresolved.append(target)
+
+    if not unresolved:
+        return None
+
+    selected_pool = unresolved
+    if prefer_lesson:
+        lesson_norm = str(prefer_lesson).strip().lower()
+        lesson_matches = [
+            t
+            for t in unresolved
+            if str(t.get("lesson") or "").strip().lower() == lesson_norm
+        ]
+        if lesson_matches:
+            selected_pool = lesson_matches
+
+    mode = str(session_data.get("mode", "guided")).lower()
+    if mode == "free":
+        idx = int(session_data.get("translation_next_idx", 0) or 0)
+        picked = selected_pool[idx % len(selected_pool)]
+        session_data["translation_next_idx"] = idx + 1
+        return picked
+
+    return selected_pool[0]
+
+
+def _evaluate_fr_to_en_attempt(expected_english, learner_text, target_cefr="B1"):
+    expected = str(expected_english or "").strip()
+    learner = str(learner_text or "").strip()
+    if not expected or not learner:
+        return {
+            "correct": False,
+            "score": 0,
+            "feedback": "Réponse vide ou incomplète.",
+            "corrected_english": expected,
+        }
+
+    target = str(target_cefr or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+
+    prompt = (
+        "Evaluate a learner French->English translation. "
+        f"Target CEFR: {target}. "
+        "Check meaning preservation, grammar, and naturalness. "
+        "Return ONLY JSON with this schema: "
+        '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_english":"natural corrected English sentence"}.\n\n'
+        f"Expected English: {expected}\n"
+        f"Learner answer: {learner}"
+    )
+    raw, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        EVAL_MODEL,
+        temperature=0.1,
+        max_tokens=220,
+    )
+
+    if err:
+        ratio = SequenceMatcher(None, expected.lower(), learner.lower()).ratio()
+        score = int(round(ratio * 100))
+        return {
+            "correct": score >= 72,
+            "score": score,
+            "feedback": "Évaluation automatique (fallback).",
+            "corrected_english": expected,
+        }
+
+    parsed = extract_json_from_text(raw)
+    if not isinstance(parsed, dict):
+        ratio = SequenceMatcher(None, expected.lower(), learner.lower()).ratio()
+        score = int(round(ratio * 100))
+        return {
+            "correct": score >= 72,
+            "score": score,
+            "feedback": "Évaluation automatique (fallback).",
+            "corrected_english": expected,
+        }
+
+    try:
+        score = int(parsed.get("score", 0))
+    except Exception:
+        score = 0
+    score = max(0, min(100, score))
+
+    corrected = str(parsed.get("corrected_english", "")).strip() or expected
+    return {
+        "correct": bool(parsed.get("correct", False)),
+        "score": score,
+        "feedback": str(parsed.get("feedback", "")).strip(),
+        "corrected_english": corrected,
+    }
+
+
 def build_tutor_system_prompt(
     mode,
     theme,
@@ -3106,6 +3265,10 @@ def new_session(
         "lesson_context": lesson_context,
         "translation_targets": translation_targets,
         "translation_next_idx": 0,
+        "translation_mastered": [],
+        "pending_translation_target": None,
+        "translation_attempt_log": [],
+        "translation_prompt_cache": {},
         "messages": [
             {
                 "role": "system",
@@ -3319,11 +3482,135 @@ def get_elapsed_seconds(session_data):
 
 
 def get_ai_reply(session_data, user_text, elapsed_seconds=0):
-    messages = list(session_data["messages"])
     training_mode = session_data.get("training_mode", "standard")
     training_settings = session_data.get("training_settings", {})
     lesson_context = session_data.get("lesson_context") or {}
     drill_meta = None
+
+    if training_mode == "fr_to_en":
+        target_cefr = str(session_data.get("target_cefr", "B1")).upper()
+        if target_cefr not in CEFR_LEVELS:
+            target_cefr = "B1"
+
+        pending = session_data.get("pending_translation_target")
+        eval_result = None
+        if isinstance(pending, dict):
+            eval_result = _evaluate_fr_to_en_attempt(
+                pending.get("expected_english", ""),
+                user_text,
+                target_cefr=target_cefr,
+            )
+
+            attempt_log = session_data.setdefault("translation_attempt_log", [])
+            attempt_log.append(
+                {
+                    "date": now_iso(),
+                    "lesson": pending.get("lesson", ""),
+                    "source_id": pending.get("source_id", ""),
+                    "expected_english": pending.get("expected_english", ""),
+                    "learner_text": user_text,
+                    "score": eval_result.get("score", 0),
+                    "correct": bool(eval_result.get("correct", False)),
+                    "feedback": eval_result.get("feedback", ""),
+                    "corrected_english": eval_result.get("corrected_english", ""),
+                }
+            )
+
+            if eval_result.get("correct"):
+                mastered = session_data.setdefault("translation_mastered", [])
+                pkey = _translation_target_key(pending)
+                if pkey not in mastered:
+                    mastered.append(pkey)
+
+        all_targets = [
+            t
+            for t in session_data.get("translation_targets", [])
+            if isinstance(t, dict)
+        ]
+        total_unique = len({_translation_target_key(t) for t in all_targets})
+        mastered_count = len(set(session_data.get("translation_mastered", [])))
+
+        # Keep lesson continuity: if wrong, retry with a slight variation from the same lesson.
+        if isinstance(pending, dict) and eval_result and not eval_result.get("correct"):
+            next_target = _select_next_translation_target(
+                session_data,
+                prefer_lesson=pending.get("lesson"),
+                exclude_expected=pending.get("expected_english"),
+            )
+            if not next_target:
+                next_target = pending
+        else:
+            next_target = _select_next_translation_target(session_data)
+
+        if not next_target:
+            attempts = session_data.get("translation_attempt_log", [])
+            avg_score = (
+                round(
+                    sum(float(a.get("score", 0) or 0) for a in attempts)
+                    / max(len(attempts), 1),
+                    1,
+                )
+                if attempts
+                else 0.0
+            )
+            session_data["pending_translation_target"] = None
+            done_msg = (
+                "🎉 Leçon de traduction terminée !\n"
+                f"Score provisoire: {avg_score}/100 ({mastered_count}/{max(total_unique, 1)} points maîtrisés).\n"
+                "Tu peux cliquer sur Évaluer pour le score final détaillé."
+            )
+            return done_msg, None, None
+
+        session_data["pending_translation_target"] = next_target
+        fr_prompt = _translate_target_to_french(session_data, next_target)
+
+        drill_meta = {
+            "drill": "fr_to_en",
+            "lesson": str(next_target.get("lesson") or "").strip(),
+            "expected_english": str(next_target.get("expected_english") or "").strip(),
+            "source_id": str(next_target.get("source_id") or "").strip(),
+        }
+
+        blocks = []
+        if isinstance(pending, dict) and eval_result:
+            score = int(eval_result.get("score", 0) or 0)
+            feedback = str(eval_result.get("feedback") or "").strip()
+            corrected = str(eval_result.get("corrected_english") or "").strip()
+            if eval_result.get("correct"):
+                blocks.append(
+                    f"✅ Bien joué ({score}/100). {feedback}".strip()
+                )
+                if corrected:
+                    blocks.append(f"Forme naturelle: {corrected}")
+            else:
+                blocks.append(
+                    f"❌ Pas tout à fait ({score}/100). {feedback}".strip()
+                )
+                if corrected:
+                    blocks.append(f"Correction: {corrected}")
+                blocks.append(
+                    "Réessaie maintenant avec une variante proche pour renforcer la leçon."
+                )
+        else:
+            blocks.append(
+                "Mode traduction guidée activé. Je te pose des phrases issues de ta leçon à réviser."
+            )
+
+        blocks.append(
+            f"Progression leçon: {mastered_count}/{max(total_unique, 1)}"
+        )
+        blocks.append(
+            f"Comment dit-on en anglais : « {fr_prompt} » ?"
+        )
+
+        if elapsed_seconds >= 200:
+            blocks.append(
+                "⏰ Il reste moins de 40 secondes: donne une réponse courte puis clique sur Évaluer."
+            )
+
+        return "\n\n".join(blocks), None, drill_meta
+
+    messages = list(session_data["messages"])
 
     topic_pool = lesson_context.get("topic_pool", [])
     if isinstance(topic_pool, list) and topic_pool:
@@ -6905,7 +7192,7 @@ def render_vocabulary_page():
             examples = card.get("examples", [])
             if examples:
                 st.markdown("**Exemples :**")
-                for ex_item in examples:
+                for ex_idx, ex_item in enumerate(examples):
                     txt = ex_item["text"] if isinstance(ex_item, dict) else ex_item
                     ex_audio = (
                         ex_item.get("audio_path") if isinstance(ex_item, dict) else None
@@ -6913,7 +7200,7 @@ def render_vocabulary_page():
                     st.markdown(f"- {txt}")
                     if ex_audio and os.path.exists(ex_audio):
                         with open(ex_audio, "rb") as _af:
-                            _audio_player_with_repeat(_af.read(), "audio/wav", key=f"flash_ex_{vi}")
+                            _audio_player_with_repeat(_af.read(), "audio/wav", key=f"flash_ex_{ex_idx}")
 
             eval_result = st.session_state.get("flash_eval_result")
             if eval_result:
@@ -7120,7 +7407,7 @@ def render_vocabulary_page():
                     reviews = entry.get("review_history", [])
                     if reviews:
                         st.markdown(f"**Historique des révisions ({len(reviews)}) :**")
-                        for rev in reversed(reviews[-10:]):
+                        for ri, rev in enumerate(reversed(reviews[-10:])):
                             date_str = rev.get("date", "")[:16].replace("T", " ")
                             mode_icon = "🔁" if rev.get("mode") == "reverse" else "🔤"
                             label = rev.get("rating_label", "—")
