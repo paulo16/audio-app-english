@@ -6619,24 +6619,24 @@ def render_practice_page():
                             st.rerun()
 
                 if starter_audio_path and os.path.exists(starter_audio_path):
-                                        starter_audio_dom_id = (
-                                                "starter_ai_audio_"
-                                                + re.sub(
-                                                        r"[^a-zA-Z0-9_]",
-                                                        "_",
-                                                        str(session_data.get("id") or "starter"),
-                                                )
-                                        )
+                    starter_audio_dom_id = (
+                        "starter_ai_audio_"
+                        + re.sub(
+                            r"[^a-zA-Z0-9_]",
+                            "_",
+                            str(session_data.get("id") or "starter"),
+                        )
+                    )
                     with open(starter_audio_path, "rb") as _sf:
                         _sab64 = base64.b64encode(_sf.read()).decode()
                     st_components.html(
                         f"""
-                                                <audio id="{starter_audio_dom_id}" autoplay controls style="width:100%">
+                        <audio id="{starter_audio_dom_id}" autoplay controls style="width:100%">
                           <source src="data:{starter_audio_mime};base64,{_sab64}">
                         </audio>
                         <script>
                           (function() {{
-                                                        const a = document.getElementById("{starter_audio_dom_id}");
+                            const a = document.getElementById("{starter_audio_dom_id}");
                             if (!a) return;
                             const tryPlay = () => a.play().catch(() => {{}});
                             tryPlay();
@@ -6646,7 +6646,7 @@ def render_practice_page():
                           }})();
                         </script>
                         """,
-                                                height=80,
+                        height=80,
                     )
                     st.audio(starter_audio_path)
         else:
