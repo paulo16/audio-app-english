@@ -493,9 +493,9 @@ PRACTICE_DRILL_MODES = {
         "key": "no_translation",
         "description": "English-only reformulation when a word is missing.",
     },
-    "French -> English challenge": {
+    "Translation challenge (FR <-> EN)": {
         "key": "fr_to_en",
-        "description": "The AI gives short French prompts and you answer in natural English.",
+        "description": "Guided translation drill with selectable direction (FR -> EN or EN -> FR).",
     },
     "Tense switch": {
         "key": "tense_switch",
@@ -2716,7 +2716,9 @@ def _collect_practice_lesson_catalog(profile_id):
         str(entry.get("source_lesson_id", "")).strip()
         for entry in profile_vocab_entries
         if isinstance(entry, dict)
-        and str(entry.get("source_lesson_id", "")).strip().startswith(("quick:", "pack:"))
+        and str(entry.get("source_lesson_id", ""))
+        .strip()
+        .startswith(("quick:", "pack:"))
     }
 
     real_progress = _load_real_english_progress(profile_id)
@@ -3040,30 +3042,57 @@ def _select_next_translation_target(
     return selected_pool[0]
 
 
-def _evaluate_fr_to_en_attempt(expected_english, learner_text, target_cefr="B1"):
-    expected = str(expected_english or "").strip()
+def _question_prompt_from_target(session_data, target, direction="fr_to_en"):
+    expected_en = str(target.get("expected_english") or "").strip()
+    if direction == "en_to_fr":
+        return expected_en
+    return _translate_target_to_french(session_data, target)
+
+
+def _evaluate_translation_attempt(
+    session_data,
+    target,
+    learner_text,
+    direction="fr_to_en",
+    target_cefr="B1",
+):
+    expected_en = str(target.get("expected_english") or "").strip()
+    expected_fr = _translate_target_to_french(session_data, target)
+    expected = expected_en if direction == "fr_to_en" else expected_fr
     learner = str(learner_text or "").strip()
     if not expected or not learner:
         return {
             "correct": False,
             "score": 0,
             "feedback": "Réponse vide ou incomplète.",
-            "corrected_english": expected,
+            "corrected_answer": expected,
+            "expected_answer": expected,
         }
 
     target = str(target_cefr or "B1").upper()
     if target not in CEFR_LEVELS:
         target = "B1"
 
-    prompt = (
-        "Evaluate a learner French->English translation. "
-        f"Target CEFR: {target}. "
-        "Check meaning preservation, grammar, and naturalness. "
-        "Return ONLY JSON with this schema: "
-        '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_english":"natural corrected English sentence"}.\n\n'
-        f"Expected English: {expected}\n"
-        f"Learner answer: {learner}"
-    )
+    if direction == "en_to_fr":
+        prompt = (
+            "Evaluate a learner English->French translation. "
+            f"Target CEFR: {target}. "
+            "Check meaning preservation, grammar, and naturalness in French. "
+            "Return ONLY JSON with this schema: "
+            '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_answer":"natural corrected French sentence"}.\n\n'
+            f"Expected French: {expected}\n"
+            f"Learner answer: {learner}"
+        )
+    else:
+        prompt = (
+            "Evaluate a learner French->English translation. "
+            f"Target CEFR: {target}. "
+            "Check meaning preservation, grammar, and naturalness. "
+            "Return ONLY JSON with this schema: "
+            '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_answer":"natural corrected English sentence"}.\n\n'
+            f"Expected English: {expected}\n"
+            f"Learner answer: {learner}"
+        )
     raw, err = openrouter_chat(
         [{"role": "user", "content": prompt}],
         EVAL_MODEL,
@@ -3078,7 +3107,8 @@ def _evaluate_fr_to_en_attempt(expected_english, learner_text, target_cefr="B1")
             "correct": score >= 72,
             "score": score,
             "feedback": "Évaluation automatique (fallback).",
-            "corrected_english": expected,
+            "corrected_answer": expected,
+            "expected_answer": expected,
         }
 
     parsed = extract_json_from_text(raw)
@@ -3089,7 +3119,8 @@ def _evaluate_fr_to_en_attempt(expected_english, learner_text, target_cefr="B1")
             "correct": score >= 72,
             "score": score,
             "feedback": "Évaluation automatique (fallback).",
-            "corrected_english": expected,
+            "corrected_answer": expected,
+            "expected_answer": expected,
         }
 
     try:
@@ -3098,12 +3129,64 @@ def _evaluate_fr_to_en_attempt(expected_english, learner_text, target_cefr="B1")
         score = 0
     score = max(0, min(100, score))
 
-    corrected = str(parsed.get("corrected_english", "")).strip() or expected
+    corrected = str(parsed.get("corrected_answer", "")).strip() or expected
     return {
         "correct": bool(parsed.get("correct", False)),
         "score": score,
         "feedback": str(parsed.get("feedback", "")).strip(),
-        "corrected_english": corrected,
+        "corrected_answer": corrected,
+        "expected_answer": expected,
+    }
+
+
+def _propose_translation_variation_target(
+    session_data,
+    base_target,
+    learner_text,
+    direction="fr_to_en",
+):
+    if not isinstance(base_target, dict):
+        return None
+
+    lesson_name = str(base_target.get("lesson") or "selected lesson").strip()
+    expected_en = str(base_target.get("expected_english") or "").strip()
+    if not expected_en:
+        return None
+
+    prompt = (
+        "You are creating one slight translation retry variation for a lesson review. "
+        "Keep the same lesson context and difficulty, but make the sentence slightly different. "
+        'Return ONLY JSON with this schema: {"expected_english":"..."}.\n\n'
+        f"Lesson: {lesson_name}\n"
+        f"Current target English: {expected_en}\n"
+        f"Learner answer (for context): {str(learner_text or '').strip()}\n"
+        f"Direction mode: {direction}\n"
+        "Constraints: 4-14 words, natural daily English, not identical to current target."
+    )
+    raw, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.45,
+        max_tokens=120,
+    )
+    if err:
+        return None
+
+    data = extract_json_from_text(raw)
+    if not isinstance(data, dict):
+        return None
+
+    candidate = _normalize_translation_candidate(data.get("expected_english", ""))
+    if not _is_valid_translation_candidate(candidate):
+        return None
+    if candidate.lower() == expected_en.lower():
+        return None
+
+    return {
+        "lesson": lesson_name,
+        "source_id": str(base_target.get("source_id") or "").strip(),
+        "expected_english": candidate,
+        "mastery_key": str(base_target.get("mastery_key") or _translation_target_key(base_target)),
     }
 
 
@@ -3269,6 +3352,8 @@ def new_session(
         "pending_translation_target": None,
         "translation_attempt_log": [],
         "translation_prompt_cache": {},
+        "starter_ai_text": "",
+        "starter_drill_meta": None,
         "messages": [
             {
                 "role": "system",
@@ -3286,6 +3371,36 @@ def new_session(
         "turns": [],
         "evaluation": None,
     }
+
+    if training_mode == "fr_to_en" and translation_targets:
+        direction = str(training_settings.get("translation_direction", "fr_to_en"))
+        first_target = _select_next_translation_target(data)
+        if first_target:
+            data["pending_translation_target"] = first_target
+            prompt_text = _question_prompt_from_target(data, first_target, direction)
+            total_unique = len(
+                {_translation_target_key(t) for t in translation_targets}
+            )
+            if direction == "en_to_fr":
+                question_line = f"Comment dit-on en français : « {prompt_text} » ?"
+            else:
+                question_line = f"Comment dit-on en anglais : « {prompt_text} » ?"
+            data["starter_ai_text"] = (
+                "Mode traduction guidée activé.\n\n"
+                f"Progression leçon: 0/{max(total_unique, 1)}\n\n"
+                f"{question_line}"
+            )
+            data["starter_drill_meta"] = {
+                "drill": "fr_to_en",
+                "direction": direction,
+                "lesson": str(first_target.get("lesson") or "").strip(),
+                "source_id": str(first_target.get("source_id") or "").strip(),
+                "expected_english": str(
+                    first_target.get("expected_english") or ""
+                ).strip(),
+                "prompt_text": prompt_text,
+            }
+
     save_session(data)
     return data
 
@@ -3491,13 +3606,19 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
         target_cefr = str(session_data.get("target_cefr", "B1")).upper()
         if target_cefr not in CEFR_LEVELS:
             target_cefr = "B1"
+        direction = str(training_settings.get("translation_direction", "fr_to_en"))
 
         pending = session_data.get("pending_translation_target")
         eval_result = None
         if isinstance(pending, dict):
-            eval_result = _evaluate_fr_to_en_attempt(
-                pending.get("expected_english", ""),
+            asked_prompt = _question_prompt_from_target(
+                session_data, pending, direction
+            )
+            eval_result = _evaluate_translation_attempt(
+                session_data,
+                pending,
                 user_text,
+                direction=direction,
                 target_cefr=target_cefr,
             )
 
@@ -3505,20 +3626,23 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             attempt_log.append(
                 {
                     "date": now_iso(),
+                    "direction": direction,
                     "lesson": pending.get("lesson", ""),
                     "source_id": pending.get("source_id", ""),
+                    "prompt_text": asked_prompt,
                     "expected_english": pending.get("expected_english", ""),
+                    "expected_answer": eval_result.get("expected_answer", ""),
                     "learner_text": user_text,
                     "score": eval_result.get("score", 0),
                     "correct": bool(eval_result.get("correct", False)),
                     "feedback": eval_result.get("feedback", ""),
-                    "corrected_english": eval_result.get("corrected_english", ""),
+                    "corrected_answer": eval_result.get("corrected_answer", ""),
                 }
             )
 
             if eval_result.get("correct"):
                 mastered = session_data.setdefault("translation_mastered", [])
-                pkey = _translation_target_key(pending)
+                pkey = str(pending.get("mastery_key") or _translation_target_key(pending))
                 if pkey not in mastered:
                     mastered.append(pkey)
 
@@ -3532,11 +3656,18 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
 
         # Keep lesson continuity: if wrong, retry with a slight variation from the same lesson.
         if isinstance(pending, dict) and eval_result and not eval_result.get("correct"):
-            next_target = _select_next_translation_target(
+            next_target = _propose_translation_variation_target(
                 session_data,
-                prefer_lesson=pending.get("lesson"),
-                exclude_expected=pending.get("expected_english"),
+                pending,
+                user_text,
+                direction=direction,
             )
+            if not next_target:
+                next_target = _select_next_translation_target(
+                    session_data,
+                    prefer_lesson=pending.get("lesson"),
+                    exclude_expected=pending.get("expected_english"),
+                )
             if not next_target:
                 next_target = pending
         else:
@@ -3562,46 +3693,43 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             return done_msg, None, None
 
         session_data["pending_translation_target"] = next_target
-        fr_prompt = _translate_target_to_french(session_data, next_target)
+        prompt_text = _question_prompt_from_target(session_data, next_target, direction)
 
         drill_meta = {
             "drill": "fr_to_en",
+            "direction": direction,
             "lesson": str(next_target.get("lesson") or "").strip(),
             "expected_english": str(next_target.get("expected_english") or "").strip(),
             "source_id": str(next_target.get("source_id") or "").strip(),
+            "prompt_text": prompt_text,
         }
 
         blocks = []
         if isinstance(pending, dict) and eval_result:
             score = int(eval_result.get("score", 0) or 0)
             feedback = str(eval_result.get("feedback") or "").strip()
-            corrected = str(eval_result.get("corrected_english") or "").strip()
+            corrected = str(eval_result.get("corrected_answer") or "").strip()
             if eval_result.get("correct"):
-                blocks.append(
-                    f"✅ Bien joué ({score}/100). {feedback}".strip()
-                )
+                blocks.append(f"✅ Bien joué ({score}/100). {feedback}".strip())
                 if corrected:
                     blocks.append(f"Forme naturelle: {corrected}")
             else:
-                blocks.append(
-                    f"❌ Pas tout à fait ({score}/100). {feedback}".strip()
-                )
+                blocks.append(f"❌ Pas tout à fait ({score}/100). {feedback}".strip())
                 if corrected:
                     blocks.append(f"Correction: {corrected}")
                 blocks.append(
-                    "Réessaie maintenant avec une variante proche pour renforcer la leçon."
+                    "Je te propose une variante pour réessayer dans la même leçon."
                 )
         else:
             blocks.append(
                 "Mode traduction guidée activé. Je te pose des phrases issues de ta leçon à réviser."
             )
 
-        blocks.append(
-            f"Progression leçon: {mastered_count}/{max(total_unique, 1)}"
-        )
-        blocks.append(
-            f"Comment dit-on en anglais : « {fr_prompt} » ?"
-        )
+        blocks.append(f"Progression leçon: {mastered_count}/{max(total_unique, 1)}")
+        if direction == "en_to_fr":
+            blocks.append(f"Comment dit-on en français : « {prompt_text} » ?")
+        else:
+            blocks.append(f"Comment dit-on en anglais : « {prompt_text} » ?")
 
         if elapsed_seconds >= 200:
             blocks.append(
@@ -3614,7 +3742,9 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
 
     topic_pool = lesson_context.get("topic_pool", [])
     if isinstance(topic_pool, list) and topic_pool:
-        short_pool = [str(topic).strip() for topic in topic_pool[:8] if str(topic).strip()]
+        short_pool = [
+            str(topic).strip() for topic in topic_pool[:8] if str(topic).strip()
+        ]
         if short_pool:
             messages.append(
                 {
@@ -3654,54 +3784,6 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
                 ),
             }
         )
-    elif training_mode == "fr_to_en":
-        targets = session_data.get("translation_targets", [])
-        if isinstance(targets, list) and targets:
-            idx = int(session_data.get("translation_next_idx", 0) or 0)
-            target = targets[idx % len(targets)]
-            session_data["translation_next_idx"] = idx + 1
-
-            lesson_name = str(target.get("lesson") or "selected lesson").strip()
-            expected = str(target.get("expected_english") or "").strip()
-            if expected:
-                drill_meta = {
-                    "drill": "fr_to_en",
-                    "lesson": lesson_name,
-                    "expected_english": expected,
-                    "source_id": str(target.get("source_id") or "").strip(),
-                }
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "DRILL ACTIVE: French to English challenge with strict lesson anchoring. "
-                            f"Current lesson: {lesson_name}. "
-                            f"Target English sentence (from lesson): '{expected}'. "
-                            "Your next assistant message MUST include exactly one short French sentence whose intended translation is EXACTLY that target sentence. "
-                            "Do not reveal the target sentence. Do not change to an unrelated topic. "
-                            "Keep continuity with current conversation and lesson context. "
-                            "After the French challenge, add one short English follow-up line connected to the same lesson."
-                        ),
-                    }
-                )
-            else:
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "DRILL ACTIVE: French to English challenge. Keep the challenge tied to the selected lessons only."
-                        ),
-                    }
-                )
-        else:
-            messages.append(
-                {
-                    "role": "system",
-                    "content": (
-                        "DRILL ACTIVE: French to English challenge. No translation bank is available; keep using selected lesson context only."
-                    ),
-                }
-            )
     elif training_mode == "word_rescue":
         messages.append(
             {
@@ -3781,8 +3863,7 @@ def _evaluate_fr_to_en_pairs(pairs, target_cefr):
         "For each pair, score accuracy from 0 to 100 (meaning preservation + grammar + naturalness). "
         "Return ONLY JSON with this schema: "
         '{"overall_score":0-100,"summary":"...","items":[{"index":1,"score":0-100,"comment":"..."}]}.\n\n'
-        "Pairs:\n"
-        + "\n\n".join(pair_lines)
+        "Pairs:\n" + "\n\n".join(pair_lines)
     )
 
     raw, err = openrouter_chat(
@@ -3913,9 +3994,35 @@ def evaluate_session(session_data):
         "summary": "",
         "details": [],
     }
+    translation_direction = str(
+        session_data.get("training_settings", {}).get(
+            "translation_direction", "fr_to_en"
+        )
+    )
     if training_mode == "fr_to_en":
-        translation_pairs = _collect_fr_to_en_pairs(session_data.get("turns", []))
-        translation_eval = _evaluate_fr_to_en_pairs(translation_pairs, target_cefr)
+        attempts = [
+            a
+            for a in session_data.get("translation_attempt_log", [])
+            if isinstance(a, dict)
+            and str(a.get("learner_text", "")).strip()
+            and str(a.get("expected_answer", "")).strip()
+        ]
+        if attempts:
+            avg_score = round(
+                sum(float(a.get("score", 0) or 0) for a in attempts)
+                / max(len(attempts), 1),
+                1,
+            )
+            translation_pairs = attempts
+            translation_eval = {
+                "pair_count": len(attempts),
+                "avg_score": avg_score,
+                "summary": (
+                    f"{len(attempts)} tentatives, moyenne {avg_score}/100, "
+                    f"direction {translation_direction}."
+                ),
+                "details": attempts,
+            }
 
     telemetry_lines = [
         f"- Active training mode: {training_mode}",
@@ -3927,13 +4034,14 @@ def evaluate_session(session_data):
 
     if training_mode == "fr_to_en":
         telemetry_lines.append(
-            f"- FR->EN challenges answered: {translation_eval.get('pair_count', 0)}"
+            f"- Translation challenges answered: {translation_eval.get('pair_count', 0)}"
         )
         telemetry_lines.append(
-            f"- FR->EN average accuracy (/100): {translation_eval.get('avg_score', 'N/A')}"
+            f"- Translation average accuracy (/100): {translation_eval.get('avg_score', 'N/A')}"
         )
+        telemetry_lines.append(f"- Translation direction: {translation_direction}")
         telemetry_lines.append(
-            f"- FR->EN summary: {translation_eval.get('summary', '')}"
+            f"- Translation summary: {translation_eval.get('summary', '')}"
         )
 
     translation_block = ""
@@ -3942,12 +4050,13 @@ def evaluate_session(session_data):
         for idx, detail in enumerate(translation_eval.get("details", [])[:12], start=1):
             lines.append(
                 f"{idx}) Lesson: {detail.get('lesson', '')}\n"
-                f"Expected: {detail.get('expected_english', '')}\n"
+                f"Prompt asked: {detail.get('prompt_text', '')}\n"
+                f"Expected answer: {detail.get('expected_answer', detail.get('expected_english', ''))}\n"
                 f"Learner: {detail.get('learner_text', '')}\n"
                 f"Score: {detail.get('score', 0)}/100\n"
-                f"Comment: {detail.get('comment', '')}"
+                f"Comment: {detail.get('comment', detail.get('feedback', ''))}"
             )
-        translation_block = "\n\nFrench->English translation evidence:\n" + "\n\n".join(lines)
+        translation_block = "\n\nTranslation evidence:\n" + "\n\n".join(lines)
 
     prompt = f"""
 Evaluate this learner's spoken English targeting CEFR {target_cefr} ({CEFR_DESCRIPTORS[target_cefr]['label']}) in American English.
@@ -3959,7 +4068,7 @@ Give a score from 1 to 10 for:
 - Naturalness
 - Tense consistency
 - Recovery strategy when missing words
-- French-to-English translation accuracy (if drill was fr_to_en)
+- Translation accuracy for the configured direction (if drill was fr_to_en)
 
 Then provide:
 1) Strong points
@@ -3969,7 +4078,7 @@ Then provide:
    - Explain response latency pattern
    - Explain tense consistency issues
    - Explain if self-repair strategy is effective
-    - If drill was fr_to_en, explain translation strengths and errors clearly
+    - If drill was fr_to_en, explain translation strengths and errors clearly for the active direction
 
 Session telemetry:
 {chr(10).join(telemetry_lines)}
@@ -4333,7 +4442,9 @@ def render_ai_lessons_page():
                 st.markdown(f"**{ex_idx + 1}.** {text}")
                 if audio_path and os.path.exists(audio_path):
                     with open(audio_path, "rb") as _af:
-                        _audio_player_with_repeat(_af.read(), "audio/wav", key=f"ai_les_{lid}_{ex_idx}")
+                        _audio_player_with_repeat(
+                            _af.read(), "audio/wav", key=f"ai_les_{lid}_{ex_idx}"
+                        )
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(
@@ -5317,7 +5428,9 @@ def render_shadowing_daily_page():
                 except Exception:
                     pass
             with open(chunk_audio_path, "rb") as _af:
-                _audio_player_with_repeat(_af.read(), "audio/wav", key=f"shd_{source_slug}_{next_idx}")
+                _audio_player_with_repeat(
+                    _af.read(), "audio/wav", key=f"shd_{source_slug}_{next_idx}"
+                )
 
         run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"
         blob_key = f"{run_key}-blob"
@@ -5971,7 +6084,11 @@ def render_stories_page():
                     st.session_state[audio_key] = cached
 
             if audio_key in st.session_state:
-                _audio_player_with_repeat(st.session_state[audio_key], "audio/wav", key=f"story_{active_id}_{ch_num}")
+                _audio_player_with_repeat(
+                    st.session_state[audio_key],
+                    "audio/wav",
+                    key=f"story_{active_id}_{ch_num}",
+                )
                 c1, c2 = st.columns([1, 1])
                 with c1:
                     if st.button(
@@ -6177,6 +6294,16 @@ def render_practice_page():
             value=10,
             help="Objectif de rapidite entre la question de l'IA et ta reponse.",
         )
+    elif training_mode == "fr_to_en":
+        direction_label = st.radio(
+            "Sens de traduction",
+            ["Français -> English", "English -> Français"],
+            horizontal=True,
+            help="L'IA te pose la phrase et tu réponds dans la langue cible.",
+        )
+        training_settings["translation_direction"] = (
+            "fr_to_en" if direction_label == "Français -> English" else "en_to_fr"
+        )
     elif training_mode == "tense_switch":
         training_settings["target_tense"] = st.selectbox(
             "Temps cible",
@@ -6206,7 +6333,9 @@ def render_practice_page():
             )
             if pick_mode == "Je choisis une lecon":
                 selected_label = st.selectbox(
-                    "Lecon de reference", item_options, key=f"practice-lesson-{profile_id}"
+                    "Lecon de reference",
+                    item_options,
+                    key=f"practice-lesson-{profile_id}",
                 )
             else:
                 auto_pick_key = f"practice-auto-lesson-{profile_id}"
@@ -6295,14 +6424,16 @@ def render_practice_page():
             )
             if not translation_targets:
                 st.error(
-                    "Le drill FR -> EN necessite des lecons en cours/terminees avec phrases exploitables. "
+                    "Le drill de traduction necessite des lecons en cours/terminees avec phrases exploitables. "
                     "Selectionnez une lecon a reviser ou envoyez vos lecons vers Shadowing d'abord."
                 )
                 return
 
             session_lesson_context["translation_targets"] = translation_targets
+            direction = training_settings.get("translation_direction", "fr_to_en")
+            direction_label = "FR -> EN" if direction == "fr_to_en" else "EN -> FR"
             st.info(
-                f"{len(translation_targets)} phrase(s) de vos lecons seront utilisees pour la traduction FR -> EN."
+                f"{len(translation_targets)} phrase(s) de vos lecons seront utilisees pour la traduction {direction_label}."
             )
 
         st.session_state.active_session = new_session(
@@ -6418,9 +6549,14 @@ def render_practice_page():
     # ── Conversation en cours (affichée AVANT l'input pour que l'input reste en bas) ──
     st.subheader("Conversation en cours")
     if not session_data["turns"]:
-        st.write(
-            "Aucun echange pour le moment — enregistrez votre premier message ci-dessous."
-        )
+        starter_text = str(session_data.get("starter_ai_text") or "").strip()
+        if session_data.get("training_mode") == "fr_to_en" and starter_text:
+            with st.chat_message("assistant"):
+                st.markdown(starter_text)
+        else:
+            st.write(
+                "Aucun echange pour le moment — enregistrez votre premier message ci-dessous."
+            )
     else:
         for turn in session_data["turns"]:
             with st.chat_message("user"):
@@ -7024,7 +7160,9 @@ def render_vocabulary_page():
                             st.session_state[f"vocab_ex_audio_{i}"] = audio_bytes
                 audio_key = f"vocab_ex_audio_{i}"
                 if st.session_state.get(audio_key):
-                    _audio_player_with_repeat(st.session_state[audio_key], "audio/wav", key=f"voc_{audio_key}")
+                    _audio_player_with_repeat(
+                        st.session_state[audio_key], "audio/wav", key=f"voc_{audio_key}"
+                    )
 
     # ── Tab 2 : Flashcards SRS ────────────────────────────────────────────────
     with tab_flash:
@@ -7200,7 +7338,9 @@ def render_vocabulary_page():
                     st.markdown(f"- {txt}")
                     if ex_audio and os.path.exists(ex_audio):
                         with open(ex_audio, "rb") as _af:
-                            _audio_player_with_repeat(_af.read(), "audio/wav", key=f"flash_ex_{ex_idx}")
+                            _audio_player_with_repeat(
+                                _af.read(), "audio/wav", key=f"flash_ex_{ex_idx}"
+                            )
 
             eval_result = st.session_state.get("flash_eval_result")
             if eval_result:
@@ -7325,7 +7465,11 @@ def render_vocabulary_page():
                         st.markdown(f"**{ex_idx + 1}.** {txt}")
                         if audio_path and os.path.exists(audio_path):
                             with open(audio_path, "rb") as _af:
-                                _audio_player_with_repeat(_af.read(), "audio/wav", key=f"vrev_{entry['id']}_{ex_idx}")
+                                _audio_player_with_repeat(
+                                    _af.read(),
+                                    "audio/wav",
+                                    key=f"vrev_{entry['id']}_{ex_idx}",
+                                )
                             ca, cb = st.columns(2)
                             with ca:
                                 if st.button(
@@ -7421,7 +7565,11 @@ def render_vocabulary_page():
                             ap = rev.get("audio_path")
                             if ap and os.path.exists(ap):
                                 with open(ap, "rb") as _af:
-                                    _audio_player_with_repeat(_af.read(), "audio/wav", key=f"vhist_{entry['id']}_{ri}")
+                                    _audio_player_with_repeat(
+                                        _af.read(),
+                                        "audio/wav",
+                                        key=f"vhist_{entry['id']}_{ri}",
+                                    )
 
                     col_srs, col_del = st.columns([3, 1])
                     with col_srs:
@@ -8962,7 +9110,9 @@ maitrise au moins 50% du contenu de l'onglet en cours.
 
                 if os.path.exists(audio_file):
                     with open(audio_file, "rb") as af:
-                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"cs_{rule_id}")
+                        _audio_player_with_repeat(
+                            af.read(), "audio/wav", key=f"cs_{rule_id}"
+                        )
                 else:
                     if st.button(f"🔊 Ecouter la prononciation", key=f"cs-tts-{idx}"):
                         with st.spinner("Generation audio..."):
@@ -9053,7 +9203,9 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 )
                 if os.path.exists(slang_audio_file):
                     with open(slang_audio_file, "rb") as af:
-                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"slang_{sid}")
+                        _audio_player_with_repeat(
+                            af.read(), "audio/wav", key=f"slang_{sid}"
+                        )
                 else:
                     if st.button("🔊 Ecouter", key=f"slang-tts-{si}"):
                         with st.spinner("Generation audio..."):
@@ -11185,10 +11337,14 @@ def render_real_english_page():
                         )
                         if os.path.exists(expr_audio_mp3):
                             with open(expr_audio_mp3, "rb") as af:
-                                _audio_player_with_repeat(af.read(), "audio/mpeg", key=f"re_voc_{vi}")
+                                _audio_player_with_repeat(
+                                    af.read(), "audio/mpeg", key=f"re_voc_{vi}"
+                                )
                         elif os.path.exists(expr_audio_wav):
                             with open(expr_audio_wav, "rb") as af:
-                                _audio_player_with_repeat(af.read(), "audio/wav", key=f"re_voc_{vi}")
+                                _audio_player_with_repeat(
+                                    af.read(), "audio/wav", key=f"re_voc_{vi}"
+                                )
                         else:
                             if st.button("🔊", key=f"re_vocab_tts_{vi}"):
                                 with st.spinner("Audio..."):
@@ -11322,7 +11478,9 @@ def render_real_english_page():
 
             col_shadow_send, col_shadow_complete = st.columns(2)
             with col_shadow_send:
-                if st.button("Envoyer vers le Shadowing interactif", key="re_to_shadowing"):
+                if st.button(
+                    "Envoyer vers le Shadowing interactif", key="re_to_shadowing"
+                ):
                     added = register_shadowing_text(
                         profile_id=profile_id,
                         source_lesson_id=f"real-english-{lesson_id}",
@@ -11347,7 +11505,9 @@ def render_real_english_page():
                 already_done = lesson_id in progress.get("completed_lessons", [])
                 if already_done:
                     st.success("Cet episode est deja termine.")
-                elif st.button("✅ Terminer cet episode", key="re_complete_from_shadow"):
+                elif st.button(
+                    "✅ Terminer cet episode", key="re_complete_from_shadow"
+                ):
                     completion_result = _mark_real_english_lesson_completed(
                         profile_id=profile_id,
                         progress=progress,
