@@ -3372,6 +3372,7 @@ def new_session(
         "starter_ai_audio_path": "",
         "starter_ai_audio_mime": "audio/wav",
         "starter_ai_audio_played": False,
+        "final_timeout_turn_done": False,
         "messages": [
             {
                 "role": "system",
@@ -6534,12 +6535,22 @@ def render_practice_page():
     progress = min(1.0, elapsed / MAX_SESSION_SECONDS)
     mins_e, secs_e = divmod(elapsed, 60)
     mins_r, secs_r = divmod(remaining, 60)
+    final_timeout_turn_done = bool(session_data.get("final_timeout_turn_done", False))
+    allow_final_timeout_turn = not final_timeout_turn_done and not bool(
+        session_data.get("evaluation")
+    )
 
     if elapsed >= MAX_SESSION_SECONDS:
-        st.error(
-            f"⏰ Session de 4 minutes terminee ({mins_e}:{secs_e:02d})."
-            " Obtenez votre evaluation ou demarrez une nouvelle session."
-        )
+        if allow_final_timeout_turn:
+            st.warning(
+                f"⏰ Session de 4 minutes atteinte ({mins_e}:{secs_e:02d}). "
+                "Envoyez un DERNIER message audio: l'IA vous repondra avant l'evaluation."
+            )
+        else:
+            st.error(
+                f"⏰ Session de 4 minutes terminee ({mins_e}:{secs_e:02d})."
+                " Obtenez votre evaluation ou demarrez une nouvelle session."
+            )
     elif elapsed >= WARN_SECONDS:
         st.warning(
             f"⚠️ Moins de 30 secondes restantes ({mins_r}:{secs_r:02d}) !"
@@ -6704,12 +6715,18 @@ def render_practice_page():
     # Clé dynamique basée sur le nombre de tours : force le reset du widget après chaque envoi
     n_turns = len(session_data["turns"])
     audio_key = f"practice_audio_input_{session_data['id']}_{n_turns}"
+    eval_clicked = False
 
-    if elapsed < MAX_SESSION_SECONDS:
+    if elapsed < MAX_SESSION_SECONDS or allow_final_timeout_turn:
         st.markdown("**🎙️ Votre message :**")
-        st.caption(
-            "Envoi automatique: dès que vous arretez l'enregistrement, le message est envoye a l'IA."
-        )
+        if elapsed < MAX_SESSION_SECONDS:
+            st.caption(
+                "Envoi automatique: dès que vous arretez l'enregistrement, le message est envoye a l'IA."
+            )
+        else:
+            st.caption(
+                "Temps ecoule: envoyez votre dernier message maintenant. L'evaluation sera disponible juste apres la reponse de l'IA."
+            )
         audio_file = st.audio_input(
             "Cliquez sur le micro, parlez, puis cliquez à nouveau pour arrêter",
             key=audio_key,
@@ -6726,14 +6743,20 @@ def render_practice_page():
                 auto_send_ready = True
                 user_audio_bytes = candidate_bytes
 
-        col_clear, col_eval = st.columns([1, 1])
-        with col_clear:
+        if elapsed < MAX_SESSION_SECONDS:
+            col_clear, col_eval = st.columns([1, 1])
+            with col_clear:
+                if st.button("🗑️ Effacer", width="stretch"):
+                    st.session_state.pop(audio_key, None)
+                    st.session_state.pop("practice_last_processed_audio", None)
+                    st.rerun()
+            with col_eval:
+                eval_clicked = st.button("📊 Evaluer", width="stretch")
+        else:
             if st.button("🗑️ Effacer", width="stretch"):
                 st.session_state.pop(audio_key, None)
                 st.session_state.pop("practice_last_processed_audio", None)
                 st.rerun()
-        with col_eval:
-            eval_clicked = st.button("📊 Evaluer", width="stretch")
     else:
         audio_file = None
         auto_send_ready = False
@@ -6812,6 +6835,8 @@ def render_practice_page():
                             "ai_audio_mime": ai_audio_mime,
                             "drill_meta": drill_meta,
                         }
+                        if elapsed >= MAX_SESSION_SECONDS:
+                            session_data["final_timeout_turn_done"] = True
                         session_data["turns"].append(turn_record)
                         save_session(session_data)  # sauvegarde automatique
                         st.session_state.active_session = session_data
