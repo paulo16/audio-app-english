@@ -2865,6 +2865,89 @@ def _practice_catalog_item_label(item):
     )
 
 
+def _normalize_translation_candidate(text):
+    clean = str(text or "").strip()
+    clean = re.sub(r"^[A-Za-z]\s*:\s*", "", clean).strip()
+    clean = re.sub(r"\s+", " ", clean)
+    return clean
+
+
+def _is_valid_translation_candidate(text):
+    clean = _normalize_translation_candidate(text)
+    if not clean:
+        return False
+    wc = len(clean.split())
+    if wc < 3 or wc > 18:
+        return False
+    if re.search(r"https?://", clean, flags=re.IGNORECASE):
+        return False
+    return True
+
+
+def _build_translation_targets(
+    profile_id, lesson_context, max_total=36, max_per_lesson=6
+):
+    lesson_context = lesson_context or {}
+    focus_items = lesson_context.get("focus_items", [])
+    if not isinstance(focus_items, list) or not focus_items:
+        return []
+
+    shadowing_by_source = {
+        str(item.get("source_id", "")).strip(): item
+        for item in load_shadowing_texts(profile_id)
+        if isinstance(item, dict) and str(item.get("source_id", "")).strip()
+    }
+
+    targets = []
+    seen_expected = set()
+    for item in focus_items:
+        if not isinstance(item, dict):
+            continue
+
+        lesson_label = str(item.get("title") or item.get("theme") or "").strip()
+        source_id = str(item.get("source_id", "")).strip()
+        if not lesson_label:
+            lesson_label = source_id or "Lecon"
+
+        candidates = []
+        shadow_entry = shadowing_by_source.get(source_id)
+        if shadow_entry:
+            candidates.extend(shadow_entry.get("chunk_focus") or [])
+            candidates.extend(shadow_entry.get("chunks") or [])
+        elif source_id.startswith("real-english-"):
+            lesson_id = source_id.replace("real-english-", "", 1)
+            loaded = _load_real_english_lesson(profile_id, lesson_id)
+            if isinstance(loaded, dict):
+                candidates.extend(_split_shadowing_chunks(loaded.get("dialogue", "")))
+
+        added_for_lesson = 0
+        for raw in candidates:
+            expected = _normalize_translation_candidate(raw)
+            if not _is_valid_translation_candidate(expected):
+                continue
+            key = expected.lower()
+            if key in seen_expected:
+                continue
+
+            targets.append(
+                {
+                    "lesson": lesson_label,
+                    "expected_english": expected,
+                    "source_id": source_id,
+                }
+            )
+            seen_expected.add(key)
+            added_for_lesson += 1
+
+            if added_for_lesson >= max_per_lesson or len(targets) >= max_total:
+                break
+
+        if len(targets) >= max_total:
+            break
+
+    return targets
+
+
 def build_tutor_system_prompt(
     mode,
     theme,
@@ -2957,6 +3040,7 @@ def build_tutor_system_prompt(
         "Example: learner says 'I goed to the store' → you reply 'Oh nice, you went to the store! What did you get?' — correction embedded, conversation continues. "
         "Your only job during the conversation is to keep talking naturally, ask follow-up questions, and model correct American English through your own speech. "
         "All detailed corrections and feedback are saved for the end-of-session evaluation — do NOT give them during the conversation. "
+        "Do not introduce unrelated topics. Keep continuity with the learner's selected lesson context. "
         f"Mode: {mode}. {topic_instruction} {objective_instruction} {lesson_context_instruction} {training_instruction} "
         "Use natural chunking, rhythm, stress patterns, and fillers that American native speakers actually use."
     )
@@ -2997,6 +3081,11 @@ def new_session(
 ):
     training_settings = training_settings or {}
     lesson_context = lesson_context or {}
+    translation_targets = []
+    if training_mode == "fr_to_en":
+        raw_targets = lesson_context.get("translation_targets", [])
+        if isinstance(raw_targets, list):
+            translation_targets = [t for t in raw_targets if isinstance(t, dict)]
     profile = get_active_profile()
     session_target_cefr = str(target_cefr or profile.get("target_cefr", "B1")).upper()
     if session_target_cefr not in CEFR_LEVELS:
@@ -3015,6 +3104,8 @@ def new_session(
         "training_mode": training_mode,
         "training_settings": training_settings,
         "lesson_context": lesson_context,
+        "translation_targets": translation_targets,
+        "translation_next_idx": 0,
         "messages": [
             {
                 "role": "system",
@@ -3232,6 +3323,7 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
     training_mode = session_data.get("training_mode", "standard")
     training_settings = session_data.get("training_settings", {})
     lesson_context = session_data.get("lesson_context") or {}
+    drill_meta = None
 
     topic_pool = lesson_context.get("topic_pool", [])
     if isinstance(topic_pool, list) and topic_pool:
@@ -3276,14 +3368,53 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             }
         )
     elif training_mode == "fr_to_en":
-        messages.append(
-            {
-                "role": "system",
-                "content": (
-                    "DRILL ACTIVE: French to English challenge. Frequently provide one short French sentence, ask the learner to say it in natural English, then recast and continue the conversation with one follow-up question."
-                ),
-            }
-        )
+        targets = session_data.get("translation_targets", [])
+        if isinstance(targets, list) and targets:
+            idx = int(session_data.get("translation_next_idx", 0) or 0)
+            target = targets[idx % len(targets)]
+            session_data["translation_next_idx"] = idx + 1
+
+            lesson_name = str(target.get("lesson") or "selected lesson").strip()
+            expected = str(target.get("expected_english") or "").strip()
+            if expected:
+                drill_meta = {
+                    "drill": "fr_to_en",
+                    "lesson": lesson_name,
+                    "expected_english": expected,
+                    "source_id": str(target.get("source_id") or "").strip(),
+                }
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": (
+                            "DRILL ACTIVE: French to English challenge with strict lesson anchoring. "
+                            f"Current lesson: {lesson_name}. "
+                            f"Target English sentence (from lesson): '{expected}'. "
+                            "Your next assistant message MUST include exactly one short French sentence whose intended translation is EXACTLY that target sentence. "
+                            "Do not reveal the target sentence. Do not change to an unrelated topic. "
+                            "Keep continuity with current conversation and lesson context. "
+                            "After the French challenge, add one short English follow-up line connected to the same lesson."
+                        ),
+                    }
+                )
+            else:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": (
+                            "DRILL ACTIVE: French to English challenge. Keep the challenge tied to the selected lessons only."
+                        ),
+                    }
+                )
+        else:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "DRILL ACTIVE: French to English challenge. No translation bank is available; keep using selected lesson context only."
+                    ),
+                }
+            )
     elif training_mode == "word_rescue":
         messages.append(
             {
@@ -3308,8 +3439,160 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
     messages.append({"role": "user", "content": user_text})
     text, err = openrouter_chat(messages, CHAT_MODEL, temperature=0.6, max_tokens=350)
     if err:
-        return None, err
-    return text, None
+        return None, err, drill_meta
+    return text, None, drill_meta
+
+
+def _collect_fr_to_en_pairs(turns):
+    pairs = []
+    if not isinstance(turns, list):
+        return pairs
+    for idx in range(len(turns) - 1):
+        current = turns[idx] if isinstance(turns[idx], dict) else {}
+        nxt = turns[idx + 1] if isinstance(turns[idx + 1], dict) else {}
+        drill_meta = current.get("drill_meta")
+        if not isinstance(drill_meta, dict):
+            continue
+        if drill_meta.get("drill") != "fr_to_en":
+            continue
+
+        expected = str(drill_meta.get("expected_english") or "").strip()
+        learner = str(nxt.get("user_text") or "").strip()
+        if not expected or not learner:
+            continue
+
+        pairs.append(
+            {
+                "lesson": str(drill_meta.get("lesson") or "").strip(),
+                "expected_english": expected,
+                "learner_text": learner,
+            }
+        )
+    return pairs
+
+
+def _evaluate_fr_to_en_pairs(pairs, target_cefr):
+    if not pairs:
+        return {
+            "pair_count": 0,
+            "avg_score": None,
+            "summary": "Aucun exercice FR->EN exploitable dans cette session.",
+            "details": [],
+        }
+
+    pair_lines = []
+    for idx, pair in enumerate(pairs, start=1):
+        pair_lines.append(
+            f"{idx}) Lesson: {pair.get('lesson', '')}\n"
+            f"Expected English: {pair.get('expected_english', '')}\n"
+            f"Learner answer: {pair.get('learner_text', '')}"
+        )
+
+    prompt = (
+        "You are an English examiner. Evaluate French-to-English translation attempts. "
+        f"Target CEFR: {target_cefr}. "
+        "For each pair, score accuracy from 0 to 100 (meaning preservation + grammar + naturalness). "
+        "Return ONLY JSON with this schema: "
+        '{"overall_score":0-100,"summary":"...","items":[{"index":1,"score":0-100,"comment":"..."}]}.\n\n'
+        "Pairs:\n"
+        + "\n\n".join(pair_lines)
+    )
+
+    raw, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        EVAL_MODEL,
+        temperature=0.1,
+        max_tokens=900,
+    )
+
+    if err:
+        scored = []
+        for pair in pairs:
+            ratio = SequenceMatcher(
+                None,
+                pair.get("expected_english", "").lower(),
+                pair.get("learner_text", "").lower(),
+            ).ratio()
+            score = int(round(ratio * 100))
+            scored.append(
+                {
+                    "lesson": pair.get("lesson", ""),
+                    "expected_english": pair.get("expected_english", ""),
+                    "learner_text": pair.get("learner_text", ""),
+                    "score": score,
+                    "comment": "Estimation automatique (fallback) basee sur similarite textuelle.",
+                }
+            )
+        avg = round(sum(item["score"] for item in scored) / len(scored), 1)
+        return {
+            "pair_count": len(scored),
+            "avg_score": avg,
+            "summary": f"Score moyen FR->EN (fallback): {avg}/100.",
+            "details": scored,
+        }
+
+    parsed = extract_json_from_text(raw)
+    if not isinstance(parsed, dict):
+        scored = []
+        for pair in pairs:
+            ratio = SequenceMatcher(
+                None,
+                pair.get("expected_english", "").lower(),
+                pair.get("learner_text", "").lower(),
+            ).ratio()
+            score = int(round(ratio * 100))
+            scored.append(
+                {
+                    "lesson": pair.get("lesson", ""),
+                    "expected_english": pair.get("expected_english", ""),
+                    "learner_text": pair.get("learner_text", ""),
+                    "score": score,
+                    "comment": "Estimation automatique (fallback) basee sur similarite textuelle.",
+                }
+            )
+        avg = round(sum(item["score"] for item in scored) / len(scored), 1)
+        return {
+            "pair_count": len(scored),
+            "avg_score": avg,
+            "summary": f"Score moyen FR->EN (fallback): {avg}/100.",
+            "details": scored,
+        }
+
+    raw_items = parsed.get("items", [])
+    details = []
+    for idx, pair in enumerate(pairs, start=1):
+        item = raw_items[idx - 1] if idx - 1 < len(raw_items) else {}
+        try:
+            score = int(item.get("score", 0))
+        except Exception:
+            score = 0
+        score = max(0, min(100, score))
+        details.append(
+            {
+                "lesson": pair.get("lesson", ""),
+                "expected_english": pair.get("expected_english", ""),
+                "learner_text": pair.get("learner_text", ""),
+                "score": score,
+                "comment": str(item.get("comment", "")).strip(),
+            }
+        )
+
+    avg_score = parsed.get("overall_score")
+    try:
+        avg_score = float(avg_score)
+    except Exception:
+        avg_score = (
+            round(sum(item["score"] for item in details) / len(details), 1)
+            if details
+            else None
+        )
+
+    return {
+        "pair_count": len(details),
+        "avg_score": avg_score,
+        "summary": str(parsed.get("summary", "")).strip(),
+        "details": details,
+    }
 
 
 def evaluate_session(session_data):
@@ -3336,6 +3619,17 @@ def evaluate_session(session_data):
         1 for line in user_lines if re.search(self_repair_pattern, line.lower())
     )
 
+    translation_pairs = []
+    translation_eval = {
+        "pair_count": 0,
+        "avg_score": None,
+        "summary": "",
+        "details": [],
+    }
+    if training_mode == "fr_to_en":
+        translation_pairs = _collect_fr_to_en_pairs(session_data.get("turns", []))
+        translation_eval = _evaluate_fr_to_en_pairs(translation_pairs, target_cefr)
+
     telemetry_lines = [
         f"- Active training mode: {training_mode}",
         f"- Target tense: {target_tense}",
@@ -3343,6 +3637,30 @@ def evaluate_session(session_data):
         f"- Number of slow replies (>=8s): {slow_replies}",
         f"- Detected self-repair markers: {self_repairs}",
     ]
+
+    if training_mode == "fr_to_en":
+        telemetry_lines.append(
+            f"- FR->EN challenges answered: {translation_eval.get('pair_count', 0)}"
+        )
+        telemetry_lines.append(
+            f"- FR->EN average accuracy (/100): {translation_eval.get('avg_score', 'N/A')}"
+        )
+        telemetry_lines.append(
+            f"- FR->EN summary: {translation_eval.get('summary', '')}"
+        )
+
+    translation_block = ""
+    if training_mode == "fr_to_en" and translation_pairs:
+        lines = []
+        for idx, detail in enumerate(translation_eval.get("details", [])[:12], start=1):
+            lines.append(
+                f"{idx}) Lesson: {detail.get('lesson', '')}\n"
+                f"Expected: {detail.get('expected_english', '')}\n"
+                f"Learner: {detail.get('learner_text', '')}\n"
+                f"Score: {detail.get('score', 0)}/100\n"
+                f"Comment: {detail.get('comment', '')}"
+            )
+        translation_block = "\n\nFrench->English translation evidence:\n" + "\n\n".join(lines)
 
     prompt = f"""
 Evaluate this learner's spoken English targeting CEFR {target_cefr} ({CEFR_DESCRIPTORS[target_cefr]['label']}) in American English.
@@ -3354,6 +3672,7 @@ Give a score from 1 to 10 for:
 - Naturalness
 - Tense consistency
 - Recovery strategy when missing words
+- French-to-English translation accuracy (if drill was fr_to_en)
 
 Then provide:
 1) Strong points
@@ -3363,12 +3682,14 @@ Then provide:
    - Explain response latency pattern
    - Explain tense consistency issues
    - Explain if self-repair strategy is effective
+    - If drill was fr_to_en, explain translation strengths and errors clearly
 
 Session telemetry:
 {chr(10).join(telemetry_lines)}
 
 Conversation transcript (learner only):
 {chr(10).join(user_lines)}
+{translation_block}
 """.strip()
 
     text, err = openrouter_chat(
@@ -5676,6 +5997,27 @@ def render_practice_page():
     if st.button("Demarrer une nouvelle session"):
         mode_value = "guided" if practice_mode == "Guide par mes lecons" else "free"
         theme_value = selected_theme or "Free conversation"
+        session_lesson_context = dict(selected_lesson_context)
+
+        if training_mode == "fr_to_en":
+            translation_targets = _build_translation_targets(
+                profile_id=profile_id,
+                lesson_context=session_lesson_context,
+                max_total=36,
+                max_per_lesson=6,
+            )
+            if not translation_targets:
+                st.error(
+                    "Le drill FR -> EN necessite des lecons en cours/terminees avec phrases exploitables. "
+                    "Selectionnez une lecon a reviser ou envoyez vos lecons vers Shadowing d'abord."
+                )
+                return
+
+            session_lesson_context["translation_targets"] = translation_targets
+            st.info(
+                f"{len(translation_targets)} phrase(s) de vos lecons seront utilisees pour la traduction FR -> EN."
+            )
+
         st.session_state.active_session = new_session(
             mode_value,
             theme_value,
@@ -5683,7 +6025,7 @@ def render_practice_page():
             target_cefr=practice_level,
             training_mode=training_mode,
             training_settings=training_settings,
-            lesson_context=selected_lesson_context,
+            lesson_context=session_lesson_context,
         )
         st.session_state.pop("practice_last_processed_audio", None)
         st.success(f"Session demarree: {st.session_state.active_session['id']}")
@@ -5906,7 +6248,7 @@ def render_practice_page():
                         {"role": "user", "content": user_text}
                     )
                     with st.spinner("L'IA prepare sa reponse..."):
-                        ai_text, err = get_ai_reply(
+                        ai_text, err, drill_meta = get_ai_reply(
                             session_data, user_text, elapsed_seconds=elapsed
                         )
                     if err:
@@ -5939,6 +6281,7 @@ def render_practice_page():
                             "ai_text": ai_text,
                             "ai_audio_path": ai_audio_path,
                             "ai_audio_mime": ai_audio_mime,
+                            "drill_meta": drill_meta,
                         }
                         session_data["turns"].append(turn_record)
                         save_session(session_data)  # sauvegarde automatique
