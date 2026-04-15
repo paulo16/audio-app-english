@@ -26,6 +26,7 @@ from modules.real_english import *
 from modules.sessions import *
 from modules.sessions import (
     _build_translation_targets,
+    _build_tts_text,
     _extract_tts_narration,
     _format_translation_question,
     _question_prompt_from_target,
@@ -403,9 +404,13 @@ def render_practice_page():
                         session_data, _pending, _direction
                     )
                     _meta["contextual_question"] = _fresh_question
-                    # Use the full contextual question as TTS text (scenario + translation prompt)
-                    _meta["tts_text"] = _fresh_question or _question_prompt_from_target(
-                        session_data, _pending, _direction
+                    # Build deterministic TTS: scenario + "Comment dirais-tu..." prompt
+                    _meta["tts_text"] = _build_tts_text(
+                        _fresh_question,
+                        _question_prompt_from_target(
+                            session_data, _pending, _direction
+                        ),
+                        _direction,
                     )
                     session_data["starter_drill_meta"] = _meta
                     # Force audio regeneration with the refreshed question text.
@@ -458,7 +463,10 @@ def render_practice_page():
                     ):
                         speech_text = _starter_meta["tts_text"]
                     if not speech_text:
-                        speech_text = starter_text
+                        speech_text = (
+                            _build_tts_text(starter_text, "", starter_direction)
+                            or starter_text
+                        )
                     if speech_text:
                         with st.spinner(
                             "Lecture automatique de la premiere phrase de revision..."

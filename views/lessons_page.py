@@ -302,7 +302,6 @@ def render_lessons_page():
                                     item["dialogue"],
                                     voice_a,
                                     voice_b,
-                                    language_hint="en",
                                 )
                             if err:
                                 st.error(f"Erreur TTS: {err}")

@@ -37,8 +37,11 @@ def _is_valid_translation_candidate(text):
     clean = _normalize_translation_candidate(text)
     if not clean:
         return False
+    # Reject truncated phrases ending with "..."
+    if clean.endswith("..."):
+        return False
     wc = len(clean.split())
-    if wc < 3 or wc > 18:
+    if wc < 4 or wc > 18:
         return False
     if re.search(r"https?://", clean, flags=re.IGNORECASE):
         return False
@@ -74,8 +77,12 @@ def _build_translation_targets(
         dialogue_text_val = ""
         shadow_entry = shadowing_by_source.get(source_id)
         if shadow_entry:
-            candidates.extend(shadow_entry.get("chunk_focus") or [])
+            # Prefer full sentences (chunks) over key-phrase fragments (chunk_focus)
             candidates.extend(shadow_entry.get("chunks") or [])
+            # Only add chunk_focus entries that are complete (not ending with "...")
+            for cf in shadow_entry.get("chunk_focus") or []:
+                if not str(cf or "").strip().endswith("..."):
+                    candidates.append(cf)
             dialogue_text_val = shadow_entry.get("dialogue_text", "")
         elif source_id.startswith("real-english-"):
             lesson_id = source_id.replace("real-english-", "", 1)
@@ -420,27 +427,21 @@ def _format_translation_question(session_data, target, direction="fr_to_en"):
 
 
 def _extract_tts_narration(contextual_question, direction="fr_to_en"):
-    """Extract ONLY the scenario/context portion from a contextual translation question.
+    """Extract the scenario/context portion and phrase from a contextual translation question.
 
-    Strips out the 'Comment dit-on / How would you say' question so that TTS
-    narrates the situation without the model trying to answer the question.
-    Returns the phrase to translate separately so it can be read as a standalone statement.
+    Returns (scenario, phrase_to_translate).
     """
     text = str(contextual_question or "").strip()
     if not text:
         return "", ""
 
-    # Split at the last sentence that contains the translation prompt.
-    # FR pattern: "Comment dit-on / comment dirais-tu / comment tu dis ... en anglais ?"
-    # EN pattern: "How would you say / How do you say ... in French?"
+    # Extract the phrase between « » or " "
     if direction == "fr_to_en":
-        # Find the question asking for translation — typically starts with "Comment"
-        split_pattern = r'(?:Comment\s+(?:dit-on|dirais-tu|tu\s+dis|diriez-vous)[^«»"]*[«"][^«»"]*[»"][^?]*\??)'
-        # Also extract the phrase between « »
         phrase_match = re.search(r'[«""]([^«»""]+)[»""]', text)
+        split_pattern = r'(?:Comment\s+(?:dit-on|dirais-tu|tu\s+dis|diriez-vous)[^«»"]*[«"][^«»"]*[»"][^?]*\??)'
     else:
-        split_pattern = r'(?:How\s+(?:would|do|could)\s+you\s+(?:say|translate)[^"""]*["""][^"""]*["""][^?]*\??)'
         phrase_match = re.search(r'["""]([^"""]+)["""]', text)
+        split_pattern = r'(?:How\s+(?:would|do|could)\s+you\s+(?:say|translate)[^"""]*["""][^"""]*["""][^?]*\??)'
 
     phrase_to_translate = phrase_match.group(1).strip() if phrase_match else ""
 
@@ -454,9 +455,7 @@ def _extract_tts_narration(contextual_question, direction="fr_to_en"):
     # Fallback: split at last '?' — everything before it that looks like context
     last_q = text.rfind("?")
     if last_q > 0:
-        # Find the start of the question sentence
         before_q = text[:last_q]
-        # Look for the last sentence boundary before the question
         for sep in [". ", "! ", ".\n", "!\n"]:
             idx = before_q.rfind(sep)
             if idx > 0:
@@ -464,8 +463,28 @@ def _extract_tts_narration(contextual_question, direction="fr_to_en"):
                 if len(scenario) > 10:
                     return scenario, phrase_to_translate
 
-    # Can't split — return the phrase alone for TTS (safest)
     return "", phrase_to_translate
+
+
+def _build_tts_text(contextual_question, phrase_to_translate, direction="fr_to_en"):
+    """Build deterministic TTS text: scenario + fixed translation prompt.
+
+    Always appends a clear 'Comment dirais-tu «xxx» en anglais ?'
+    or 'How would you say "xxx" in French?' so TTS reads it verbatim.
+    """
+    scenario, extracted_phrase = _extract_tts_narration(contextual_question, direction)
+    phrase = phrase_to_translate or extracted_phrase
+    if not phrase:
+        return str(contextual_question or "").strip()
+
+    if direction == "fr_to_en":
+        question = f"Comment dirais-tu « {phrase} » en anglais ?"
+    else:
+        question = f'How would you say "{phrase}" in French?'
+
+    if scenario:
+        return f"{scenario} {question}"
+    return question
 
 
 def _starter_translation_question_text(session_data):
@@ -1052,8 +1071,10 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             "progress_line": "",
         }
 
-        # Use the full contextual question as TTS text (scenario + translation prompt)
-        drill_meta["tts_text"] = contextual_question or prompt_text
+        # Build deterministic TTS text: scenario + fixed "Comment dirais-tu..." prompt
+        drill_meta["tts_text"] = _build_tts_text(
+            contextual_question, prompt_text, direction
+        )
 
         feedback_blocks = []
         if isinstance(pending, dict) and eval_result:
