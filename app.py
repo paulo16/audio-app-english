@@ -865,7 +865,9 @@ def _extract_provider_error(raw_text):
     return raw_text
 
 
-def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
+def _stream_tts_once(
+    text, model, voice, requested_format, tone_hint=None, language_hint=None
+):
     max_retries = 3
     last_conn_err = None
     # Build system prompt — add tone/emotion guidance when available
@@ -880,6 +882,16 @@ def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
         "NEVER read stage directions such as (laughs), [sighs], *whispers* or similar annotations. "
         "Read only the actual spoken words."
     )
+    if language_hint == "fr":
+        base_system += (
+            " For this request, the spoken audio language MUST be French."
+            " Do not switch to English commentary."
+        )
+    elif language_hint == "en":
+        base_system += (
+            " For this request, the spoken audio language MUST be English."
+            " Do not switch to French commentary."
+        )
     if tone_hint:
         base_system += f" Deliver this line {tone_hint}."
     for attempt in range(max_retries):
@@ -998,7 +1010,11 @@ def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
 
 
 def text_to_speech_openrouter(
-    text, voice=TTS_VOICE, audio_format=TTS_AUDIO_FORMAT, tone_hint=None
+    text,
+    voice=TTS_VOICE,
+    audio_format=TTS_AUDIO_FORMAT,
+    tone_hint=None,
+    language_hint=None,
 ):
     if not OPENROUTER_API_KEY:
         return None, None, "OPENROUTER_API_KEY manquante."
@@ -1020,6 +1036,7 @@ def text_to_speech_openrouter(
                 voice=candidate_voice,
                 requested_format=requested_format,
                 tone_hint=tone_hint,
+                language_hint=language_hint,
             )
             if not err:
                 return audio_bytes, mime_type, None
@@ -3063,7 +3080,7 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
 
     cache = session_data.setdefault("contextual_question_cache", {})
     # Versioned cache key so stricter prompt/validation can invalidate older noisy items.
-    cache_key = f"v3|{direction}|{expected_en.lower()}"
+    cache_key = f"v5|{direction}|{expected_en.lower()}"
     cached = cache.get(cache_key)
     if cached:
         return str(cached)
@@ -3094,7 +3111,7 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
             )
         prompt = (
             "Tu es un professeur de langues. "
-            "Génère une COURTE mise en situation (1-2 phrases) ENTIÈREMENT EN FRANÇAIS "
+            "Génère une mise en situation concrète (2-3 phrases) ENTIÈREMENT EN FRANÇAIS "
             "puis demande à l'élève de traduire la phrase ci-dessous en anglais. "
             "Mets la phrase à traduire entre guillemets « ». "
             f"{context_block}\n\n"
@@ -3103,6 +3120,8 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
             "Tu retrouves un vieil ami au café après des années. Comment tu dis « Ça fait longtemps ! » en anglais ?\n\n"
             "RÈGLES STRICTES :\n"
             "- Écris TOUT en français (mise en situation + question)\n"
+            "- Commence par un vrai contexte avant la question (pas seulement une question sèche)\n"
+            "- Ce texte sera lu en audio: il doit être naturel en français\n"
             "- NE DONNE JAMAIS la traduction anglaise dans ta réponse\n"
             "- NE DONNE JAMAIS la réponse\n"
             "- N'ajoute PAS de section 'Réponse' ni 'Correction'\n"
@@ -3110,8 +3129,10 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
         )
         forbidden_language_markers = [
             "how do you",
+            "howdo you",
             "how would you",
             "translate into",
+            "in english",
             "in french",
             "answer:",
             "solution:",
@@ -3128,25 +3149,29 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
                 f'"""\n{dialogue_context}\n"""'
             )
         prompt = (
-            "You are a language teacher. "
-            "Generate a SHORT scenario (1-2 sentences) ENTIRELY IN ENGLISH, "
-            "then ask the student to translate the phrase below into French. "
-            "Put the phrase to translate in quotes. "
+            "You are a language teacher creating an English-to-French translation exercise. "
+            "Generate a concrete short scenario (2-3 sentences) ENTIRELY IN ENGLISH, "
+            "then ask the student to translate the English phrase below into French. "
+            "Put the phrase to translate in double quotes. "
             f"{context_block}\n\n"
-            f'Phrase to translate: "{phrase_to_translate}"\n\n'
+            f'English phrase to translate: "{phrase_to_translate}"\n\n'
             "Example:\n"
-            'A tour guide gives a safety instruction. How would you say "Please stay behind the line" in French?\n\n'
+            'You\'re meeting someone new at work. How would you say "Nice to meet you" in French?\n\n'
             "STRICT RULES:\n"
-            "- Write EVERYTHING in English (scenario + question)\n"
+            "- Write EVERYTHING in English — no French words allowed in the scenario or question\n"
+            "- Do NOT use French words like 'tu', 'vous', 'dans', 'une', 'des', 'imagine que', etc.\n"
+            "- Start with real English context before the question (not a bare question)\n"
+            "- This text will be read aloud in English audio: it must sound natural in English\n"
             "- NEVER include the French translation in your response\n"
             "- NEVER give the answer\n"
             "- Do NOT add any 'Answer' or 'Correction' section\n"
-            "- Return ONLY the scenario + question, nothing else"
+            "- Return ONLY the English scenario + English question, nothing else"
         )
         forbidden_language_markers = [
             "comment dit-on",
             "traduis",
             "en anglais",
+            "en français",
             "réponse",
             "correction",
             "solution",
@@ -3179,8 +3204,39 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
         if re.search(r"\b(answer|réponse|solution|correction)\b", norm):
             return False
 
+        # Force contextual style: one context clause + one question.
+        if "?" not in text:
+            return False
+        if "." not in text and "!" not in text and ":" not in text:
+            return False
+
         for marker in forbidden_language_markers:
             if marker in norm:
+                return False
+
+        if direction == "fr_to_en":
+            # Reject English-framed question variants like "howdo you say ... in english".
+            if re.search(r"\bhow\s*do\s*you\b|\bhowdo\s*you\b|\bin\s+english\b", norm):
+                return False
+            # Ensure clearly French framing.
+            if not re.search(
+                r"\b(comment|dans|situation|imagine|contexte|tu|vous|au|aux|le|la|les|un|une|des|en anglais)\b",
+                norm,
+            ):
+                return False
+        else:
+            # Reject French-framed question variants (including French-specific pronouns/articles).
+            if re.search(
+                r"\bcomment\b|\ben\s+anglais\b|\btraduis\b"
+                r"|\b(tu|vous|une|des|dans|aussi|donc|votre|notre|leur|voici|depuis)\b",
+                norm,
+            ):
+                return False
+            # Ensure clearly English framing (require unambiguous English words).
+            if not re.search(
+                r"\b(how|would|could|you|in french|say)\b",
+                norm,
+            ):
                 return False
 
         return True
@@ -3203,11 +3259,9 @@ def _generate_contextual_question(session_data, target, direction="fr_to_en"):
 
     # Deterministic fallback to guarantee language + no-answer leak.
     if direction == "en_to_fr":
-        fallback = (
-            f'In this situation, how would you say "{phrase_to_translate}" in French?'
-        )
+        fallback = f'Imagine a real-life moment. In this situation, how would you say "{phrase_to_translate}" in French?'
     else:
-        fallback = f"Dans cette situation, comment dirais-tu « {phrase_to_translate} » en anglais ?"
+        fallback = f"Imagine une scène de la vie quotidienne. Dans cette situation, comment dirais-tu « {phrase_to_translate} » en anglais ?"
 
     cache[cache_key] = fallback
     return fallback
@@ -3463,12 +3517,21 @@ def build_tutor_system_prompt(
             "guide them to paraphrase in simple English without giving French translations."
         )
     elif training_mode == "fr_to_en":
-        training_instruction = (
-            "Training drill: FRENCH TO ENGLISH CHALLENGE. Regularly give one short everyday sentence in French, "
-            "then explicitly ask the learner to say it in natural American English. "
-            "After the learner answers, recast naturally in English and continue with one follow-up question. "
-            "Do not provide long grammar explanations during the live exchange."
-        )
+        _tr_direction = training_settings.get("translation_direction", "fr_to_en")
+        if _tr_direction == "en_to_fr":
+            training_instruction = (
+                "Training drill: ENGLISH TO FRENCH CHALLENGE. Give one short everyday English sentence "
+                "and explicitly ask the learner to translate it into natural French. "
+                "After the learner answers, confirm or correct briefly in English and continue. "
+                "Do not provide long grammar explanations during the live exchange."
+            )
+        else:
+            training_instruction = (
+                "Training drill: FRENCH TO ENGLISH CHALLENGE. Regularly give one short everyday sentence in French, "
+                "then explicitly ask the learner to say it in natural American English. "
+                "After the learner answers, recast naturally in English and continue with one follow-up question. "
+                "Do not provide long grammar explanations during the live exchange."
+            )
     elif training_mode == "tense_switch":
         training_instruction = (
             f"Training drill: TENSE SWITCH. Keep the learner anchored in {target_tense} tense, "
@@ -6889,11 +6952,20 @@ def render_practice_page():
                     # starter_text is now ONLY the question (matches TTS)
                     speech_text = starter_text
                     if speech_text:
+                        starter_direction = str(
+                            session_data.get("training_settings", {}).get(
+                                "translation_direction", "fr_to_en"
+                            )
+                        )
+                        starter_lang_hint = (
+                            "fr" if starter_direction == "fr_to_en" else "en"
+                        )
                         with st.spinner(
                             "Lecture automatique de la premiere phrase de revision..."
                         ):
                             audio_bytes, audio_mime, err = text_to_speech_openrouter(
-                                speech_text
+                                speech_text,
+                                language_hint=starter_lang_hint,
                             )
                         if (err or not audio_bytes) and ELEVENLABS_API_KEY:
                             fallback_audio, fallback_mime, fallback_err = (
@@ -7121,8 +7193,24 @@ def render_practice_page():
                         with st.spinner("Synthese vocale..."):
                             # ai_text is now ONLY the question for translation drills
                             tts_text = ai_text
+                            tts_lang_hint = None
+                            if is_translation_drill:
+                                drill_direction = str(
+                                    (drill_meta or {}).get(
+                                        "direction",
+                                        session_data.get(
+                                            "training_settings", {}
+                                        ).get("translation_direction", "fr_to_en"),
+                                    )
+                                )
+                                tts_lang_hint = (
+                                    "fr" if drill_direction == "fr_to_en" else "en"
+                                )
                             ai_audio_bytes, ai_audio_mime, err = (
-                                text_to_speech_openrouter(tts_text)
+                                text_to_speech_openrouter(
+                                    tts_text,
+                                    language_hint=tts_lang_hint,
+                                )
                             )
                         if err:
                             ai_audio_mime = "audio/wav"
