@@ -63,5 +63,34 @@
     ],
     "created_at": "2026-04-06T22:40:34Z",
     "updated_at": "2026-04-06T22:40:34Z"
+  },
+  {
+    "source_id": "quick:introductions-small-talk:b1:3",
+    "profile_id": "profile-paul-mbilong",
+    "theme_name": "Introductions & small talk",
+    "cefr_level": "B1",
+    "lesson_kind": "quick",
+    "lesson_title": "Variation 3: Quick decision under time pressure",
+    "dialogue_text": "A: We need to hurry! The movie starts in 10 minutes.\nB: Right! Should we take the bus or walk?\nA: I think walking is faster. What do you think?\nB: Yeah, I guess we should walk then.\nA: Okay, let’s go! I hope we make it on time.\nB: Me too! I really want to see this film.",
+    "chunks": [
+      "We need to hurry!",
+      "The movie starts in 10 minutes.",
+      "Right!",
+      "Should we take the bus or walk?",
+      "I think walking is faster.",
+      "What do you think?",
+      "Yeah, I guess we should walk then.",
+      "Okay, let’s go!",
+      "I hope we make it on time.",
+      "Me too!",
+      "I really want to see this film."
+    ],
+    "chunk_focus": [
+      "We need to hurry",
+      "What do you think?",
+      "I guess we should"
+    ],
+    "created_at": "2026-04-14T23:16:03Z",
+    "updated_at": "2026-04-14T23:16:03Z"
   }
 ]

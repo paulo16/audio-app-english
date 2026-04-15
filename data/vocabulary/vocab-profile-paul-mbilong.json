@@ -748,5 +748,361 @@
       "last_result": null
     },
     "review_history": []
+  },
+  {
+    "id": "875484ce",
+    "profile_id": "profile-paul-mbilong",
+    "term": "We need to hurry",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "Nous devons nous dépêcher",
+    "part_of_speech": "chunk",
+    "explanation": "A phrase used to express urgency.",
+    "examples": [
+      {
+        "text": "We need to hurry to catch the bus.",
+        "audio_path": null
+      },
+      {
+        "text": "We need to hurry if we want to see the beginning.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "We have to rush"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "dc3ad346",
+    "profile_id": "profile-paul-mbilong",
+    "term": "What do you think?",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "Que penses-tu?",
+    "part_of_speech": "chunk",
+    "explanation": "A question to ask for someone's opinion.",
+    "examples": [
+      {
+        "text": "What do you think about this movie?",
+        "audio_path": null
+      },
+      {
+        "text": "What do you think we should do next?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "What's your opinion?",
+      "How do you feel about it?"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "7849f8c0",
+    "profile_id": "profile-paul-mbilong",
+    "term": "I guess we should",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "Je suppose que nous devrions",
+    "part_of_speech": "chunk",
+    "explanation": "A phrase used to express a suggestion or assumption.",
+    "examples": [
+      {
+        "text": "I guess we should leave now.",
+        "audio_path": null
+      },
+      {
+        "text": "I guess we should try that restaurant.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "I think we should",
+      "I believe we ought to"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "df0b5f9a",
+    "profile_id": "profile-paul-mbilong",
+    "term": "Let’s go!",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "Allons-y!",
+    "part_of_speech": "chunk",
+    "explanation": "An expression used to encourage someone to start moving.",
+    "examples": [
+      {
+        "text": "Let’s go to the park!",
+        "audio_path": null
+      },
+      {
+        "text": "Let’s go before it gets dark.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "Let's move!",
+      "Let's get going!"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "62ef26eb",
+    "profile_id": "profile-paul-mbilong",
+    "term": "I hope",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "J'espère",
+    "part_of_speech": "chunk",
+    "explanation": "A phrase used to express a desire for something to happen.",
+    "examples": [
+      {
+        "text": "I hope it doesn't rain tomorrow.",
+        "audio_path": null
+      },
+      {
+        "text": "I hope you enjoy the show.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "I wish",
+      "I desire"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "8b02e376",
+    "profile_id": "profile-paul-mbilong",
+    "term": "on time",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "à l'heure",
+    "part_of_speech": "phrase",
+    "explanation": "A phrase meaning to arrive at the expected time.",
+    "examples": [
+      {
+        "text": "We arrived on time for the meeting.",
+        "audio_path": null
+      },
+      {
+        "text": "She always likes to be on time.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "punctually"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "8a1ec77d",
+    "profile_id": "profile-paul-mbilong",
+    "term": "really want to",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "vraiment vouloir",
+    "part_of_speech": "chunk",
+    "explanation": "A phrase used to express a strong desire.",
+    "examples": [
+      {
+        "text": "I really want to see that movie.",
+        "audio_path": null
+      },
+      {
+        "text": "They really want to go on vacation.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "truly desire",
+      "strongly wish to"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "d6f76f42",
+    "profile_id": "profile-paul-mbilong",
+    "term": "should we",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "devrions-nous",
+    "part_of_speech": "chunk",
+    "explanation": "A phrase used to suggest an action.",
+    "examples": [
+      {
+        "text": "Should we call her?",
+        "audio_path": null
+      },
+      {
+        "text": "Should we order pizza?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "ought we to"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "1223ad91",
+    "profile_id": "profile-paul-mbilong",
+    "term": "faster",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "plus vite",
+    "part_of_speech": "adjective",
+    "explanation": "A comparative form of 'fast', meaning more quick.",
+    "examples": [
+      {
+        "text": "This route is faster than the other.",
+        "audio_path": null
+      },
+      {
+        "text": "He runs faster than anyone else.",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "quicker"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
+  },
+  {
+    "id": "4d2bfc78",
+    "profile_id": "profile-paul-mbilong",
+    "term": "guess",
+    "created_at": "2026-04-14T23:16:13Z",
+    "translation": "deviner",
+    "part_of_speech": "verb",
+    "explanation": "To form an opinion or make a decision without all the facts.",
+    "examples": [
+      {
+        "text": "I guess it's going to rain.",
+        "audio_path": null
+      },
+      {
+        "text": "Can you guess the answer?",
+        "audio_path": null
+      }
+    ],
+    "synonyms": [
+      "estimate",
+      "surmise"
+    ],
+    "level": "B1",
+    "source_lesson_id": "quick:introductions-small-talk:b1:3",
+    "source_lesson_kind": "quick",
+    "source_theme": "Introductions & small talk",
+    "source_auto": true,
+    "srs": {
+      "next_review": "2026-04-14T23:16:13Z",
+      "interval": 1,
+      "ease": 2.5,
+      "repetitions": 0,
+      "last_result": null
+    },
+    "review_history": []
   }
 ]
