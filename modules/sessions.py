@@ -1052,18 +1052,8 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             "progress_line": "",
         }
 
-        # Build TTS-safe narration: scenario + phrase only, no translation question
-        scenario_part, phrase_part = _extract_tts_narration(
-            contextual_question, direction
-        )
-        if scenario_part and phrase_part:
-            drill_meta["tts_text"] = f"{scenario_part} {phrase_part}"
-        elif phrase_part:
-            drill_meta["tts_text"] = phrase_part
-        elif scenario_part:
-            drill_meta["tts_text"] = scenario_part
-        else:
-            drill_meta["tts_text"] = prompt_text
+        # Use the full contextual question as TTS text (scenario + translation prompt)
+        drill_meta["tts_text"] = contextual_question or prompt_text
 
         feedback_blocks = []
         if isinstance(pending, dict) and eval_result:

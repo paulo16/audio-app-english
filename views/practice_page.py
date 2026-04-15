@@ -403,18 +403,10 @@ def render_practice_page():
                         session_data, _pending, _direction
                     )
                     _meta["contextual_question"] = _fresh_question
-                    # Build TTS-safe narration for starter
-                    _sc, _ph = _extract_tts_narration(_fresh_question, _direction)
-                    if _sc and _ph:
-                        _meta["tts_text"] = f"{_sc} {_ph}"
-                    elif _ph:
-                        _meta["tts_text"] = _ph
-                    elif _sc:
-                        _meta["tts_text"] = _sc
-                    else:
-                        _meta["tts_text"] = _question_prompt_from_target(
-                            session_data, _pending, _direction
-                        )
+                    # Use the full contextual question as TTS text (scenario + translation prompt)
+                    _meta["tts_text"] = _fresh_question or _question_prompt_from_target(
+                        session_data, _pending, _direction
+                    )
                     session_data["starter_drill_meta"] = _meta
                     # Force audio regeneration with the refreshed question text.
                     session_data["starter_ai_audio_path"] = ""
@@ -466,36 +458,24 @@ def render_practice_page():
                     ):
                         speech_text = _starter_meta["tts_text"]
                     if not speech_text:
-                        scenario_part, phrase_part = _extract_tts_narration(
-                            starter_text, starter_direction
-                        )
-                        if scenario_part and phrase_part:
-                            speech_text = f"{scenario_part} {phrase_part}"
-                        elif phrase_part:
-                            speech_text = phrase_part
-                        elif scenario_part:
-                            speech_text = scenario_part
-                        else:
-                            speech_text = starter_text
+                        speech_text = starter_text
                     if speech_text:
                         with st.spinner(
                             "Lecture automatique de la premiere phrase de revision..."
                         ):
-                            audio_bytes, audio_mime, err = text_to_speech_openrouter(
-                                speech_text,
-                                language_hint=starter_lang_hint,
-                            )
-                        if (err or not audio_bytes) and ELEVENLABS_API_KEY:
-                            fallback_audio, fallback_mime, fallback_err = (
-                                text_to_speech_elevenlabs(
-                                    speech_text, language_hint=starter_lang_hint
-                                )
-                            )
-                            if not fallback_err and fallback_audio:
+                            # Use ElevenLabs for translation drills (reads verbatim, no answering)
+                            if ELEVENLABS_API_KEY:
                                 audio_bytes, audio_mime, err = (
-                                    fallback_audio,
-                                    fallback_mime,
-                                    None,
+                                    text_to_speech_elevenlabs(
+                                        speech_text, language_hint=starter_lang_hint
+                                    )
+                                )
+                            else:
+                                audio_bytes, audio_mime, err = (
+                                    text_to_speech_openrouter(
+                                        speech_text,
+                                        language_hint=starter_lang_hint,
+                                    )
                                 )
 
                         if err or not audio_bytes:
@@ -725,16 +705,25 @@ def render_practice_page():
                                 tts_lang_hint = (
                                     "fr" if drill_direction == "fr_to_en" else "en"
                                 )
-                                # Use TTS-safe narration text (scenario + phrase, no question)
+                                # Use TTS-safe narration text
                                 meta_tts = (drill_meta or {}).get("tts_text", "")
                                 if meta_tts:
                                     tts_text = meta_tts
-                            ai_audio_bytes, ai_audio_mime, err = (
-                                text_to_speech_openrouter(
-                                    tts_text,
-                                    language_hint=tts_lang_hint,
+                            # Use ElevenLabs for translation drills (reads verbatim, no answering)
+                            if is_translation_drill and ELEVENLABS_API_KEY:
+                                ai_audio_bytes, ai_audio_mime, err = (
+                                    text_to_speech_elevenlabs(
+                                        tts_text,
+                                        language_hint=tts_lang_hint,
+                                    )
                                 )
-                            )
+                            else:
+                                ai_audio_bytes, ai_audio_mime, err = (
+                                    text_to_speech_openrouter(
+                                        tts_text,
+                                        language_hint=tts_lang_hint,
+                                    )
+                                )
                         if err:
                             ai_audio_mime = "audio/wav"
                             ai_audio_bytes = b""
