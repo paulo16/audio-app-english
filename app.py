@@ -1,24 +1,26 @@
 """English Audio Coach — entry point.
 
-All logic lives in modules/ and pages/.
+All logic lives in modules/ and views/.
 """
+
 import streamlit as st
+
+from modules.ai_client import _elevenlabs_quota_ok, get_tts_engine
 from modules.config import *
+from modules.profiles import create_or_update_profile, get_active_profile, load_profiles
 from modules.utils import ensure_directories
-from modules.profiles import load_profiles, get_active_profile, create_or_update_profile
-from modules.ai_client import get_tts_engine, _elevenlabs_quota_ok
-from pages.home_page import render_home
-from pages.lessons_page import render_lessons_page
-from pages.ai_lessons_page import render_ai_lessons_page
-from pages.natural_english_page import render_natural_english_page
-from pages.real_english_page import render_real_english_page
-from pages.stories_page import render_stories_page
-from pages.playlist_page import render_playlist_page
-from pages.podcast_page import render_podcast_page
-from pages.practice_page import render_practice_page, initialize_state
-from pages.shadowing_page import render_shadowing_daily_page
-from pages.vocabulary_page import render_vocabulary_page
-from pages.history_page import render_history_page
+from views.ai_lessons_page import render_ai_lessons_page
+from views.history_page import render_history_page
+from views.home_page import render_home
+from views.lessons_page import render_lessons_page
+from views.natural_english_page import render_natural_english_page
+from views.playlist_page import render_playlist_page
+from views.podcast_page import render_podcast_page
+from views.practice_page import initialize_state, render_practice_page
+from views.real_english_page import render_real_english_page
+from views.shadowing_page import render_shadowing_daily_page
+from views.stories_page import render_stories_page
+from views.vocabulary_page import render_vocabulary_page
 
 
 def main():

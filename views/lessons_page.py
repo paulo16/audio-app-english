@@ -15,6 +15,7 @@ from modules.ai_lessons import *
 from modules.config import *
 from modules.immersion import *
 from modules.lessons import *
+from modules.lessons import _lesson_source_id
 from modules.podcasts import *
 from modules.profiles import *
 from modules.profiles import _profile_storage_slug
@@ -23,9 +24,8 @@ from modules.sessions import *
 from modules.shadowing import *
 from modules.stories import *
 from modules.utils import *
-from modules.vocabulary import *
 from modules.utils import _audio_player_with_repeat
-from modules.lessons import _lesson_source_id
+from modules.vocabulary import *
 
 
 def render_lessons_page():
@@ -201,7 +201,10 @@ def render_lessons_page():
                                 ):
                                     audio_bytes, mime_type, err = (
                                         generate_dual_voice_tts(
-                                            item["dialogue"], voice_a, voice_b
+                                            item["dialogue"],
+                                            voice_a,
+                                            voice_b,
+                                            language_hint="en",
                                         )
                                     )
                                 if err:
@@ -296,7 +299,10 @@ def render_lessons_page():
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
                             ):
                                 audio_bytes, mime_type, err = generate_dual_voice_tts(
-                                    item["dialogue"], voice_a, voice_b
+                                    item["dialogue"],
+                                    voice_a,
+                                    voice_b,
+                                    language_hint="en",
                                 )
                             if err:
                                 st.error(f"Erreur TTS: {err}")
@@ -395,7 +401,10 @@ def render_lessons_page():
                                 ):
                                     audio_bytes, mime_type, err = (
                                         generate_dual_voice_tts(
-                                            lesson.get("dialogue", ""), voice_a, voice_b
+                                            lesson.get("dialogue", ""),
+                                            voice_a,
+                                            voice_b,
+                                            language_hint="en",
                                         )
                                     )
                                 if err:
@@ -490,7 +499,10 @@ def render_lessons_page():
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
                             ):
                                 audio_bytes, mime_type, err = generate_dual_voice_tts(
-                                    lesson.get("dialogue", ""), voice_a, voice_b
+                                    lesson.get("dialogue", ""),
+                                    voice_a,
+                                    voice_b,
+                                    language_hint="en",
                                 )
                             if err:
                                 st.error(f"Erreur TTS: {err}")

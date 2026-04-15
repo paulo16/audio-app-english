@@ -3,26 +3,36 @@ import json
 import os
 import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
+
 import requests
 import streamlit as st
 import streamlit.components.v1 as st_components
-from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
-from modules.config import *
-from modules.utils import *
-from modules.profiles import *
+
 from modules.ai_client import *
-from modules.lessons import *
-from modules.shadowing import *
-from modules.sessions import *
-from modules.podcasts import *
-from modules.stories import *
 from modules.ai_lessons import *
-from modules.vocabulary import *
+from modules.config import *
 from modules.immersion import *
+from modules.immersion import (
+    _delete_generated_content,
+    _list_generated_content,
+    _load_generated_content,
+    _load_immersion_progress,
+    _save_generated_content,
+    _save_immersion_progress,
+)
+from modules.lessons import *
+from modules.podcasts import *
+from modules.profiles import *
 from modules.real_english import *
+from modules.sessions import *
+from modules.shadowing import *
+from modules.stories import *
+from modules.utils import *
 from modules.utils import _audio_player_with_repeat
-from modules.immersion import _delete_generated_content, _list_generated_content, _load_generated_content, _load_immersion_progress, _save_generated_content, _save_immersion_progress
+from modules.vocabulary import *
+
 
 def render_natural_english_page():
     profile = get_active_profile()
@@ -156,7 +166,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                         with st.spinner("Generation audio..."):
                             tts_text = f"{rule['example']}"
                             audio_bytes, mime, err = text_to_speech_openrouter(
-                                tts_text, voice="echo"
+                                tts_text, voice="echo", language_hint="en"
                             )
                             if err:
                                 st.error(f"Erreur TTS: {err}")
@@ -248,7 +258,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     if st.button("🔊 Ecouter", key=f"slang-tts-{si}"):
                         with st.spinner("Generation audio..."):
                             audio_bytes, mime, err = text_to_speech_openrouter(
-                                item["example"], voice="nova"
+                                item["example"], voice="nova", language_hint="en"
                             )
                             if err:
                                 st.error(f"Erreur TTS: {err}")
@@ -476,7 +486,10 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 if st.button("🔊 Ecouter le dialogue", key="dict_listen"):
                     with st.spinner("Generation audio du dialogue..."):
                         audio_bytes, mime, err = generate_dual_voice_tts(
-                            exercise["full_dialogue"], "echo", "nova"
+                            exercise["full_dialogue"],
+                            "echo",
+                            "nova",
+                            language_hint="en",
                         )
                         if err:
                             st.error(f"Erreur TTS: {err}")
@@ -795,7 +808,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 if st.button("🔊 Ecouter le dialogue", key="quiz_listen"):
                     with st.spinner("Generation audio..."):
                         audio_bytes, mime, err = generate_dual_voice_tts(
-                            quiz["dialogue"], "echo", "nova"
+                            quiz["dialogue"], "echo", "nova", language_hint="en"
                         )
                         if err:
                             st.error(f"Erreur TTS: {err}")
@@ -1197,7 +1210,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 ):
                     with st.spinner("Generation audio 2 voix..."):
                         audio_bytes, mime, err = generate_dual_voice_tts(
-                            sitcom["text"], voice_a, voice_b
+                            sitcom["text"], voice_a, voice_b, language_hint="en"
                         )
                         if err:
                             st.error(f"Erreur TTS: {err}")
@@ -1388,7 +1401,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     # but OpenRouter may not support it directly, so we generate normally
                     # and inform the user about the speed concept
                     audio_bytes, mime, err = text_to_speech_openrouter(
-                        speed_text, voice=speed_voice
+                        speed_text, voice=speed_voice, language_hint="en"
                     )
                     if err:
                         st.error(f"Erreur TTS: {err}")
@@ -1553,4 +1566,3 @@ maitrise au moins 50% du contenu de l'onglet en cours.
 # ═══════════════════════════════════════════════════════════════════════════════
 # LECONS ANGLAIS REEL — Mini-series americaines (A1 -> C2)
 # ═══════════════════════════════════════════════════════════════════════════════
-

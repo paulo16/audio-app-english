@@ -3,26 +3,37 @@ import json
 import os
 import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
+
 import requests
 import streamlit as st
 import streamlit.components.v1 as st_components
-from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
-from modules.config import *
-from modules.utils import *
-from modules.profiles import *
+
 from modules.ai_client import *
-from modules.lessons import *
-from modules.shadowing import *
-from modules.sessions import *
-from modules.podcasts import *
-from modules.stories import *
 from modules.ai_lessons import *
-from modules.vocabulary import *
+from modules.config import *
 from modules.immersion import *
+from modules.lessons import *
+from modules.podcasts import *
+from modules.profiles import *
 from modules.real_english import *
+from modules.real_english import (
+    _list_real_english_lessons,
+    _load_real_english_lesson,
+    _load_real_english_progress,
+    _mark_real_english_lesson_completed,
+    _real_english_lesson_path,
+    _save_real_english_lesson,
+    _save_real_english_progress,
+)
+from modules.sessions import *
+from modules.shadowing import *
+from modules.stories import *
+from modules.utils import *
 from modules.utils import _audio_player_with_repeat
-from modules.real_english import _list_real_english_lessons, _load_real_english_lesson, _load_real_english_progress, _mark_real_english_lesson_completed, _real_english_lesson_path, _save_real_english_lesson, _save_real_english_progress
+from modules.vocabulary import *
+
 
 def render_real_english_page():
     profile = get_active_profile()
@@ -354,7 +365,7 @@ def render_real_english_page():
                                 os.remove(ep["audio_path"])
                             with st.spinner("Regeneration audio..."):
                                 ab, mime, err = generate_dual_voice_tts(
-                                    ep["dialogue"], va, vb
+                                    ep["dialogue"], va, vb, language_hint="en"
                                 )
                                 if not err:
                                     os.makedirs(REAL_ENGLISH_AUDIO_DIR, exist_ok=True)
@@ -406,6 +417,7 @@ def render_real_english_page():
                             vb,
                             el_voice_a=el_va,
                             el_voice_b=el_vb,
+                            language_hint="en",
                         )
                         if err:
                             st.error(f"Erreur TTS: {err}")
@@ -445,6 +457,7 @@ def render_real_english_page():
                                         vb,
                                         el_voice_a=el_va,
                                         el_voice_b=el_vb,
+                                        language_hint="en",
                                     )
                                     if not err:
                                         os.makedirs(
@@ -553,6 +566,7 @@ def render_real_english_page():
                                         voice_elevenlabs_id=list(
                                             ELEVENLABS_VOICES.values()
                                         )[0],
+                                        language_hint="en",
                                     )
                                     if not err:
                                         os.makedirs(
@@ -810,3 +824,11 @@ def render_real_english_page():
                     lvl = h.get("level", "")
                     st.markdown(f"- {action} — {date} — {series} — {ep} ({lvl})")
 
+                    action = (
+                        "✅ Termine" if h.get("action") == "completed" else "↩️ Annule"
+                    )
+                    date = h.get("date", "")[:10]
+                    series = h.get("series", "")
+                    ep = h.get("episode", "")
+                    lvl = h.get("level", "")
+                    st.markdown(f"- {action} — {date} — {series} — {ep} ({lvl})")

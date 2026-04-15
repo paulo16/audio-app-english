@@ -419,6 +419,55 @@ def _format_translation_question(session_data, target, direction="fr_to_en"):
     return f"Comment dit-on en anglais : « {prompt_text} » ?"
 
 
+def _extract_tts_narration(contextual_question, direction="fr_to_en"):
+    """Extract ONLY the scenario/context portion from a contextual translation question.
+
+    Strips out the 'Comment dit-on / How would you say' question so that TTS
+    narrates the situation without the model trying to answer the question.
+    Returns the phrase to translate separately so it can be read as a standalone statement.
+    """
+    text = str(contextual_question or "").strip()
+    if not text:
+        return "", ""
+
+    # Split at the last sentence that contains the translation prompt.
+    # FR pattern: "Comment dit-on / comment dirais-tu / comment tu dis ... en anglais ?"
+    # EN pattern: "How would you say / How do you say ... in French?"
+    if direction == "fr_to_en":
+        # Find the question asking for translation — typically starts with "Comment"
+        split_pattern = r'(?:Comment\s+(?:dit-on|dirais-tu|tu\s+dis|diriez-vous)[^«»"]*[«"][^«»"]*[»"][^?]*\??)'
+        # Also extract the phrase between « »
+        phrase_match = re.search(r'[«""]([^«»""]+)[»""]', text)
+    else:
+        split_pattern = r'(?:How\s+(?:would|do|could)\s+you\s+(?:say|translate)[^"""]*["""][^"""]*["""][^?]*\??)'
+        phrase_match = re.search(r'["""]([^"""]+)["""]', text)
+
+    phrase_to_translate = phrase_match.group(1).strip() if phrase_match else ""
+
+    # Try to split: keep scenario, remove translation question
+    match = re.search(split_pattern, text, re.IGNORECASE)
+    if match:
+        scenario = text[: match.start()].strip()
+        if scenario:
+            return scenario, phrase_to_translate
+
+    # Fallback: split at last '?' — everything before it that looks like context
+    last_q = text.rfind("?")
+    if last_q > 0:
+        # Find the start of the question sentence
+        before_q = text[:last_q]
+        # Look for the last sentence boundary before the question
+        for sep in [". ", "! ", ".\n", "!\n"]:
+            idx = before_q.rfind(sep)
+            if idx > 0:
+                scenario = text[: idx + 1].strip()
+                if len(scenario) > 10:
+                    return scenario, phrase_to_translate
+
+    # Can't split — return the phrase alone for TTS (safest)
+    return "", phrase_to_translate
+
+
 def _starter_translation_question_text(session_data):
     meta = session_data.get("starter_drill_meta")
     if not isinstance(meta, dict):
@@ -998,9 +1047,23 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             "source_id": str(next_target.get("source_id") or "").strip(),
             "prompt_text": prompt_text,
             "contextual_question": contextual_question,
+            "tts_text": "",
             "feedback_blocks": [],
             "progress_line": "",
         }
+
+        # Build TTS-safe narration: scenario + phrase only, no translation question
+        scenario_part, phrase_part = _extract_tts_narration(
+            contextual_question, direction
+        )
+        if scenario_part and phrase_part:
+            drill_meta["tts_text"] = f"{scenario_part} {phrase_part}"
+        elif phrase_part:
+            drill_meta["tts_text"] = phrase_part
+        elif scenario_part:
+            drill_meta["tts_text"] = scenario_part
+        else:
+            drill_meta["tts_text"] = prompt_text
 
         feedback_blocks = []
         if isinstance(pending, dict) and eval_result:

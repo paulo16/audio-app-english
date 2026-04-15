@@ -5,9 +5,12 @@ import os
 import re
 import wave
 from datetime import datetime
+
 import requests
 import streamlit as st
+
 from modules.config import *
+
 
 def openrouter_headers(title="English Audio Coach"):
     return {
@@ -148,13 +151,19 @@ def _stream_tts_once(
     )
     if language_hint == "fr":
         base_system += (
-            " For this request, the spoken audio language MUST be French."
-            " Do not switch to English commentary."
+            " For this request, the text is written in FRENCH."
+            " You MUST read it aloud in French with native French pronunciation."
+            " Do NOT translate any part of it into English."
+            " Do NOT answer or respond to questions contained in the text."
+            " Just read every word in French exactly as written."
         )
     elif language_hint == "en":
         base_system += (
-            " For this request, the spoken audio language MUST be English."
-            " Do not switch to French commentary."
+            " For this request, the text is written in ENGLISH."
+            " You MUST read it aloud in English with a natural American accent."
+            " Do NOT translate any part of it into French."
+            " Do NOT answer or respond to questions contained in the text."
+            " Just read every word in English exactly as written."
         )
     if tone_hint:
         base_system += f" Deliver this line {tone_hint}."
@@ -180,7 +189,15 @@ def _stream_tts_once(
                         },
                         {
                             "role": "user",
-                            "content": f"Read this text aloud exactly as written:\n\n{text}",
+                            "content": (
+                                (
+                                    f"Read this {'French' if language_hint == 'fr' else 'English'}"
+                                    f" text aloud VERBATIM. This is a script to narrate, NOT a question to answer."
+                                    f" Do NOT translate or respond to it:\n\n{text}"
+                                )
+                                if language_hint
+                                else f"Read this text aloud exactly as written:\n\n{text}"
+                            ),
                         },
                     ],
                     "modalities": ["text", "audio"],
@@ -344,7 +361,7 @@ def _elevenlabs_quota_ok():
         return False, f"Impossible de verifier le quota ElevenLabs: {exc}"
 
 
-def text_to_speech_elevenlabs(text, voice_id=None):
+def text_to_speech_elevenlabs(text, voice_id=None, language_hint=None):
     """Generate speech using ElevenLabs API. Returns (audio_bytes, mime_type, error)."""
     if not ELEVENLABS_API_KEY:
         return None, None, "Cle API ElevenLabs manquante."
@@ -357,6 +374,19 @@ def text_to_speech_elevenlabs(text, voice_id=None):
     if voice_id is None:
         voice_id = list(ELEVENLABS_VOICES.values())[0]  # Rachel par defaut
 
+    payload = {
+        "text": text,
+        "model_id": "eleven_turbo_v2_5",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75,
+            "style": 0.3,
+            "use_speaker_boost": True,
+        },
+    }
+    if language_hint:
+        payload["language_code"] = language_hint
+
     try:
         resp = requests.post(
             f"{ELEVENLABS_BASE_URL}/text-to-speech/{voice_id}",
@@ -365,16 +395,7 @@ def text_to_speech_elevenlabs(text, voice_id=None):
                 "Content-Type": "application/json",
                 "Accept": "audio/mpeg",
             },
-            json={
-                "text": text,
-                "model_id": "eleven_turbo_v2_5",
-                "voice_settings": {
-                    "stability": 0.5,
-                    "similarity_boost": 0.75,
-                    "style": 0.3,
-                    "use_speaker_boost": True,
-                },
-            },
+            json=payload,
             timeout=120,
         )
         if resp.status_code == 401:
@@ -394,14 +415,18 @@ def text_to_speech_elevenlabs(text, voice_id=None):
         return None, None, f"Erreur ElevenLabs: {exc}"
 
 
-def generate_dual_voice_elevenlabs(dialogue_text, voice_a_id, voice_b_id):
+def generate_dual_voice_elevenlabs(
+    dialogue_text, voice_a_id, voice_b_id, language_hint=None
+):
     """Generate dialogue audio using ElevenLabs with two voices."""
     turns = parse_dialogue_to_turns(dialogue_text)
     if not turns:
         sub_chunks = split_text_for_tts(dialogue_text, max_chars=2000)
         audio_parts = []
         for chunk in sub_chunks:
-            ab, mime, err = text_to_speech_elevenlabs(chunk, voice_id=voice_a_id)
+            ab, mime, err = text_to_speech_elevenlabs(
+                chunk, voice_id=voice_a_id, language_hint=language_hint
+            )
             if err:
                 return None, None, err
             audio_parts.append(ab)
@@ -414,7 +439,9 @@ def generate_dual_voice_elevenlabs(dialogue_text, voice_a_id, voice_b_id):
         vid = voice_a_id if turn["speaker"] == "A" else voice_b_id
         sub_chunks = split_text_for_tts(turn["text"], max_chars=2000)
         for chunk in sub_chunks:
-            ab, mime, err = text_to_speech_elevenlabs(chunk, voice_id=vid)
+            ab, mime, err = text_to_speech_elevenlabs(
+                chunk, voice_id=vid, language_hint=language_hint
+            )
             if err:
                 return None, None, f"Erreur voix {turn['speaker']}: {err}"
             audio_parts.append(ab)
@@ -429,21 +456,34 @@ def get_tts_engine():
     return st.session_state.get("tts_engine", "default")
 
 
-def tts_smart(text, voice=TTS_VOICE, voice_elevenlabs_id=None, tone_hint=None):
+def tts_smart(
+    text, voice=TTS_VOICE, voice_elevenlabs_id=None, tone_hint=None, language_hint=None
+):
     """Unified TTS: routes to ElevenLabs or default based on session choice."""
     engine = get_tts_engine()
     if engine == "elevenlabs":
-        return text_to_speech_elevenlabs(text, voice_id=voice_elevenlabs_id)
-    return text_to_speech_openrouter(text, voice=voice, tone_hint=tone_hint)
+        return text_to_speech_elevenlabs(
+            text, voice_id=voice_elevenlabs_id, language_hint=language_hint
+        )
+    return text_to_speech_openrouter(
+        text, voice=voice, tone_hint=tone_hint, language_hint=language_hint
+    )
 
 
 def dual_voice_tts_smart(
-    dialogue_text, voice_a, voice_b, el_voice_a=None, el_voice_b=None
+    dialogue_text,
+    voice_a,
+    voice_b,
+    el_voice_a=None,
+    el_voice_b=None,
+    language_hint=None,
 ):
     """Unified dual-voice TTS: routes to ElevenLabs or default."""
     engine = get_tts_engine()
     if engine == "elevenlabs":
-        return generate_dual_voice_elevenlabs(dialogue_text, el_voice_a, el_voice_b)
+        return generate_dual_voice_elevenlabs(
+            dialogue_text, el_voice_a, el_voice_b, language_hint=language_hint
+        )
     return generate_dual_voice_tts(dialogue_text, voice_a, voice_b)
 
 
@@ -621,4 +661,3 @@ def split_text_for_tts(text, max_chars=1200):
     if current:
         chunks.append(" ".join(current))
     return chunks
-

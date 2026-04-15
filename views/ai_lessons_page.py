@@ -3,26 +3,29 @@ import json
 import os
 import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
+
 import requests
 import streamlit as st
 import streamlit.components.v1 as st_components
-from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
-from modules.config import *
-from modules.utils import *
-from modules.profiles import *
+
 from modules.ai_client import *
-from modules.lessons import *
-from modules.shadowing import *
-from modules.sessions import *
-from modules.podcasts import *
-from modules.stories import *
 from modules.ai_lessons import *
-from modules.vocabulary import *
-from modules.immersion import *
-from modules.real_english import *
-from modules.utils import _audio_player_with_repeat, _seconds_since_iso
 from modules.ai_lessons import _save_ai_lesson_example_audio
+from modules.config import *
+from modules.immersion import *
+from modules.lessons import *
+from modules.podcasts import *
+from modules.profiles import *
+from modules.real_english import *
+from modules.sessions import *
+from modules.shadowing import *
+from modules.stories import *
+from modules.utils import *
+from modules.utils import _audio_player_with_repeat, _seconds_since_iso
+from modules.vocabulary import *
+
 
 def render_ai_lessons_page():
     profile = get_active_profile()
@@ -141,6 +144,7 @@ def render_ai_lessons_page():
                             ab, _, tts_err = text_to_speech_openrouter(
                                 text,
                                 voice=lesson_voice,
+                                language_hint="en",
                             )
                             if tts_err:
                                 continue
@@ -175,6 +179,7 @@ def render_ai_lessons_page():
                                 ab, _, tts_err = text_to_speech_openrouter(
                                     text,
                                     voice=lesson_voice,
+                                    language_hint="en",
                                 )
                             if tts_err:
                                 st.error(tts_err)
@@ -218,6 +223,7 @@ def render_ai_lessons_page():
                             ab, _, tts_err = text_to_speech_openrouter(
                                 text,
                                 voice=lesson_voice,
+                                language_hint="en",
                             )
                         if tts_err:
                             st.error(tts_err)
@@ -382,3 +388,5 @@ def render_ai_lessons_page():
                 if improved:
                     st.markdown(f"**Version amelioree suggeree :** {improved}")
 
+                if improved:
+                    st.markdown(f"**Version amelioree suggeree :** {improved}")

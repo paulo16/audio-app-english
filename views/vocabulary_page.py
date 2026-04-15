@@ -3,26 +3,33 @@ import json
 import os
 import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
+
 import requests
 import streamlit as st
 import streamlit.components.v1 as st_components
-from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
-from modules.config import *
-from modules.utils import *
-from modules.profiles import *
+
 from modules.ai_client import *
-from modules.lessons import *
-from modules.shadowing import *
-from modules.sessions import *
-from modules.podcasts import *
-from modules.stories import *
 from modules.ai_lessons import *
-from modules.vocabulary import *
+from modules.config import *
 from modules.immersion import *
+from modules.lessons import *
+from modules.podcasts import *
+from modules.profiles import *
 from modules.real_english import *
+from modules.sessions import *
+from modules.shadowing import *
+from modules.stories import *
+from modules.utils import *
 from modules.utils import _audio_player_with_repeat
-from modules.vocabulary import _save_example_audio, _save_review_audio, _srs_update_rated
+from modules.vocabulary import *
+from modules.vocabulary import (
+    _save_example_audio,
+    _save_review_audio,
+    _srs_update_rated,
+)
+
 
 def render_vocabulary_page():
     profile = get_active_profile()
@@ -169,7 +176,7 @@ def render_vocabulary_page():
                     if st.button(f"🔊 Audio", key=f"vocab-ex-audio-{i}"):
                         with st.spinner("Génération audio…"):
                             audio_bytes, _, tts_err = text_to_speech_openrouter(
-                                ex, voice=voice
+                                ex, voice=voice, language_hint="en"
                             )
                         if tts_err:
                             st.error(tts_err)
@@ -512,7 +519,7 @@ def render_vocabulary_page():
                                 ):
                                     with st.spinner("Génération audio…"):
                                         _ab, _, _err = text_to_speech_openrouter(
-                                            txt, voice=hist_voice
+                                            txt, voice=hist_voice, language_hint="en"
                                         )
                                     if _err:
                                         st.error(_err)
@@ -542,7 +549,7 @@ def render_vocabulary_page():
                             ):
                                 with st.spinner("Génération audio…"):
                                     _ab, _, _err = text_to_speech_openrouter(
-                                        txt, voice=hist_voice
+                                        txt, voice=hist_voice, language_hint="en"
                                     )
                                 if _err:
                                     st.error(_err)
@@ -602,4 +609,3 @@ def render_vocabulary_page():
                             ]
                             save_vocab(all_entries, profile_id=profile_id)
                             st.rerun()
-
