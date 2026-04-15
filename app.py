@@ -870,7 +870,9 @@ def _stream_tts_once(text, model, voice, requested_format, tone_hint=None):
     last_conn_err = None
     # Build system prompt — add tone/emotion guidance when available
     base_system = (
-        "You are a text-to-speech narrator with a natural American accent. "
+        "You are a multilingual text-to-speech narrator. "
+        "If the text is primarily in French, use a natural native French pronunciation. "
+        "If the text is primarily in English, use a natural American accent. "
         "Your only job is to read the text provided by the user EXACTLY as written, "
         "word for word. Do NOT respond to the content, do NOT add commentary, "
         "do NOT answer questions in the text. "
@@ -2912,15 +2914,18 @@ def _build_translation_targets(
             lesson_label = source_id or "Lecon"
 
         candidates = []
+        dialogue_text_val = ""
         shadow_entry = shadowing_by_source.get(source_id)
         if shadow_entry:
             candidates.extend(shadow_entry.get("chunk_focus") or [])
             candidates.extend(shadow_entry.get("chunks") or [])
+            dialogue_text_val = shadow_entry.get("dialogue_text", "")
         elif source_id.startswith("real-english-"):
             lesson_id = source_id.replace("real-english-", "", 1)
             loaded = _load_real_english_lesson(profile_id, lesson_id)
             if isinstance(loaded, dict):
                 candidates.extend(_split_shadowing_chunks(loaded.get("dialogue", "")))
+                dialogue_text_val = loaded.get("dialogue", "")
 
         added_for_lesson = 0
         for raw in candidates:
@@ -2936,6 +2941,7 @@ def _build_translation_targets(
                     "lesson": lesson_label,
                     "expected_english": expected,
                     "source_id": source_id,
+                    "dialogue_text": dialogue_text_val,
                 }
             )
             seen_expected.add(key)
@@ -3049,6 +3055,176 @@ def _question_prompt_from_target(session_data, target, direction="fr_to_en"):
     return _translate_target_to_french(session_data, target)
 
 
+def _generate_contextual_question(session_data, target, direction="fr_to_en"):
+    """Generate a contextual translation question with a mini scenario instead of a bare phrase."""
+    expected_en = str(target.get("expected_english") or "").strip()
+    if not expected_en:
+        return None
+
+    cache = session_data.setdefault("contextual_question_cache", {})
+    # Versioned cache key so stricter prompt/validation can invalidate older noisy items.
+    cache_key = f"v3|{direction}|{expected_en.lower()}"
+    cached = cache.get(cache_key)
+    if cached:
+        return str(cached)
+
+    dialogue_context = str(target.get("dialogue_text") or "").strip()
+    if dialogue_context and len(dialogue_context) > 600:
+        dialogue_context = dialogue_context[:600] + "..."
+
+    expected_fr = _translate_target_to_french(session_data, target)
+
+    def _norm_for_match(text):
+        txt = str(text or "").lower()
+        txt = (
+            txt.replace("«", '"').replace("»", '"').replace("“", '"').replace("”", '"')
+        )
+        txt = re.sub(r"\s+", " ", txt).strip()
+        return txt
+
+    if direction == "fr_to_en":
+        # AI speaks FRENCH, user must translate to English
+        phrase_to_translate = _translate_target_to_french(session_data, target)
+        context_block = ""
+        if dialogue_context:
+            context_block = (
+                "\n\nVoici le dialogue d'origine (utilise-le pour créer la mise en situation, "
+                "sans dévoiler l'histoire) :\n"
+                f'"""\n{dialogue_context}\n"""'
+            )
+        prompt = (
+            "Tu es un professeur de langues. "
+            "Génère une COURTE mise en situation (1-2 phrases) ENTIÈREMENT EN FRANÇAIS "
+            "puis demande à l'élève de traduire la phrase ci-dessous en anglais. "
+            "Mets la phrase à traduire entre guillemets « ». "
+            f"{context_block}\n\n"
+            f"Phrase à traduire : « {phrase_to_translate} »\n\n"
+            "Exemple :\n"
+            "Tu retrouves un vieil ami au café après des années. Comment tu dis « Ça fait longtemps ! » en anglais ?\n\n"
+            "RÈGLES STRICTES :\n"
+            "- Écris TOUT en français (mise en situation + question)\n"
+            "- NE DONNE JAMAIS la traduction anglaise dans ta réponse\n"
+            "- NE DONNE JAMAIS la réponse\n"
+            "- N'ajoute PAS de section 'Réponse' ni 'Correction'\n"
+            "- Retourne UNIQUEMENT la mise en situation + question, rien d'autre"
+        )
+        forbidden_language_markers = [
+            "how do you",
+            "how would you",
+            "translate into",
+            "in french",
+            "answer:",
+            "solution:",
+        ]
+        answer_to_block = expected_en
+    else:
+        # AI speaks ENGLISH, user must translate to French
+        phrase_to_translate = expected_en
+        context_block = ""
+        if dialogue_context:
+            context_block = (
+                "\n\nHere is the original dialogue (use it to build the scenario, "
+                "without revealing the full story):\n"
+                f'"""\n{dialogue_context}\n"""'
+            )
+        prompt = (
+            "You are a language teacher. "
+            "Generate a SHORT scenario (1-2 sentences) ENTIRELY IN ENGLISH, "
+            "then ask the student to translate the phrase below into French. "
+            "Put the phrase to translate in quotes. "
+            f"{context_block}\n\n"
+            f'Phrase to translate: "{phrase_to_translate}"\n\n'
+            "Example:\n"
+            'A tour guide gives a safety instruction. How would you say "Please stay behind the line" in French?\n\n'
+            "STRICT RULES:\n"
+            "- Write EVERYTHING in English (scenario + question)\n"
+            "- NEVER include the French translation in your response\n"
+            "- NEVER give the answer\n"
+            "- Do NOT add any 'Answer' or 'Correction' section\n"
+            "- Return ONLY the scenario + question, nothing else"
+        )
+        forbidden_language_markers = [
+            "comment dit-on",
+            "traduis",
+            "en anglais",
+            "réponse",
+            "correction",
+            "solution",
+        ]
+        # Only block this when French translation differs from source sentence.
+        answer_to_block = (
+            expected_fr
+            if _norm_for_match(expected_fr) != _norm_for_match(expected_en)
+            else ""
+        )
+
+    phrase_norm = _norm_for_match(phrase_to_translate)
+    answer_norm = _norm_for_match(answer_to_block)
+
+    def _candidate_is_valid(candidate):
+        text = str(candidate or "").strip()
+        if len(text) < 10:
+            return False
+
+        norm = _norm_for_match(text)
+
+        # Ensure the asked phrase is actually present in the question.
+        if phrase_norm and phrase_norm not in norm:
+            return False
+
+        # Never leak the expected answer in the generated question.
+        if answer_norm and answer_norm in norm:
+            return False
+
+        if re.search(r"\b(answer|réponse|solution|correction)\b", norm):
+            return False
+
+        for marker in forbidden_language_markers:
+            if marker in norm:
+                return False
+
+        return True
+
+    # Try twice with a stricter second attempt if needed.
+    for temp in (0.35, 0.2):
+        raw, err = openrouter_chat(
+            [{"role": "user", "content": prompt}],
+            CHAT_MODEL,
+            temperature=temp,
+            max_tokens=140,
+        )
+        if err or not raw:
+            continue
+
+        result = str(raw).strip().strip('"').strip("'").strip()
+        if _candidate_is_valid(result):
+            cache[cache_key] = result
+            return result
+
+    # Deterministic fallback to guarantee language + no-answer leak.
+    if direction == "en_to_fr":
+        fallback = (
+            f'In this situation, how would you say "{phrase_to_translate}" in French?'
+        )
+    else:
+        fallback = f"Dans cette situation, comment dirais-tu « {phrase_to_translate} » en anglais ?"
+
+    cache[cache_key] = fallback
+    return fallback
+
+
+def _format_translation_question(session_data, target, direction="fr_to_en"):
+    """Return a contextual translation question, falling back to the classic format."""
+    contextual = _generate_contextual_question(session_data, target, direction)
+    if contextual:
+        return contextual
+
+    prompt_text = _question_prompt_from_target(session_data, target, direction)
+    if direction == "en_to_fr":
+        return f"How do you translate into French: « {prompt_text} » ?"
+    return f"Comment dit-on en anglais : « {prompt_text} » ?"
+
+
 def _starter_translation_question_text(session_data):
     meta = session_data.get("starter_drill_meta")
     if not isinstance(meta, dict):
@@ -3059,8 +3235,12 @@ def _starter_translation_question_text(session_data):
     if not prompt_text:
         return str(session_data.get("starter_ai_text") or "").strip()
 
+    contextual = str(meta.get("contextual_question") or "").strip()
+    if contextual:
+        return contextual
+
     if direction == "en_to_fr":
-        return f"Comment dit-on en français : {prompt_text} ?"
+        return f"How do you translate into French: {prompt_text} ?"
     return f"Comment dit-on en anglais : {prompt_text} ?"
 
 
@@ -3092,20 +3272,32 @@ def _evaluate_translation_attempt(
         prompt = (
             "Evaluate a learner English->French translation. "
             f"Target CEFR: {target}. "
-            "Check meaning preservation, grammar, and naturalness in French. "
+            "IMPORTANT: The learner answer comes from AUDIO (speech-to-text), so IGNORE all punctuation issues "
+            "(missing commas, periods, capitalization, apostrophes, etc.). "
+            "The expected answer below is ONE possible translation, but the learner may give a DIFFERENT "
+            "but equally valid translation. Accept ANY French translation that correctly conveys the same meaning, "
+            "even if the wording, structure, or vocabulary is completely different from the expected answer. "
+            "Only mark incorrect if the meaning is genuinely wrong or a key element is missing. "
+            "If the learner's answer is valid but different, mark correct and mention the alternative in feedback. "
             "Return ONLY JSON with this schema: "
             '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_answer":"natural corrected French sentence"}.\n\n'
-            f"Expected French: {expected}\n"
+            f"Expected French (one possible answer): {expected}\n"
             f"Learner answer: {learner}"
         )
     else:
         prompt = (
             "Evaluate a learner French->English translation. "
             f"Target CEFR: {target}. "
-            "Check meaning preservation, grammar, and naturalness. "
+            "IMPORTANT: The learner answer comes from AUDIO (speech-to-text), so IGNORE all punctuation issues "
+            "(missing commas, periods, capitalization, apostrophes, etc.). "
+            "The expected answer below is ONE possible translation, but the learner may give a DIFFERENT "
+            "but equally valid translation. Accept ANY English translation that correctly conveys the same meaning, "
+            "even if the wording, structure, or vocabulary is completely different from the expected answer. "
+            "Only mark incorrect if the meaning is genuinely wrong or a key element is missing. "
+            "If the learner's answer is valid but different, mark correct and mention the alternative in feedback. "
             "Return ONLY JSON with this schema: "
             '{"correct":true/false,"score":0-100,"feedback":"brief feedback in French","corrected_answer":"natural corrected English sentence"}.\n\n'
-            f"Expected English: {expected}\n"
+            f"Expected English (one possible answer): {expected}\n"
             f"Learner answer: {learner}"
         )
     raw, err = openrouter_chat(
@@ -3119,7 +3311,7 @@ def _evaluate_translation_attempt(
         ratio = SequenceMatcher(None, expected.lower(), learner.lower()).ratio()
         score = int(round(ratio * 100))
         return {
-            "correct": score >= 72,
+            "correct": score >= 60,
             "score": score,
             "feedback": "Évaluation automatique (fallback).",
             "corrected_answer": expected,
@@ -3131,7 +3323,7 @@ def _evaluate_translation_attempt(
         ratio = SequenceMatcher(None, expected.lower(), learner.lower()).ratio()
         score = int(round(ratio * 100))
         return {
-            "correct": score >= 72,
+            "correct": score >= 60,
             "score": score,
             "feedback": "Évaluation automatique (fallback).",
             "corrected_answer": expected,
@@ -3201,7 +3393,9 @@ def _propose_translation_variation_target(
         "lesson": lesson_name,
         "source_id": str(base_target.get("source_id") or "").strip(),
         "expected_english": candidate,
-        "mastery_key": str(base_target.get("mastery_key") or _translation_target_key(base_target)),
+        "mastery_key": str(
+            base_target.get("mastery_key") or _translation_target_key(base_target)
+        ),
     }
 
 
@@ -3400,15 +3594,20 @@ def new_session(
             total_unique = len(
                 {_translation_target_key(t) for t in translation_targets}
             )
+            question_line = _format_translation_question(data, first_target, direction)
+
             if direction == "en_to_fr":
-                question_line = f"Comment dit-on en français : « {prompt_text} » ?"
+                data["starter_ai_text"] = question_line
             else:
-                question_line = f"Comment dit-on en anglais : « {prompt_text} » ?"
-            data["starter_ai_text"] = (
-                "Mode traduction guidée activé.\n\n"
-                f"Progression leçon: 0/{max(total_unique, 1)}\n\n"
-                f"{question_line}"
-            )
+                data["starter_ai_text"] = question_line
+
+            if direction == "en_to_fr":
+                _starter_intro = "Translation drill started."
+                _starter_progress = f"Lesson progress: 0/{max(total_unique, 1)}"
+            else:
+                _starter_intro = "Mode traduction guidée activé."
+                _starter_progress = f"Progression leçon: 0/{max(total_unique, 1)}"
+
             data["starter_drill_meta"] = {
                 "drill": "fr_to_en",
                 "direction": direction,
@@ -3418,6 +3617,9 @@ def new_session(
                     first_target.get("expected_english") or ""
                 ).strip(),
                 "prompt_text": prompt_text,
+                "contextual_question": question_line,
+                "feedback_blocks": [_starter_intro],
+                "progress_line": _starter_progress,
             }
 
     save_session(data)
@@ -3661,7 +3863,9 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
 
             if eval_result.get("correct"):
                 mastered = session_data.setdefault("translation_mastered", [])
-                pkey = str(pending.get("mastery_key") or _translation_target_key(pending))
+                pkey = str(
+                    pending.get("mastery_key") or _translation_target_key(pending)
+                )
                 if pkey not in mastered:
                     mastered.append(pkey)
 
@@ -3704,15 +3908,25 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
                 else 0.0
             )
             session_data["pending_translation_target"] = None
-            done_msg = (
-                "🎉 Leçon de traduction terminée !\n"
-                f"Score provisoire: {avg_score}/100 ({mastered_count}/{max(total_unique, 1)} points maîtrisés).\n"
-                "Tu peux cliquer sur Évaluer pour le score final détaillé."
-            )
+            if direction == "en_to_fr":
+                done_msg = (
+                    "🎉 Translation lesson complete!\n"
+                    f"Provisional score: {avg_score}/100 ({mastered_count}/{max(total_unique, 1)} points mastered).\n"
+                    "You can click Evaluate for the final detailed score."
+                )
+            else:
+                done_msg = (
+                    "🎉 Leçon de traduction terminée !\n"
+                    f"Score provisoire: {avg_score}/100 ({mastered_count}/{max(total_unique, 1)} points maîtrisés).\n"
+                    "Tu peux cliquer sur Évaluer pour le score final détaillé."
+                )
             return done_msg, None, None
 
         session_data["pending_translation_target"] = next_target
         prompt_text = _question_prompt_from_target(session_data, next_target, direction)
+        contextual_question = _format_translation_question(
+            session_data, next_target, direction
+        )
 
         drill_meta = {
             "drill": "fr_to_en",
@@ -3721,41 +3935,62 @@ def get_ai_reply(session_data, user_text, elapsed_seconds=0):
             "expected_english": str(next_target.get("expected_english") or "").strip(),
             "source_id": str(next_target.get("source_id") or "").strip(),
             "prompt_text": prompt_text,
+            "contextual_question": contextual_question,
+            "feedback_blocks": [],
+            "progress_line": "",
         }
 
-        blocks = []
+        feedback_blocks = []
         if isinstance(pending, dict) and eval_result:
             score = int(eval_result.get("score", 0) or 0)
             feedback = str(eval_result.get("feedback") or "").strip()
             corrected = str(eval_result.get("corrected_answer") or "").strip()
-            if eval_result.get("correct"):
-                blocks.append(f"✅ Bien joué ({score}/100). {feedback}".strip())
-                if corrected:
-                    blocks.append(f"Forme naturelle: {corrected}")
+
+            if direction == "en_to_fr":
+                if eval_result.get("correct"):
+                    feedback_blocks.append(
+                        f"✅ Well done ({score}/100). {feedback}".strip()
+                    )
+                    if corrected:
+                        feedback_blocks.append(f"Natural form: {corrected}")
+                else:
+                    feedback_blocks.append(
+                        f"❌ Not quite ({score}/100). {feedback}".strip()
+                    )
+                    if corrected:
+                        feedback_blocks.append(f"Correction: {corrected}")
+                    feedback_blocks.append(
+                        "Here's a variation from the same lesson to try again."
+                    )
             else:
-                blocks.append(f"❌ Pas tout à fait ({score}/100). {feedback}".strip())
-                if corrected:
-                    blocks.append(f"Correction: {corrected}")
-                blocks.append(
-                    "Je te propose une variante pour réessayer dans la même leçon."
-                )
-        else:
-            blocks.append(
-                "Mode traduction guidée activé. Je te pose des phrases issues de ta leçon à réviser."
-            )
+                if eval_result.get("correct"):
+                    feedback_blocks.append(
+                        f"✅ Bien joué ({score}/100). {feedback}".strip()
+                    )
+                    if corrected:
+                        feedback_blocks.append(f"Forme naturelle: {corrected}")
+                else:
+                    feedback_blocks.append(
+                        f"❌ Pas tout à fait ({score}/100). {feedback}".strip()
+                    )
+                    if corrected:
+                        feedback_blocks.append(f"Correction: {corrected}")
+                    feedback_blocks.append(
+                        "Je te propose une variante pour réessayer dans la même leçon."
+                    )
 
-        blocks.append(f"Progression leçon: {mastered_count}/{max(total_unique, 1)}")
         if direction == "en_to_fr":
-            blocks.append(f"Comment dit-on en français : « {prompt_text} » ?")
+            progress_line = f"Lesson progress: {mastered_count}/{max(total_unique, 1)}"
         else:
-            blocks.append(f"Comment dit-on en anglais : « {prompt_text} » ?")
-
-        if elapsed_seconds >= 200:
-            blocks.append(
-                "⏰ Il reste moins de 40 secondes: donne une réponse courte puis clique sur Évaluer."
+            progress_line = (
+                f"Progression leçon: {mastered_count}/{max(total_unique, 1)}"
             )
 
-        return "\n\n".join(blocks), None, drill_meta
+        drill_meta["feedback_blocks"] = feedback_blocks
+        drill_meta["progress_line"] = progress_line
+
+        # ai_text = ONLY the question (matches what TTS reads)
+        return contextual_question, None, drill_meta
 
     messages = list(session_data["messages"])
 
@@ -6527,9 +6762,12 @@ def render_practice_page():
                 st.markdown(f"- Vous: {turn.get('user_text', '')}")
                 st.markdown(f"- IA: {turn.get('ai_text', '')}")
 
-    # ── Timer 4 minutes ──
-    MAX_SESSION_SECONDS = 240  # 4 min
-    WARN_SECONDS = 210  # avertir a 3:30
+    # ── Timer 4 minutes (Sauf pour la traduction qui finit à son rythme) ──
+    is_translation_drill = active_drill_key == "fr_to_en"
+    MAX_SESSION_SECONDS = (
+        3600 if is_translation_drill else 240
+    )  # 1h si traduction, sinon 4 min
+    WARN_SECONDS = 3600 if is_translation_drill else 210  # avertir a 3:30
     elapsed = get_elapsed_seconds(session_data)
     remaining = max(0, MAX_SESSION_SECONDS - elapsed)
     progress = min(1.0, elapsed / MAX_SESSION_SECONDS)
@@ -6540,26 +6778,32 @@ def render_practice_page():
         session_data.get("evaluation")
     )
 
-    if elapsed >= MAX_SESSION_SECONDS:
-        if allow_final_timeout_turn:
+    if not is_translation_drill:
+        if elapsed >= MAX_SESSION_SECONDS:
+            if allow_final_timeout_turn:
+                st.warning(
+                    f"⏰ Session de 4 minutes atteinte ({mins_e}:{secs_e:02d}). "
+                    "Envoyez un DERNIER message audio: l'IA vous repondra avant l'evaluation."
+                )
+            else:
+                st.error(
+                    f"⏰ Session de 4 minutes terminee ({mins_e}:{secs_e:02d})."
+                    " Obtenez votre evaluation ou demarrez une nouvelle session."
+                )
+        elif elapsed >= WARN_SECONDS:
             st.warning(
-                f"⏰ Session de 4 minutes atteinte ({mins_e}:{secs_e:02d}). "
-                "Envoyez un DERNIER message audio: l'IA vous repondra avant l'evaluation."
+                f"⚠️ Moins de 30 secondes restantes ({mins_r}:{secs_r:02d}) !"
+                " Terminez votre dernier echange rapidement."
             )
-        else:
-            st.error(
-                f"⏰ Session de 4 minutes terminee ({mins_e}:{secs_e:02d})."
-                " Obtenez votre evaluation ou demarrez une nouvelle session."
-            )
-    elif elapsed >= WARN_SECONDS:
-        st.warning(
-            f"⚠️ Moins de 30 secondes restantes ({mins_r}:{secs_r:02d}) !"
-            " Terminez votre dernier echange rapidement."
+        st.progress(
+            progress,
+            text=f"⏱️ {mins_e}:{secs_e:02d} ecoulees  |  {mins_r}:{secs_r:02d} restantes  (limite : 4:00)",
         )
-    st.progress(
-        progress,
-        text=f"⏱️ {mins_e}:{secs_e:02d} ecoulees  |  {mins_r}:{secs_r:02d} restantes  (limite : 4:00)",
-    )
+    else:
+        # Pour la traduction, on affiche juste la durée écoulée sans limite de progression
+        st.caption(
+            f"⏱️ {mins_e}:{secs_e:02d} ecoulees (la session se termine quand vous avez fini les phrases)."
+        )
 
     if active_drill_key == "conversation_stress":
         stress_limit = int(
@@ -6578,20 +6822,72 @@ def render_practice_page():
     # ── Conversation en cours (affichée AVANT l'input pour que l'input reste en bas) ──
     st.subheader("Conversation en cours")
     if not session_data["turns"]:
+        # Refresh starter question for translation drill sessions opened before recent prompt fixes.
+        if session_data.get("training_mode") == "fr_to_en":
+            _pending = session_data.get("pending_translation_target")
+            _direction = str(
+                session_data.get("training_settings", {}).get(
+                    "translation_direction", "fr_to_en"
+                )
+            )
+            if isinstance(_pending, dict):
+                _fresh_question = _format_translation_question(
+                    session_data, _pending, _direction
+                )
+                _current_starter = str(
+                    session_data.get("starter_ai_text") or ""
+                ).strip()
+                if _fresh_question and _fresh_question != _current_starter:
+                    session_data["starter_ai_text"] = _fresh_question
+                    _meta = session_data.get("starter_drill_meta")
+                    if not isinstance(_meta, dict):
+                        _meta = {"drill": "fr_to_en"}
+                    _meta["direction"] = _direction
+                    _meta["lesson"] = str(_pending.get("lesson") or "").strip()
+                    _meta["source_id"] = str(_pending.get("source_id") or "").strip()
+                    _meta["expected_english"] = str(
+                        _pending.get("expected_english") or ""
+                    ).strip()
+                    _meta["prompt_text"] = _question_prompt_from_target(
+                        session_data, _pending, _direction
+                    )
+                    _meta["contextual_question"] = _fresh_question
+                    session_data["starter_drill_meta"] = _meta
+                    # Force audio regeneration with the refreshed question text.
+                    session_data["starter_ai_audio_path"] = ""
+                    session_data["starter_ai_audio_mime"] = "audio/wav"
+                    save_session(session_data)
+                    st.session_state.active_session = session_data
+
         starter_text = str(session_data.get("starter_ai_text") or "").strip()
         if session_data.get("training_mode") == "fr_to_en" and starter_text:
+            # Show intro/progress OUTSIDE the chat bubble for translation drills
+            _s_meta = session_data.get("starter_drill_meta")
+            if isinstance(_s_meta, dict):
+                _s_fb = _s_meta.get("feedback_blocks")
+                if isinstance(_s_fb, list):
+                    for fb_line in _s_fb:
+                        st.info(fb_line)
+                _s_prog = _s_meta.get("progress_line", "")
+                if _s_prog:
+                    st.caption(_s_prog)
+
             with st.chat_message("assistant"):
                 st.markdown(starter_text)
 
                 starter_audio_path = str(
                     session_data.get("starter_ai_audio_path") or ""
                 ).strip()
-                starter_audio_mime = str(
-                    session_data.get("starter_ai_audio_mime") or "audio/wav"
-                ).strip() or "audio/wav"
+                starter_audio_mime = (
+                    str(
+                        session_data.get("starter_ai_audio_mime") or "audio/wav"
+                    ).strip()
+                    or "audio/wav"
+                )
 
                 if not starter_audio_path or not os.path.exists(starter_audio_path):
-                    speech_text = _starter_translation_question_text(session_data)
+                    # starter_text is now ONLY the question (matches TTS)
+                    speech_text = starter_text
                     if speech_text:
                         with st.spinner(
                             "Lecture automatique de la premiere phrase de revision..."
@@ -6616,9 +6912,7 @@ def render_practice_page():
                             )
                         elif audio_bytes:
                             audio_ext = ext_from_mime(audio_mime)
-                            audio_name = (
-                                f"{session_data['id']}-starter-ai.{audio_ext}"
-                            )
+                            audio_name = f"{session_data['id']}-starter-ai.{audio_ext}"
                             starter_audio_path = save_audio_bytes(
                                 audio_name, audio_bytes
                             )
@@ -6630,13 +6924,10 @@ def render_practice_page():
                             st.rerun()
 
                 if starter_audio_path and os.path.exists(starter_audio_path):
-                    starter_audio_dom_id = (
-                        "starter_ai_audio_"
-                        + re.sub(
-                            r"[^a-zA-Z0-9_]",
-                            "_",
-                            str(session_data.get("id") or "starter"),
-                        )
+                    starter_audio_dom_id = "starter_ai_audio_" + re.sub(
+                        r"[^a-zA-Z0-9_]",
+                        "_",
+                        str(session_data.get("id") or "starter"),
                     )
                     with open(starter_audio_path, "rb") as _sf:
                         _sab64 = base64.b64encode(_sf.read()).decode()
@@ -6659,7 +6950,6 @@ def render_practice_page():
                         """,
                         height=80,
                     )
-                    st.audio(starter_audio_path)
         else:
             st.write(
                 "Aucun echange pour le moment — enregistrez votre premier message ci-dessous."
@@ -6670,6 +6960,23 @@ def render_practice_page():
                 st.markdown(turn["user_text"])
                 if os.path.exists(turn["user_audio_path"]):
                     st.audio(turn["user_audio_path"])
+
+            # For translation drills: show feedback/progress OUTSIDE the AI chat bubble
+            _turn_drill = turn.get("drill_meta")
+            if isinstance(_turn_drill, dict) and _turn_drill.get("drill") == "fr_to_en":
+                _fb = _turn_drill.get("feedback_blocks")
+                if isinstance(_fb, list) and _fb:
+                    for fb_line in _fb:
+                        if fb_line.startswith("✅"):
+                            st.success(fb_line)
+                        elif fb_line.startswith("❌"):
+                            st.error(fb_line)
+                        else:
+                            st.info(fb_line)
+                _prog = _turn_drill.get("progress_line", "")
+                if _prog:
+                    st.caption(_prog)
+
             with st.chat_message("assistant"):
                 st.markdown(turn["ai_text"])
                 ai_path = turn.get("ai_audio_path", "")
@@ -6702,9 +7009,7 @@ def render_practice_page():
     st.divider()
 
     if session_data.get("evaluation"):
-        st.info(
-            "Session terminee. Pour continuer, demarrez une nouvelle session."
-        )
+        st.info("Session terminee. Pour continuer, demarrez une nouvelle session.")
         if st.button("🔁 Recommencer une nouvelle session", type="primary"):
             st.session_state.active_session = None
             st.session_state.pop("practice_last_processed_audio", None)
@@ -6796,9 +7101,12 @@ def render_practice_page():
                 if err:
                     st.error(f"Erreur transcription: {err}")
                 else:
-                    session_data["messages"].append(
-                        {"role": "user", "content": user_text}
-                    )
+                    # For translation drills, don't accumulate messages in history
+                    # (the drill logic doesn't use message history)
+                    if not is_translation_drill:
+                        session_data["messages"].append(
+                            {"role": "user", "content": user_text}
+                        )
                     with st.spinner("L'IA prepare sa reponse..."):
                         ai_text, err, drill_meta = get_ai_reply(
                             session_data, user_text, elapsed_seconds=elapsed
@@ -6806,12 +7114,15 @@ def render_practice_page():
                     if err:
                         st.error(f"Erreur reponse IA: {err}")
                     else:
-                        session_data["messages"].append(
-                            {"role": "assistant", "content": ai_text}
-                        )
+                        if not is_translation_drill:
+                            session_data["messages"].append(
+                                {"role": "assistant", "content": ai_text}
+                            )
                         with st.spinner("Synthese vocale..."):
+                            # ai_text is now ONLY the question for translation drills
+                            tts_text = ai_text
                             ai_audio_bytes, ai_audio_mime, err = (
-                                text_to_speech_openrouter(ai_text)
+                                text_to_speech_openrouter(tts_text)
                             )
                         if err:
                             ai_audio_mime = "audio/wav"
