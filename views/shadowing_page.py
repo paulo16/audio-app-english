@@ -20,14 +20,17 @@ from modules.profiles import *
 from modules.real_english import *
 from modules.sessions import *
 from modules.shadowing import *
-from modules.shadowing import (_audio_duration_seconds,
-                               _render_shadowing_phrase_detail,
-                               _shadowing_day_entry_to_state,
-                               _shadowing_mismatch_feedback,
-                               _shadowing_record_seconds,
-                               _shadowing_records_summary,
-                               _shadowing_score_label, _shadowing_score_scales,
-                               _split_shadowing_chunks)
+from modules.shadowing import (
+    _audio_duration_seconds,
+    _render_shadowing_phrase_detail,
+    _shadowing_day_entry_to_state,
+    _shadowing_mismatch_feedback,
+    _shadowing_record_seconds,
+    _shadowing_records_summary,
+    _shadowing_score_label,
+    _shadowing_score_scales,
+    _split_shadowing_chunks,
+)
 from modules.stories import *
 from modules.utils import *
 from modules.utils import _audio_player_with_repeat
@@ -265,18 +268,18 @@ def render_shadowing_daily_page():
                         (
                             '<audio id="shadow_autoplay" autoplay style="display:none">'
                             f'<source src="data:audio/wav;base64,{_ab64}">'
-                            '</audio>'
-                            '<script>'
-                            '(function(){'
+                            "</audio>"
+                            "<script>"
+                            "(function(){"
                             '  var a=document.getElementById("shadow_autoplay");'
                             '  if(a && "mediaSession" in navigator){'
                             '    navigator.mediaSession.metadata=new MediaMetadata({title:"Shadowing",artist:"AI Tutor",album:"Shadowing Session"});'
                             '    navigator.mediaSession.playbackState="playing";'
                             '    a.addEventListener("pause",function(){navigator.mediaSession.playbackState="paused";});'
                             '    a.addEventListener("play",function(){navigator.mediaSession.playbackState="playing";});'
-                            '  }'
-                            '})();'
-                            '</script>'
+                            "  }"
+                            "})();"
+                            "</script>"
                         ),
                         height=0,
                     )
@@ -439,14 +442,3 @@ def render_shadowing_daily_page():
 
     # ── Recommencer + run history (full width, below columns) ──
     _render_recommencer_and_history()
-
-        detail_container = st.container(height=500)
-        with detail_container:
-            if records_fresh:
-                _render_shadowing_phrase_detail(records_fresh)
-            else:
-                st.info("Les resultats apparaitront ici au fur et a mesure.")
-
-    # ── Recommencer + run history (full width, below columns) ──
-    _render_recommencer_and_history()
-
