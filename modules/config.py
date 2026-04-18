@@ -146,7 +146,7 @@ ESSENTIAL_THEMES = {
     "Dentist & specialist visits": "Handle appointments, describe concerns, understand treatment plans.",
     # — Work & Professional —
     "Job interviews": "Answer common questions, sell your skills, ask smart closing questions.",
-    "Tech job interviews (Dev & IT Teacher)": "Practice real software developer and CS teacher interview scenarios: whiteboard questions, system design, teaching demos, behavioral STAR answers, and salary negotiation in tech.",
+    "Example of job interviews (Dev & IT Teacher)": "Practice real software developer and CS teacher interview scenarios: whiteboard questions, system design, teaching demos, behavioral STAR answers, and salary negotiation in tech.",
     "Office & workplace dynamics": "Discuss tasks, deadlines, teamwork, and professional relationships.",
     "Meetings & presentations": "Lead or participate in meetings, present ideas clearly and confidently.",
     "Networking & professional events": "Start conversations, exchange contacts, make lasting impressions.",
@@ -237,7 +237,7 @@ THEME_CATEGORIES = {
     ],
     "Travail & Professionnel": [
         "Job interviews",
-        "Tech job interviews (Dev & IT Teacher)",
+        "Example of job interviews (Dev & IT Teacher)",
         "Office & workplace dynamics",
         "Meetings & presentations",
         "Networking & professional events",
