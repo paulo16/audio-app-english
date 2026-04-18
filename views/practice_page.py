@@ -525,6 +525,12 @@ def render_practice_page():
                             document.addEventListener("click", tryPlay, {{ once: true }});
                             document.addEventListener("keydown", tryPlay, {{ once: true }});
                             document.addEventListener("touchstart", tryPlay, {{ once: true }});
+                            if ('mediaSession' in navigator) {{
+                              navigator.mediaSession.metadata = new MediaMetadata({{title:'English Practice',artist:'AI Tutor',album:'Practice Session'}});
+                              navigator.mediaSession.playbackState = 'playing';
+                              a.addEventListener('pause', () => {{ navigator.mediaSession.playbackState = 'paused'; }});
+                              a.addEventListener('play',  () => {{ navigator.mediaSession.playbackState = 'playing'; }});
+                            }}
                           }})();
                         </script>
                         """,
@@ -570,9 +576,20 @@ def render_practice_page():
                         with open(ai_path, "rb") as _af:
                             _ab64 = base64.b64encode(_af.read()).decode()
                         st_components.html(
-                            f'<audio autoplay style="width:100%" controls>'
+                            f'<audio id="autoplay_turn_audio" autoplay style="width:100%" controls>'
                             f'<source src="data:{mime};base64,{_ab64}">'
-                            f"</audio>",
+                            f"</audio>"
+                            f"<script>"
+                            f"(function(){{"
+                            f'  var a=document.getElementById("autoplay_turn_audio");'
+                            f'  if(a && "mediaSession" in navigator){{'
+                            f'    navigator.mediaSession.metadata=new MediaMetadata({{title:"English Practice",artist:"AI Tutor",album:"Practice Session"}});'
+                            f'    navigator.mediaSession.playbackState="playing";'
+                            f'    a.addEventListener("pause",function(){{navigator.mediaSession.playbackState="paused";}});'
+                            f'    a.addEventListener("play",function(){{navigator.mediaSession.playbackState="playing";}});'
+                            f"  }}"
+                            f"}})();"
+                            f"</script>",
                             height=60,
                         )
                         st.session_state.pop("autoplay_turn", None)
