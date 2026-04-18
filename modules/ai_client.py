@@ -597,7 +597,7 @@ def parse_dialogue_to_turns(dialogue_text):
     return turns
 
 
-def generate_dual_voice_tts(dialogue_text, voice_a, voice_b):
+def generate_dual_voice_tts(dialogue_text, voice_a, voice_b, language_hint=None):
     """Generate dialogue audio giving voice_a to speaker A and voice_b to speaker B.
     Parses turns FIRST, then splits long individual turns — never pre-splits the full
     script so that speaker labels are never lost.
