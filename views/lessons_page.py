@@ -145,8 +145,24 @@ def render_lessons_page():
             if st.session_state.get(var_cache_key) and st.button(
                 "Regenerer", key=f"regen-variations-{slugify(theme_name)}-{cefr_level}"
             ):
-                del st.session_state[var_cache_key]
-                st.rerun()
+                with st.spinner("Regeneration des 10 dialogues par IA..."):
+                    ai_variations, err = generate_quick_variations_ai(
+                        theme_name,
+                        cefr_level=cefr_level,
+                        custom_instructions=custom_instr_var,
+                    )
+                if err:
+                    st.error(f"Erreur generation variations: {err}")
+                else:
+                    save_quick_variations(
+                        theme_name,
+                        ai_variations,
+                        cefr_level,
+                        profile_id=profile_id,
+                    )
+                    st.session_state[var_cache_key] = ai_variations
+                    st.success("10 variations regenerees et sauvegardees.")
+                    st.rerun()
 
         variations = st.session_state.get(var_cache_key)
         if not variations:
@@ -359,6 +375,34 @@ def render_lessons_page():
                     st.success("Pack genere et sauvegarde.")
                     st.rerun()
         else:
+            custom_instr_pack = st.text_area(
+                "Instructions supplementaires (optionnel)",
+                value="",
+                height=80,
+                placeholder="Ex: Inclure du vocabulaire medical, ajouter un contexte professionnel, utiliser des expressions du Sud des USA...",
+                key=f"custom-instr-pack-regen-{slugify(theme_name)}-{cefr_level}",
+            )
+            if st.button(
+                "Regenerer le pack complet",
+                key=f"pack-regen-{slugify(theme_name)}-{cefr_level}",
+            ):
+                with st.spinner("Regeneration de 5 conversations en cours..."):
+                    generated, err = generate_five_minute_pack(
+                        theme_name,
+                        cefr_level=cefr_level,
+                        custom_instructions=custom_instr_pack,
+                    )
+                if err:
+                    st.error(f"Erreur generation pack: {err}")
+                else:
+                    save_lesson_pack(
+                        theme_name,
+                        generated,
+                        cefr_level,
+                        profile_id=profile_id,
+                    )
+                    st.success("Pack regenere et sauvegarde.")
+                    st.rerun()
             for idx, lesson in enumerate(pack, start=1):
                 with st.expander(
                     f"Conversation {idx}: {lesson.get('title', 'Untitled')}"
