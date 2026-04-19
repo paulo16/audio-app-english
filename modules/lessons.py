@@ -17,7 +17,7 @@ from modules.utils import extract_json_from_text, now_iso, slugify
 from modules.vocabulary import load_vocab, save_vocab
 
 
-def generate_quick_variations_ai(theme_name, cefr_level="B1"):
+def generate_quick_variations_ai(theme_name, cefr_level="B1", custom_instructions=""):
     """Generate 10 realistic themed variations via OpenRouter AI at the given CEFR level."""
     cefr = CEFR_DESCRIPTORS[cefr_level]
     idiom_rule = (
@@ -43,6 +43,9 @@ Requirements:
 {idiom_rule}
 - Situations to cover (one per dialogue):
 {situations_list}
+{f'''
+Additional instructions from the learner:
+{custom_instructions}''' if custom_instructions.strip() else ''}
 
 Return ONLY valid JSON (no markdown, no explanation) with this exact schema:
 [
@@ -171,7 +174,7 @@ def load_lesson_audio(file_name):
         return f.read()
 
 
-def generate_five_minute_pack(theme_name, cefr_level="B1"):
+def generate_five_minute_pack(theme_name, cefr_level="B1", custom_instructions=""):
     cefr = CEFR_DESCRIPTORS[cefr_level]
     idiom_rule = (
         f"- Prefer very common daily chunks and avoid advanced idioms for {cefr_level}."
@@ -193,6 +196,9 @@ Constraints:
 - Practical daily-life context directly related to the theme.
 {idiom_rule}
 - Each conversation targets a different sub-situation within the theme.
+{f'''
+Additional instructions from the learner:
+{custom_instructions}''' if custom_instructions.strip() else ''}
 
 Return only valid JSON in this schema:
 [

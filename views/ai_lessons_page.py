@@ -74,6 +74,14 @@ def render_ai_lessons_page():
             key="ai-lessons-count",
         )
 
+    custom_instr_ai = st.text_area(
+        "Instructions supplementaires (optionnel)",
+        value="",
+        height=80,
+        placeholder="Ex: Focus sur les phrasal verbs, ajouter des exercices de prononciation, inclure du vocabulaire technique...",
+        key="ai-lessons-custom-instr",
+    )
+
     if st.button(
         "Generer / Regenerer mes lecons personnalisees",
         type="primary",
@@ -85,6 +93,7 @@ def render_ai_lessons_page():
                 session_limit=session_limit,
                 lesson_count=lesson_count,
                 target_cefr=ai_level,
+                custom_instructions=custom_instr_ai,
             )
         if err:
             st.error(f"Erreur generation lecons: {err}")

@@ -51,7 +51,7 @@ def _recent_practice_sessions(limit=12):
 
 
 def generate_ai_lessons_from_sessions(
-    session_limit=12, lesson_count=4, target_cefr="B1"
+    session_limit=12, lesson_count=4, target_cefr="B1", custom_instructions=""
 ):
     sessions = _recent_practice_sessions(limit=session_limit)
     if not sessions:
@@ -90,6 +90,9 @@ Target CEFR for the generated practice material: {target} ({cefr['label']}).
 Language calibration:
 {cefr['english']}
 Create exactly {lesson_count} practical lessons to improve daily conversation fluency.
+{f'''
+Additional instructions from the learner:
+{custom_instructions}''' if custom_instructions.strip() else ''}
 
 Return ONLY valid JSON array with this exact schema:
 [

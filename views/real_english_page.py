@@ -156,6 +156,14 @@ def render_real_english_page():
                                 st.session_state.pop("re_current_lesson_id", None)
                             st.rerun()
 
+        custom_instr_re = st.text_area(
+            "Instructions supplementaires (optionnel)",
+            value="",
+            height=80,
+            placeholder="Ex: La scene se passe dans un bar sportif, inclure de l'argot californien, ajouter une dispute amicale...",
+            key="re-custom-instr",
+        )
+
         if st.button("Generer cet episode", key="re_generate"):
             with st.spinner("L'IA ecrit un dialogue authentique..."):
                 level_instr = REAL_ENGLISH_LEVEL_INSTRUCTIONS.get(re_level, "")
@@ -198,6 +206,7 @@ def render_real_english_page():
                     f"context in this dialogue.\n"
                     f"3. COMPREHENSION_QS: 3 quick comprehension questions about the dialogue "
                     f"(in English) with answers.\n\n"
+                    f"{('Additional instructions from the learner:\n' + custom_instr_re + '\n\n') if custom_instr_re.strip() else ''}"
                     f"Format as JSON:\n"
                     f'{{"dialogue": "full dialogue text using A: and B: labels with [stage directions]", '
                     f'"characters": ["Name1", "Name2"], '

@@ -111,6 +111,13 @@ def render_lessons_page():
                 st.session_state[var_cache_key] = saved_vars
 
         col_btn, col_del = st.columns([3, 1])
+        custom_instr_var = st.text_area(
+            "Instructions supplementaires (optionnel)",
+            value="",
+            height=80,
+            placeholder="Ex: Inclure du vocabulaire medical, ajouter un contexte professionnel, utiliser des expressions du Sud des USA...",
+            key=f"custom-instr-var-{slugify(theme_name)}-{cefr_level}",
+        )
         with col_btn:
             if st.button(
                 "Generer les 10 variations par IA (dialogues realistes)",
@@ -118,7 +125,9 @@ def render_lessons_page():
             ):
                 with st.spinner("Generation des 10 dialogues par IA..."):
                     ai_variations, err = generate_quick_variations_ai(
-                        theme_name, cefr_level=cefr_level
+                        theme_name,
+                        cefr_level=cefr_level,
+                        custom_instructions=custom_instr_var,
                     )
                 if err:
                     st.error(f"Erreur generation variations: {err}")
@@ -321,13 +330,22 @@ def render_lessons_page():
             st.info(
                 "Aucun pack genere pour ce theme/niveau. Cliquez pour le creer avec OpenRouter."
             )
+            custom_instr_pack = st.text_area(
+                "Instructions supplementaires (optionnel)",
+                value="",
+                height=80,
+                placeholder="Ex: Inclure du vocabulaire medical, ajouter un contexte professionnel, utiliser des expressions du Sud des USA...",
+                key=f"custom-instr-pack-{slugify(theme_name)}-{cefr_level}",
+            )
             if st.button(
                 "Generer le pack complet",
                 key=f"pack-{slugify(theme_name)}-{cefr_level}",
             ):
                 with st.spinner("Creation de 5 conversations en cours..."):
                     generated, err = generate_five_minute_pack(
-                        theme_name, cefr_level=cefr_level
+                        theme_name,
+                        cefr_level=cefr_level,
+                        custom_instructions=custom_instr_pack,
                     )
                 if err:
                     st.error(f"Erreur generation pack: {err}")
