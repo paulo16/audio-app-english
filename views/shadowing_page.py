@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from streamlit_autorefresh import st_autorefresh
 
 from modules.ai_client import *
@@ -264,7 +263,7 @@ def render_shadowing_daily_page():
                 try:
                     with open(chunk_audio_path, "rb") as _af:
                         _ab64 = base64.b64encode(_af.read()).decode("utf-8")
-                    st_components.html(
+                    st.html(
                         (
                             '<audio id="shadow_autoplay" autoplay style="display:none">'
                             f'<source src="data:audio/wav;base64,{_ab64}">'
@@ -281,7 +280,7 @@ def render_shadowing_daily_page():
                             "})();"
                             "</script>"
                         ),
-                        height=0,
+                        unsafe_allow_javascript=True,
                     )
                     st.session_state[autoplay_state_key] = autoplay_chunk_marker
                 except Exception:

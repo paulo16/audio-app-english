@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from streamlit_autorefresh import st_autorefresh
 
 from modules.ai_client import *
@@ -511,7 +510,7 @@ def render_practice_page():
                     )
                     with open(starter_audio_path, "rb") as _sf:
                         _sab64 = base64.b64encode(_sf.read()).decode()
-                    st_components.html(
+                    st.html(
                         f"""
                         <audio id="{starter_audio_dom_id}" autoplay controls style="width:100%">
                           <source src="data:{starter_audio_mime};base64,{_sab64}">
@@ -534,7 +533,7 @@ def render_practice_page():
                           }})();
                         </script>
                         """,
-                        height=80,
+                        unsafe_allow_javascript=True,
                     )
         else:
             st.write(
@@ -575,7 +574,7 @@ def render_practice_page():
                         mime = st.session_state.get("autoplay_audio_mime", "audio/wav")
                         with open(ai_path, "rb") as _af:
                             _ab64 = base64.b64encode(_af.read()).decode()
-                        st_components.html(
+                        st.html(
                             f'<audio id="autoplay_turn_audio" autoplay style="width:100%" controls>'
                             f'<source src="data:{mime};base64,{_ab64}">'
                             f"</audio>"
@@ -590,7 +589,7 @@ def render_practice_page():
                             f"  }}"
                             f"}})();"
                             f"</script>",
-                            height=60,
+                            unsafe_allow_javascript=True,
                         )
                         st.session_state.pop("autoplay_turn", None)
                         st.session_state.pop("autoplay_audio_path", None)

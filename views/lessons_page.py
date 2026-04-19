@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from streamlit_autorefresh import st_autorefresh
 
 from modules.ai_client import *

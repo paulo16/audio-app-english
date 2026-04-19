@@ -5,7 +5,6 @@ import uuid
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 
 from modules.ai_client import (
     concatenate_wav_bytes,
@@ -278,7 +277,7 @@ buildOrd();renderList();play(0);
 </script>
 </body>
 </html>"""
-    st_components.html(player_html, height=height, scrolling=False)
+    st.html(player_html, unsafe_allow_javascript=True)
 
 
 # ── Stories page ──────────────────────────────────────────────────────────────

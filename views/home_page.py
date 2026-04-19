@@ -3,24 +3,26 @@ import json
 import os
 import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
+
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
-from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
-from modules.config import *
-from modules.utils import *
-from modules.profiles import *
+
 from modules.ai_client import *
-from modules.lessons import *
-from modules.shadowing import *
-from modules.sessions import *
-from modules.podcasts import *
-from modules.stories import *
 from modules.ai_lessons import *
-from modules.vocabulary import *
+from modules.config import *
 from modules.immersion import *
+from modules.lessons import *
+from modules.podcasts import *
+from modules.profiles import *
 from modules.real_english import *
+from modules.sessions import *
+from modules.shadowing import *
+from modules.stories import *
+from modules.utils import *
+from modules.vocabulary import *
+
 
 def render_home():
     st.header("Objectif: A1 -> C2 American English")
@@ -70,4 +72,3 @@ def render_home():
 5. 1-2 fois par semaine, relis l'**Historique** pour verifier les erreurs recurrentes.
 """
     )
-

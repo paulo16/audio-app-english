@@ -11,7 +11,6 @@ from difflib import SequenceMatcher
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from dotenv import load_dotenv
 from streamlit_autorefresh import st_autorefresh
 

@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from streamlit_autorefresh import st_autorefresh
 
 from modules.ai_client import *
@@ -18,15 +17,13 @@ from modules.lessons import *
 from modules.podcasts import *
 from modules.profiles import *
 from modules.real_english import *
-from modules.real_english import (
-    _list_real_english_lessons,
-    _load_real_english_lesson,
-    _load_real_english_progress,
-    _mark_real_english_lesson_completed,
-    _real_english_lesson_path,
-    _save_real_english_lesson,
-    _save_real_english_progress,
-)
+from modules.real_english import (_list_real_english_lessons,
+                                  _load_real_english_lesson,
+                                  _load_real_english_progress,
+                                  _mark_real_english_lesson_completed,
+                                  _real_english_lesson_path,
+                                  _save_real_english_lesson,
+                                  _save_real_english_progress)
 from modules.sessions import *
 from modules.shadowing import *
 from modules.stories import *

@@ -8,11 +8,13 @@ import uuid
 import wave
 from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
+
 import requests
 import streamlit as st
-import streamlit.components.v1 as st_components
 from streamlit_autorefresh import st_autorefresh
+
 from modules.config import *
+
 
 def ensure_directories():
     for path in [
@@ -138,7 +140,7 @@ def _audio_player_with_repeat(audio_bytes, mime_type="audio/wav", key="audio_rpt
     }})();
     </script>
     """
-    st_components.html(html, height=110)
+    st.html(html, unsafe_allow_javascript=True)
 
 
 def extract_json_from_text(text):
@@ -211,4 +213,3 @@ def _seconds_since_iso(iso_text):
     if not dt:
         return 0
     return max(0, int((utc_now() - dt).total_seconds()))
-
