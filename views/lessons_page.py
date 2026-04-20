@@ -191,10 +191,21 @@ def render_lessons_page():
                         f"var-{profile_slug}-{slugify(theme_name)}-"
                         f"{cefr_level.lower()}-{item['id']}.wav"
                     )
+                    # Legacy filenames (before profile slugs were added)
+                    _var_legacy = [
+                        f"var-{slugify(theme_name)}-{cefr_level.lower()}-{item['id']}.wav",
+                        f"var-default-{slugify(theme_name)}-{cefr_level.lower()}-{item['id']}.wav",
+                    ]
+                    if cefr_level.upper() == "B1":
+                        _var_legacy.append(
+                            f"var-{slugify(theme_name)}-{item['id']}.wav"
+                        )
 
                     # Load from disk if not already in session_state
                     if audio_key not in st.session_state:
-                        cached = load_lesson_audio(audio_disk_file)
+                        cached = load_lesson_audio(
+                            audio_disk_file, fallback_names=_var_legacy
+                        )
                         if cached:
                             st.session_state[audio_key] = {
                                 "bytes": cached,
@@ -427,10 +438,19 @@ def render_lessons_page():
                         f"pack-{profile_slug}-{slugify(theme_name)}-"
                         f"{cefr_level.lower()}-{idx}.wav"
                     )
+                    # Legacy filenames (before profile slugs were added)
+                    _pack_legacy = [
+                        f"pack-{slugify(theme_name)}-{cefr_level.lower()}-{idx}.wav",
+                        f"pack-default-{slugify(theme_name)}-{cefr_level.lower()}-{idx}.wav",
+                    ]
+                    if cefr_level.upper() == "B1":
+                        _pack_legacy.append(f"pack-{slugify(theme_name)}-{idx}.wav")
 
                     # Load from disk if not already in session_state
                     if btn_key not in st.session_state:
-                        cached = load_lesson_audio(audio_disk_file)
+                        cached = load_lesson_audio(
+                            audio_disk_file, fallback_names=_pack_legacy
+                        )
                         if cached:
                             st.session_state[btn_key] = {
                                 "bytes": cached,

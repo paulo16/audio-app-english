@@ -166,12 +166,23 @@ def save_lesson_audio(file_name, audio_bytes):
     return path
 
 
-def load_lesson_audio(file_name):
+def load_lesson_audio(file_name, fallback_names=None):
     path = lesson_audio_path(file_name)
-    if not os.path.exists(path):
-        return None
-    with open(path, "rb") as f:
-        return f.read()
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return f.read()
+    # Try legacy filenames and auto-migrate if found
+    for alt in fallback_names or []:
+        alt_path = lesson_audio_path(alt)
+        if os.path.exists(alt_path):
+            try:
+                os.rename(alt_path, path)
+            except OSError:
+                pass
+            read_path = path if os.path.exists(path) else alt_path
+            with open(read_path, "rb") as f:
+                return f.read()
+    return None
 
 
 def generate_five_minute_pack(theme_name, cefr_level="B1", custom_instructions=""):
