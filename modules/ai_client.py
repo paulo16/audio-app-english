@@ -616,7 +616,10 @@ def generate_dual_voice_tts(dialogue_text, voice_a, voice_b, language_hint=None)
             return None, None, "Aucun audio genere."
         if len(wav_parts) == 1:
             return wav_parts[0], "audio/wav", None
-        return concatenate_wav_bytes(wav_parts), "audio/wav", None
+        try:
+            return concatenate_wav_bytes(wav_parts), "audio/wav", None
+        except Exception as exc:
+            return None, None, f"Erreur concatenation audio (mono): {exc}"
 
     wav_parts = []
     for turn in turns:

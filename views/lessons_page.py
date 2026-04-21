@@ -337,11 +337,21 @@ def render_lessons_page():
                                     item["dialogue"],
                                     voice_a,
                                     voice_b,
+                                    language_hint="en",
                                 )
                             if err:
                                 st.error(f"Erreur TTS: {err}")
+                            elif not audio_bytes:
+                                st.error(
+                                    "Erreur: aucun audio recu du serveur TTS. Reessayez."
+                                )
                             else:
-                                save_lesson_audio(audio_disk_file, audio_bytes)
+                                try:
+                                    save_lesson_audio(audio_disk_file, audio_bytes)
+                                except Exception as save_err:
+                                    st.warning(
+                                        f"Audio genere mais non sauvegarde sur disque: {save_err}"
+                                    )
                                 st.session_state[audio_key] = {
                                     "bytes": audio_bytes,
                                     "mime": mime_type,
@@ -586,8 +596,17 @@ def render_lessons_page():
                                 )
                             if err:
                                 st.error(f"Erreur TTS: {err}")
+                            elif not audio_bytes:
+                                st.error(
+                                    "Erreur: aucun audio recu du serveur TTS. Reessayez."
+                                )
                             else:
-                                save_lesson_audio(audio_disk_file, audio_bytes)
+                                try:
+                                    save_lesson_audio(audio_disk_file, audio_bytes)
+                                except Exception as save_err:
+                                    st.warning(
+                                        f"Audio genere mais non sauvegarde sur disque: {save_err}"
+                                    )
                                 st.session_state[btn_key] = {
                                     "bytes": audio_bytes,
                                     "mime": mime_type,
