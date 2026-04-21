@@ -99,6 +99,17 @@ def _audio_player_with_repeat(audio_bytes, mime_type="audio/wav", key="audio_rpt
       var maxCount = 0;
       var played = 0;
 
+      a.addEventListener('play', function() {{
+        if ('mediaSession' in navigator) {{
+          navigator.mediaSession.metadata = new MediaMetadata({{
+            title: 'Audio en anglais',
+            artist: 'English Practice'
+          }});
+          navigator.mediaSession.setActionHandler('play', function() {{ a.play(); }});
+          navigator.mediaSession.setActionHandler('pause', function() {{ a.pause(); }});
+        }}
+      }});
+
       window.toggleLoop_{uid} = function() {{
         looping = !looping;
         countMode = false;

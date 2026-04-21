@@ -246,12 +246,22 @@ function renderList(){{
   const items=document.querySelectorAll('#tl li');
   if(items[ci])items[ci].scrollIntoView({{block:'nearest'}});
 }}
+function updateMS(label){{
+  if('mediaSession' in navigator){{
+    const au=document.getElementById('au');
+    navigator.mediaSession.metadata=new MediaMetadata({{title:label,artist:'English Audio',album:'{title_line}'}});
+    navigator.mediaSession.setActionHandler('play',()=>au.play());
+    navigator.mediaSession.setActionHandler('pause',()=>au.pause());
+    navigator.mediaSession.setActionHandler('nexttrack',next);
+    navigator.mediaSession.setActionHandler('previoustrack',prev);
+  }}
+}}
 function play(idx){{
   ci=idx;const au=document.getElementById('au');
   au.src=T[idx].src;
   document.getElementById('tit').textContent=T[idx].label;
   document.getElementById('ctr').textContent=(idx+1)+' / '+T.length;
-  au.play();renderList();
+  au.play();renderList();updateMS(T[idx].label);
 }}
 function next(){{
   if(shuf){{const p=ord.indexOf(ci);play(ord[(p+1)%ord.length]);}}
