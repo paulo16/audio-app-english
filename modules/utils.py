@@ -151,7 +151,13 @@ def _audio_player_with_repeat(audio_bytes, mime_type="audio/wav", key="audio_rpt
     }})();
     </script>
     """
-    st.html(html, unsafe_allow_javascript=True)
+    import warnings
+
+    import streamlit.components.v1 as _cv1
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        _cv1.html(html, height=110)
 
 
 def extract_json_from_text(text):
@@ -223,4 +229,5 @@ def _seconds_since_iso(iso_text):
     dt = _parse_iso(iso_text)
     if not dt:
         return 0
+    return max(0, int((utc_now() - dt).total_seconds()))
     return max(0, int((utc_now() - dt).total_seconds()))

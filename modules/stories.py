@@ -287,7 +287,13 @@ buildOrd();renderList();play(0);
 </script>
 </body>
 </html>"""
-    st.html(player_html, unsafe_allow_javascript=True)
+    import warnings
+
+    import streamlit.components.v1 as _cv1
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        _cv1.html(player_html, height=height)
 
 
 # ── Stories page ──────────────────────────────────────────────────────────────
