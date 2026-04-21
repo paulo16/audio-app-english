@@ -116,6 +116,3 @@ def render_playlist_page():
         st.success(f"{len(tracks)} audio(s) au total — {summary}")
         title_line = f"Mix — {len(selected_themes)} thème(s)"
         _render_audio_player(tracks, title_line)
-
-        title_line = f"Mix — {len(selected_themes)} thème(s)"
-        _render_audio_player(tracks, title_line)

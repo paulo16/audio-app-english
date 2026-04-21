@@ -140,7 +140,9 @@ def _audio_player_with_repeat(audio_bytes, mime_type="audio/wav", key="audio_rpt
     }})();
     </script>
     """
-    st.html(html, unsafe_allow_javascript=True)
+    import streamlit.components.v1 as components
+
+    components.html(html, height=110)
 
 
 def extract_json_from_text(text):

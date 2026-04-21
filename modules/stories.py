@@ -277,7 +277,9 @@ buildOrd();renderList();play(0);
 </script>
 </body>
 </html>"""
-    st.html(player_html, unsafe_allow_javascript=True)
+    import streamlit.components.v1 as components
+
+    components.html(player_html, height=height)
 
 
 # ── Stories page ──────────────────────────────────────────────────────────────
