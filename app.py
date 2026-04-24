@@ -13,6 +13,7 @@ from views.ai_lessons_page import render_ai_lessons_page
 from views.history_page import render_history_page
 from views.home_page import render_home
 from views.lessons_page import render_lessons_page
+from views.michel_thomas_page import render_michel_thomas_page
 from views.natural_english_page import render_natural_english_page
 from views.playlist_page import render_playlist_page
 from views.podcast_page import render_podcast_page
@@ -138,6 +139,7 @@ def main():
             "Accueil",
             "Lecons (Ecoute)",
             "Lecons basees sur echanges IA",
+            "Michel Thomas (Audio + Repetition)",
             "Anglais naturel",
             "Anglais reel (Mini-series)",
             "Histoires",
@@ -183,6 +185,8 @@ def main():
         render_lessons_page()
     elif page == "Lecons basees sur echanges IA":
         render_ai_lessons_page()
+    elif page == "Michel Thomas (Audio + Repetition)":
+        render_michel_thomas_page()
     elif page == "Anglais naturel":
         render_natural_english_page()
     elif page == "Anglais reel (Mini-series)":

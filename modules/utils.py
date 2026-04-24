@@ -42,6 +42,8 @@ def ensure_directories():
         IMMERSION_GENERATED_DIR,
         REAL_ENGLISH_DIR,
         REAL_ENGLISH_AUDIO_DIR,
+        MICHEL_THOMAS_DIR,
+        MICHEL_THOMAS_AUDIO_DIR,
     ]:
         os.makedirs(path, exist_ok=True)
 

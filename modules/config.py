@@ -488,6 +488,141 @@ STORY_NARRATOR_VOICES = {
     "Fable (narrateur)": "fable",
 }
 
+# ── Michel Thomas Method ────────────────────────────────────────────────────
+MICHEL_THOMAS_DIR = os.path.join(DATA_DIR, "michel_thomas")
+MICHEL_THOMAS_AUDIO_DIR = os.path.join(DATA_DIR, "michel_thomas_audio")
+
+# ── Michel Thomas Perfectionnement (CD 8-11, vrais audios) ──────────────────
+MT_PERFECTIONNEMENT_BASE_DIR = (
+    r"D:\Perso-search\anglais\michel_thomas_methode\michel_thomas"
+)
+MT_PERFECTIONNEMENT_SESSION_DIR = os.path.join(
+    DATA_DIR, "michel_thomas_perfectionnement"
+)
+MT_PERFECTIONNEMENT_DISCS = {
+    "Disc 8 — 2nd Conditionnel & Modaux": {
+        "folder": "Anglais Perfectionnement Disc 8",
+        "concepts": [
+            "2nd Conditionnel — If I had... I would...",
+            "Modaux avancés — would, could, should (politesse & hypothèse)",
+            "Passif présent — It is done / It is made",
+        ],
+    },
+    "Disc 9 — 3rd Conditionnel & Infinitif": {
+        "folder": "Anglais Perfectionnement Disk 9",
+        "concepts": [
+            "3rd Conditionnel — If I had known, I would have...",
+            "Passif passé — It was done / It has been done",
+            "want / need / expect + infinitif (I want you to...)",
+        ],
+    },
+    "Disc 10 — Reported Speech & Inversion": {
+        "folder": "Anglais Perfectionnement Disk 10",
+        "concepts": [
+            "Reported Speech — She said that..., He told me that...",
+            "Questions rapportées — He asked me if..., She wanted to know whether...",
+            "Inversion pour l'emphase — Never have I..., Rarely do I...",
+        ],
+    },
+    "Disc 11 — Mixed Conditionals & Révision B2": {
+        "folder": "Anglais Perfectionnement Disk 11",
+        "concepts": [
+            "Mixed Conditionals — If I had studied harder, I would be...",
+            "Nominalisation — the improvement of, a reduction in",
+            "Révision B2 — structures complexes & naturelles",
+        ],
+    },
+}
+
+MT_TENSES_BY_LEVEL = {
+    "A1": [
+        "Present Simple — be & have (I am, I have)",
+        "Present Simple — action verbs (I work, I like)",
+        "There is / There are",
+        "Possessive adjectives (my, your, his, her...)",
+    ],
+    "A2": [
+        "Present Continuous (I am working)",
+        "Past Simple — regular verbs (I worked, I played)",
+        "Past Simple — irregular verbs (I went, I saw, I had)",
+        "Future with 'going to' (I am going to travel)",
+        "Future with 'will' (I will call you)",
+    ],
+    "B1": [
+        "Present Perfect — ever/never (Have you ever been to...?)",
+        "Present Perfect — for/since (I have lived here for 3 years)",
+        "Past Continuous (I was working when...)",
+        "First Conditional (If I have time, I will...)",
+        "Modal verbs — can, could, should, must, have to",
+    ],
+    "B2": [
+        "Past Perfect (I had already finished when...)",
+        "Second Conditional (If I had more money, I would...)",
+        "Passive Voice — present & past (It is made, It was done)",
+        "Reported Speech (She said that she was tired)",
+        "Modal verbs — might, ought to, would rather, need not",
+    ],
+    "C1": [
+        "Third Conditional (If I had known, I would have...)",
+        "Mixed Conditionals (If I had studied, I would be...)",
+        "Inversion for emphasis (Never have I seen..., Hardly had she...)",
+        "Subjunctive (I suggest that he be present, It is vital that she attend)",
+        "Advanced Passive — progressive & perfect (The work is being done, It has been decided)",
+    ],
+    "C2": [
+        "Cleft sentences for emphasis (What I need is..., It was John who...)",
+        "Nominalisation (the improvement of, a reduction in)",
+        "Nuanced modals in past (must have, can't have, should have, needn't have)",
+        "Discourse markers & cohesion (Nevertheless, Notwithstanding, In so far as...)",
+        "Register & idiomatic shifts (formal ↔ colloquial paraphrasing)",
+    ],
+}
+
+MT_THEMES_BY_LEVEL = {
+    "A1": [
+        "Introductions & small talk",
+        "Numbers, time & dates",
+        "Food & drinks",
+        "Family & relationships",
+        "Describing people & things",
+    ],
+    "A2": [
+        "Shopping & errands",
+        "Travel & transport",
+        "Daily routines & habits",
+        "Weather & seasons",
+        "Hobbies & free time",
+    ],
+    "B1": [
+        "Work & career",
+        "Health & wellbeing",
+        "Technology & gadgets",
+        "Travel experiences & plans",
+        "Opinions & preferences",
+    ],
+    "B2": [
+        "Social issues & news",
+        "Environment & sustainability",
+        "Media & entertainment",
+        "Business & negotiations",
+        "Education & personal development",
+    ],
+    "C1": [
+        "Culture & arts",
+        "Politics & society",
+        "Science & innovation",
+        "Abstract ideas & philosophy",
+        "Professional communication",
+    ],
+    "C2": [
+        "Literary & rhetorical analysis",
+        "Ethical debates & moral dilemmas",
+        "Academic writing & discourse",
+        "Nuanced cross-cultural communication",
+        "Idiomatic mastery & register shifts",
+    ],
+}
+
 PRACTICE_DRILL_MODES = {
     "Standard fluency": {
         "key": "standard",
