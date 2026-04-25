@@ -889,71 +889,123 @@ def _update_lesson_practice_audio(profile_id, sid, pair_idx, field, new_path):
 
 
 def build_lesson_narration_script(lesson: dict) -> str:
-    """Build a spoken narration script of the full lesson (in French, with English examples).
+    """Build a spoken narration script of the full lesson in a natural teacher style.
 
+    Structure: examples FIRST (Michel Thomas method), then explanation, then tips.
     Returns a plain text string suitable for TTS.
     """
     parts = []
-
     title = lesson.get("title_fr", "")
-    if title:
-        parts.append(f"Leçon : {title}.")
-        parts.append("")
-
+    examples = lesson.get("examples", [])
     what = lesson.get("what_is_it_fr", "")
-    if what:
-        parts.append(what)
-        parts.append("")
-
-    when = lesson.get("when_to_use_fr", "")
-    if when:
-        parts.append("On l'utilise dans ces situations.")
-        for line in when.split("\n"):
-            line = line.lstrip("•- ").strip()
-            if line:
-                parts.append(line + ".")
-        parts.append("")
-
+    analogy = lesson.get("analogy_fr", "")
     struct = lesson.get("structure", {})
     affirmative = struct.get("affirmative", "")
     negative = struct.get("negative", "")
     question = struct.get("question", "")
-    if affirmative or negative or question:
-        parts.append("Voici la structure :")
-        if affirmative:
-            parts.append(f"Forme affirmative : {affirmative}.")
-        if negative:
-            parts.append(f"Forme négative : {negative}.")
-        if question:
-            parts.append(f"Forme interrogative : {question}.")
+    when_raw = lesson.get("when_to_use_fr", "")
+    when_lines = [
+        l.lstrip("•- ").strip() for l in when_raw.split("\n") if l.strip().lstrip("•- ")
+    ]
+    kp = lesson.get("key_points_fr", [])
+
+    # ── Introduction ───────────────────────────────────────────────────────
+    if title:
+        parts.append(f"Bienvenue dans cette leçon sur : {title}.")
         parts.append("")
 
-    analogy = lesson.get("analogy_fr", "")
+    # ── Step 1 : examples FIRST, without explanation (Michel Thomas method) ─
+    listen_examples = [ex for ex in examples if ex.get("english")][:3]
+    if listen_examples:
+        parts.append(
+            "Avant que j'explique quoi que ce soit, écoute d'abord ces phrases en anglais. "
+            "Essaie de sentir ce qui se passe, même si tu ne comprends pas encore tout."
+        )
+        parts.append("")
+        for ex in listen_examples:
+            parts.append(ex["english"] + ".")
+            parts.append("")
+        parts.append(
+            "Tu as senti quelque chose ? Ces phrases ont toutes quelque chose en commun. "
+            "On va maintenant comprendre exactement ce que c'est."
+        )
+        parts.append("")
+
+    # ── Step 2 : explanation ───────────────────────────────────────────────
+    if what:
+        parts.append(what)
+        parts.append("")
+
     if analogy:
+        parts.append("Voici une façon simple de t'en souvenir :")
         parts.append(analogy)
         parts.append("")
 
-    kp = lesson.get("key_points_fr", [])
-    if kp:
-        parts.append("Points importants à retenir.")
-        for i, point in enumerate(kp, 1):
-            parts.append(f"Point {i} : {point}.")
+    # ── Step 3 : structure ─────────────────────────────────────────────────
+    if affirmative or negative or question:
+        parts.append("Voyons maintenant comment construire cette structure.")
+        if affirmative:
+            parts.append(f"Pour la forme affirmative, c'est : {affirmative}.")
+        if negative:
+            parts.append(f"Pour la forme négative : {negative}.")
+        if question:
+            parts.append(f"Et pour poser une question : {question}.")
         parts.append("")
 
-    examples = lesson.get("examples", [])
+    # ── Step 4 : when to use ───────────────────────────────────────────────
+    if when_lines:
+        parts.append("Quand est-ce qu'on utilise ça concrètement ?")
+        for line in when_lines:
+            parts.append(line + ".")
+        parts.append("")
+
+    # ── Step 5 : all examples WITH translations ────────────────────────────
     if examples:
-        parts.append("Voici maintenant des exemples.")
+        parts.append(
+            "Maintenant, reprenons tous les exemples — cette fois avec la traduction en français. "
+            "Écoute bien la structure en anglais."
+        )
         parts.append("")
         for i, ex in enumerate(examples, 1):
             en = ex.get("english", "")
             fr = ex.get("french", "")
-            if en and fr:
-                parts.append(f"Exemple {i}.")
-                parts.append(f"En anglais : {en}.")
-                parts.append(f"En français : {fr}.")
-                parts.append("")
+            if not en:
+                continue
+            intro = [
+                "Premier exemple.",
+                "Deuxième exemple.",
+                "Troisième exemple.",
+                "Quatrième exemple.",
+                "Cinquième exemple.",
+            ]
+            parts.append(intro[i - 1] if i <= 5 else f"Exemple {i}.")
+            parts.append(en + ".")
+            if fr:
+                parts.append(f"Ce qui veut dire en français : {fr}.")
+            parts.append("")
 
-    parts.append("C'est tout pour cette leçon. À toi de pratiquer maintenant !")
+    # ── Step 6 : tips & common mistakes ───────────────────────────────────
+    if kp:
+        parts.append(
+            "Avant de passer à la pratique, voici les points clés à garder en tête."
+        )
+        parts.append("")
+        for i, point in enumerate(kp, 1):
+            intros = [
+                "Première chose importante :",
+                "Deuxième chose à retenir :",
+                "Troisième astuce :",
+                "Et enfin :",
+            ]
+            label = intros[i - 1] if i <= len(intros) else f"Point {i} :"
+            parts.append(f"{label} {point}.")
+            parts.append("")
+
+    # ── Closing ───────────────────────────────────────────────────────────
+    parts.append(
+        "Voilà pour la leçon ! Tu as maintenant tout ce qu'il faut pour t'entraîner. "
+        "Passe à la partie pratique et essaie de traduire les phrases par toi-même. Allez, on y va !"
+    )
     return "\n".join(parts)
 
 
@@ -1215,5 +1267,23 @@ def _update_themed_dialogue_line_audio(profile_id, sid, line_idx, new_path):
     for s in all_sessions:
         if s["id"] == sid and line_idx < len(s.get("lines", [])):
             s["lines"][line_idx]["audio_path_en"] = new_path
+            break
+    save_mt_themed_dialogues(all_sessions, profile_id)
+
+
+def _save_dialogue_full_audio(session_id: str, audio_bytes: bytes) -> str:
+    """Persist the full concatenated dialogue audio."""
+    os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(MICHEL_THOMAS_AUDIO_DIR, f"tdial-{session_id}_full.wav")
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _update_dialogue_full_audio(profile_id, sid, new_path):
+    all_sessions = load_mt_themed_dialogues(profile_id)
+    for s in all_sessions:
+        if s["id"] == sid:
+            s["full_audio_path"] = new_path
             break
     save_mt_themed_dialogues(all_sessions, profile_id)

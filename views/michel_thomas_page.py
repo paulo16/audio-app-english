@@ -14,10 +14,12 @@ from modules.config import (
     STORY_NARRATOR_VOICES,
 )
 from modules.michel_thomas import (
+    _save_dialogue_full_audio,
     _save_lesson_course_audio,
     _save_lesson_example_audio,
     _save_lesson_practice_audio,
     _save_themed_dialogue_line_audio,
+    _update_dialogue_full_audio,
     _update_lesson_course_audio_path,
     _update_lesson_example_audio,
     _update_lesson_practice_audio,
@@ -45,6 +47,29 @@ def _load_audio(path):
         with open(path, "rb") as f:
             return f.read()
     return None
+
+
+def _concat_wav_files(paths):
+    """Concatenate WAV files into one. Returns bytes or None."""
+    valid = [p for p in paths if p and os.path.exists(p)]
+    if not valid:
+        return None
+    try:
+        params = None
+        frames_list = []
+        for p in valid:
+            with wave.open(p, "rb") as wf:
+                if params is None:
+                    params = wf.getparams()
+                frames_list.append(wf.readframes(wf.getnframes()))
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wout:
+            wout.setparams(params)
+            for frames in frames_list:
+                wout.writeframes(frames)
+        return buf.getvalue()
+    except Exception:
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -741,27 +766,52 @@ def _render_dialogue_tab(profile, profile_id):
             )
             voice = voices[voice_idx]
 
-        gen_col, _ = st.columns([2, 3])
+        gen_col, qty_col, _ = st.columns([2, 1, 2])
         with gen_col:
             gen_btn = st.button(
-                "✨ Générer le dialogue",
+                "✨ Générer le(s) dialogue(s)",
                 key="dial_gen_btn",
                 type="primary",
                 use_container_width=True,
             )
+        with qty_col:
+            gen_qty = st.number_input(
+                "Quantité",
+                min_value=1,
+                max_value=5,
+                value=1,
+                step=1,
+                key="dial_gen_qty",
+                help="Nombre de dialogues à générer d'un coup",
+            )
 
     if gen_btn:
-        with st.spinner(f"Génération du dialogue « {theme} »..."):
-            session, err = generate_themed_dialogue(
-                theme, grammar_focus, level, profile_id
-            )
-        if err:
-            st.error(f"Erreur : {err}")
-        else:
-            sessions = load_mt_themed_dialogues(profile_id)
-            sessions.insert(0, session)
-            save_mt_themed_dialogues(sessions, profile_id)
-            st.session_state["dial_active_sid"] = session["id"]
+        qty = int(st.session_state.get("dial_gen_qty", 1))
+        last_sid = None
+        errors = []
+        prog = st.progress(0) if qty > 1 else None
+        for i in range(qty):
+            with st.spinner(
+                f"Génération du dialogue « {theme} »"
+                + (f" ({i + 1}/{qty})" if qty > 1 else "")
+                + "..."
+            ):
+                session, err = generate_themed_dialogue(
+                    theme, grammar_focus, level, profile_id
+                )
+            if err:
+                errors.append(err)
+            else:
+                sessions = load_mt_themed_dialogues(profile_id)
+                sessions.insert(0, session)
+                save_mt_themed_dialogues(sessions, profile_id)
+                last_sid = session["id"]
+            if prog:
+                prog.progress((i + 1) / qty)
+        if errors:
+            st.error(" | ".join(errors))
+        if last_sid:
+            st.session_state["dial_active_sid"] = last_sid
             st.rerun()
 
     sessions = load_mt_themed_dialogues(profile_id)
@@ -821,21 +871,61 @@ def _render_dialogue_session(session, sid, profile_id, voice):
     fresh = next((s for s in fresh_sessions if s["id"] == sid), session)
     lines = fresh.get("lines", [])
 
-    missing = [
-        l
+    all_have_audio = lines and all(
+        l.get("audio_path_en") and os.path.exists(l.get("audio_path_en", ""))
         for l in lines
-        if not (l.get("audio_path_en") and os.path.exists(l.get("audio_path_en", "")))
-    ]
-    if missing:
+    )
+
+    # ── Full audio (single player) ─────────────────────────────────────────────
+    full_audio_path = fresh.get("full_audio_path", "")
+    full_audio_bytes = _load_audio(full_audio_path) if full_audio_path else None
+
+    if full_audio_bytes:
+        st.markdown("#### 🎧 Dialogue complet")
+        st.audio(full_audio_bytes, format="audio/wav")
+        if st.button("🔄 Regénérer l'audio complet", key=f"regen_full_{sid}"):
+            prog = st.progress(0)
+            for li, line in enumerate(lines):
+                ab, _, tts_err = text_to_speech_openrouter(
+                    line.get("line_en", ""), voice=voice, language_hint="en"
+                )
+                if not tts_err and ab:
+                    p = _save_themed_dialogue_line_audio(sid, li, ab)
+                    _update_themed_dialogue_line_audio(profile_id, sid, li, p)
+                    lines[li]["audio_path_en"] = p
+                prog.progress((li + 1) / len(lines))
+            merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
+            if merged:
+                fp = _save_dialogue_full_audio(sid, merged)
+                _update_dialogue_full_audio(profile_id, sid, fp)
+            st.rerun()
+        st.markdown("---")
+    elif all_have_audio:
         gen_col, _ = st.columns([2, 3])
         with gen_col:
             if st.button(
-                "🔊 Générer audio toutes les lignes",
+                "🔗 Fusionner en un seul audio",
+                key=f"merge_audio_{sid}",
+                type="primary",
+                use_container_width=True,
+            ):
+                merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
+                if merged:
+                    fp = _save_dialogue_full_audio(sid, merged)
+                    _update_dialogue_full_audio(profile_id, sid, fp)
+                    st.rerun()
+                else:
+                    st.error("Impossible de fusionner les audios.")
+    else:
+        gen_col, _ = st.columns([2, 3])
+        with gen_col:
+            if st.button(
+                "🔊 Générer l'audio du dialogue",
                 key=f"gen_all_audio_{sid}",
+                type="primary",
                 use_container_width=True,
             ):
                 prog = st.progress(0)
-                total = len(lines)
                 for li, line in enumerate(lines):
                     if not (
                         line.get("audio_path_en")
@@ -844,12 +934,15 @@ def _render_dialogue_session(session, sid, profile_id, voice):
                         ab, _, tts_err = text_to_speech_openrouter(
                             line.get("line_en", ""), voice=voice, language_hint="en"
                         )
-                        if not tts_err:
-                            path = _save_themed_dialogue_line_audio(sid, li, ab)
-                            _update_themed_dialogue_line_audio(
-                                profile_id, sid, li, path
-                            )
-                    prog.progress((li + 1) / total)
+                        if not tts_err and ab:
+                            p = _save_themed_dialogue_line_audio(sid, li, ab)
+                            _update_themed_dialogue_line_audio(profile_id, sid, li, p)
+                            lines[li]["audio_path_en"] = p
+                    prog.progress((li + 1) / len(lines))
+                merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
+                if merged:
+                    fp = _save_dialogue_full_audio(sid, merged)
+                    _update_dialogue_full_audio(profile_id, sid, fp)
                 st.rerun()
 
     imm_key = f"dial_immersion_{sid}"
@@ -888,7 +981,6 @@ def _render_dialogue_session(session, sid, profile_id, voice):
         line_en = line.get("line_en", "")
         line_fr = line.get("line_fr", "")
         grammar_tag = line.get("grammar_tag", "")
-        audio_en = _load_audio(line.get("audio_path_en"))
 
         speaker_idx = speaker_names.index(spk) if spk in speaker_names else li % 2
         align = "left" if speaker_idx == 0 else "right"
@@ -923,25 +1015,6 @@ def _render_dialogue_session(session, sid, profile_id, voice):
 """,
                 unsafe_allow_html=True,
             )
-
-        a_col, _ = st.columns([1, 8])
-        with a_col:
-            if audio_en:
-                st.audio(audio_en, format="audio/wav")
-            else:
-                if st.button(
-                    "🔊", key=f"dial-line-gen-{sid}-{li}", help="Générer audio"
-                ):
-                    with st.spinner("TTS..."):
-                        ab, _, tts_err = text_to_speech_openrouter(
-                            line_en, voice=voice, language_hint="en"
-                        )
-                    if not tts_err:
-                        path = _save_themed_dialogue_line_audio(sid, li, ab)
-                        _update_themed_dialogue_line_audio(profile_id, sid, li, path)
-                        st.rerun()
-                    else:
-                        st.error(tts_err)
 
     spotlight = session.get("grammar_spotlight", [])
     if spotlight:
