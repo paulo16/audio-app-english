@@ -4,15 +4,18 @@ import streamlit as st
 from modules.ai_client import text_to_speech_openrouter
 from modules.config import (
     CEFR_LEVELS,
-    MT_GRAMMAR_CONCEPTS,
     MT_DIALOGUE_THEMES,
+    MT_GRAMMAR_CONCEPTS,
     STORY_NARRATOR_VOICES,
 )
 from modules.michel_thomas import (
+    _save_lesson_course_audio,
     _save_lesson_example_audio,
     _save_themed_dialogue_line_audio,
+    _update_lesson_course_audio_path,
     _update_lesson_example_audio,
     _update_themed_dialogue_line_audio,
+    build_lesson_narration_script,
     evaluate_practice_pair,
     generate_lesson_session,
     generate_themed_dialogue,
@@ -26,7 +29,6 @@ from modules.profiles import (
     get_profile_module_level,
     set_profile_module_level,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -107,7 +109,9 @@ def _render_lesson_tab(profile, profile_id):
 
     sessions = load_mt_lesson_sessions(profile_id)
     if not sessions:
-        st.info("Aucune leçon générée. Choisis un concept et clique sur **Générer la leçon**.")
+        st.info(
+            "Aucune leçon générée. Choisis un concept et clique sur **Générer la leçon**."
+        )
         return
 
     session_labels = [
@@ -166,64 +170,107 @@ def _render_lesson_course(session, sid, profile_id, voice):
     lesson = session.get("lesson", {})
     level = session.get("level", "?")
 
+    # Reload for fresh audio paths
+    fresh_sessions = load_mt_lesson_sessions(profile_id)
+    fresh = next((s for s in fresh_sessions if s["id"] == sid), session)
+    fresh_lesson = fresh.get("lesson", lesson)
+
+    # ── Title card ─────────────────────────────────────────────────────────────
     st.markdown(
         f"""
 <div style="background:linear-gradient(135deg,#1e3a5f,#0d2137);padding:20px 24px;border-radius:14px;margin-bottom:16px">
   <span style="font-size:11px;color:#8ab4e8;font-weight:700;letter-spacing:2px;text-transform:uppercase">Niveau {level} · Leçon</span><br/>
-  <span style="font-size:24px;font-weight:800;color:#ffffff">{lesson.get('title_fr', '')}</span>
+  <span style="font-size:24px;font-weight:800;color:#ffffff">{fresh_lesson.get('title_fr', '')}</span>
 </div>
 """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("### 💡 C'est quoi ?")
-    st.info(lesson.get("what_is_it_fr", ""))
+    # ── Course audio — prominently first ───────────────────────────────────────
+    st.markdown("### 🎧 Écouter le cours")
+    course_audio_bytes = _load_audio(fresh_lesson.get("course_audio_path"))
 
-    when_raw = lesson.get("when_to_use_fr", "")
-    if when_raw:
-        st.markdown("### 🗓️ Quand l'utiliser ?")
-        for line in when_raw.split("\n"):
-            line = line.strip()
-            if line:
-                st.markdown(line)
+    if course_audio_bytes:
+        st.audio(course_audio_bytes, format="audio/wav")
+        if st.button("🔄 Regénérer l'audio du cours", key=f"regen_course_audio_{sid}"):
+            script = build_lesson_narration_script(fresh_lesson)
+            with st.spinner("Génération de l'audio du cours…"):
+                ab, _, tts_err = text_to_speech_openrouter(script, voice=voice, language_hint="fr")
+            if not tts_err:
+                path = _save_lesson_course_audio(sid, ab)
+                _update_lesson_course_audio_path(profile_id, sid, path)
+                st.rerun()
+            else:
+                st.error(tts_err)
+    else:
+        st.info("L'audio du cours n'a pas encore été généré.")
+        if st.button(
+            "🔊 Générer l'audio du cours",
+            key=f"gen_course_audio_{sid}",
+            type="primary",
+            use_container_width=True,
+        ):
+            script = build_lesson_narration_script(fresh_lesson)
+            with st.spinner("Génération de l'audio du cours (quelques secondes)…"):
+                ab, _, tts_err = text_to_speech_openrouter(script, voice=voice, language_hint="fr")
+            if not tts_err:
+                path = _save_lesson_course_audio(sid, ab)
+                _update_lesson_course_audio_path(profile_id, sid, path)
+                st.rerun()
+            else:
+                st.error(tts_err)
 
-    struct = lesson.get("structure", {})
-    if any(struct.values()):
-        st.markdown("### 🧩 Structure")
-        struct_html = ""
-        for label, formula in [
-            ("Affirmative", struct.get("affirmative", "")),
-            ("Négative", struct.get("negative", "")),
-            ("Question", struct.get("question", "")),
-        ]:
-            if formula:
-                struct_html += (
-                    f"<div style='background:#1a1a2e;padding:10px 16px;border-radius:8px;"
-                    f"border-left:4px solid #7c4dff;margin-bottom:8px'>"
-                    f"<span style='color:#b39ddb;font-size:11px;font-weight:700'>{label}</span><br/>"
-                    f"<code style='color:#e8d5ff;font-size:15px'>{formula}</code></div>"
-                )
-        st.markdown(struct_html, unsafe_allow_html=True)
+    st.markdown("---")
 
-    analogy = lesson.get("analogy_fr", "")
-    if analogy:
-        st.markdown("### 🇫🇷 L'analogie avec le français")
-        st.success(analogy)
+    # ── Written course — collapsed by default ─────────────────────────────────
+    with st.expander("📖 Voir le cours écrit", expanded=False):
+        what = fresh_lesson.get("what_is_it_fr", "")
+        if what:
+            st.markdown("**💡 C'est quoi ?**")
+            st.info(what)
 
-    kp = lesson.get("key_points_fr", [])
-    if kp:
-        st.markdown("### ⚠️ Points importants")
-        for point in kp:
-            st.markdown(f"- {point}")
+        when_raw = fresh_lesson.get("when_to_use_fr", "")
+        if when_raw:
+            st.markdown("**🗓️ Quand l'utiliser ?**")
+            for line in when_raw.split("\n"):
+                line = line.strip()
+                if line:
+                    st.markdown(line)
 
-    examples = lesson.get("examples", [])
+        struct = fresh_lesson.get("structure", {})
+        if any(struct.values()):
+            st.markdown("**🧩 Structure**")
+            struct_html = ""
+            for label, formula in [
+                ("Affirmative", struct.get("affirmative", "")),
+                ("Négative", struct.get("negative", "")),
+                ("Question", struct.get("question", "")),
+            ]:
+                if formula:
+                    struct_html += (
+                        f"<div style='background:#1a1a2e;padding:10px 16px;border-radius:8px;"
+                        f"border-left:4px solid #7c4dff;margin-bottom:8px'>"
+                        f"<span style='color:#b39ddb;font-size:11px;font-weight:700'>{label}</span><br/>"
+                        f"<code style='color:#e8d5ff;font-size:15px'>{formula}</code></div>"
+                    )
+            st.markdown(struct_html, unsafe_allow_html=True)
+
+        analogy = fresh_lesson.get("analogy_fr", "")
+        if analogy:
+            st.markdown("**🇫🇷 L'analogie avec le français**")
+            st.success(analogy)
+
+        kp = fresh_lesson.get("key_points_fr", [])
+        if kp:
+            st.markdown("**⚠️ Points importants**")
+            for point in kp:
+                st.markdown(f"- {point}")
+
+    # ── Examples with individual audio ────────────────────────────────────────
+    examples = fresh_lesson.get("examples", [])
     if examples:
         st.markdown("### 🔍 Exemples")
-        fresh_sessions = load_mt_lesson_sessions(profile_id)
-        fresh = next((s for s in fresh_sessions if s["id"] == sid), session)
-        fresh_examples = fresh.get("lesson", {}).get("examples", examples)
-
-        for i, ex in enumerate(fresh_examples):
+        for i, ex in enumerate(examples):
             en = ex.get("english", "")
             fr_txt = ex.get("french", "")
             audio_en = _load_audio(ex.get("audio_path_en"))
@@ -250,7 +297,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
                 else:
                     if st.button(f"🔊 EN", key=f"ex-en-gen-{sid}-{i}"):
                         with st.spinner("TTS..."):
-                            ab, _, tts_err = text_to_speech_openrouter(en, voice=voice, language_hint="en")
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                en, voice=voice, language_hint="en"
+                            )
                         if not tts_err:
                             path = _save_lesson_example_audio(sid, i, "en", ab)
                             _update_lesson_example_audio(profile_id, sid, i, "audio_path_en", path)
@@ -263,7 +312,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
                 else:
                     if st.button(f"🔊 FR", key=f"ex-fr-gen-{sid}-{i}"):
                         with st.spinner("TTS..."):
-                            ab, _, tts_err = text_to_speech_openrouter(fr_txt, voice="shimmer", language_hint="fr")
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                fr_txt, voice="shimmer", language_hint="fr"
+                            )
                         if not tts_err:
                             path = _save_lesson_example_audio(sid, i, "fr", ab)
                             _update_lesson_example_audio(profile_id, sid, i, "audio_path_fr", path)
@@ -271,7 +322,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
                         else:
                             st.error(tts_err)
             with col_cnt:
-                st.caption(f"Exemple {i + 1}/{len(fresh_examples)}")
+                st.caption(f"Exemple {i + 1}/{len(examples)}")
 
     st.markdown("---")
     if st.button(
@@ -308,7 +359,9 @@ def _render_lesson_practice(session, sid, profile_id):
 
     if idx >= total:
         st.balloons()
-        st.success("🎉 Séquence terminée ! Retourne voir le cours ou génère une nouvelle leçon.")
+        st.success(
+            "🎉 Séquence terminée ! Retourne voir le cours ou génère une nouvelle leçon."
+        )
         if st.button("🔄 Recommencer", key=f"restart_practice_{sid}"):
             st.session_state[idx_key] = 0
             st.session_state[submitted_key] = False
@@ -387,7 +440,9 @@ def _render_lesson_practice(session, sid, profile_id):
         improved = eval_result.get("improved_answer", "")
         expected = pair.get("answer", "")
 
-        score_color = "#4caf50" if score >= 75 else "#ff9800" if score >= 50 else "#f44336"
+        score_color = (
+            "#4caf50" if score >= 75 else "#ff9800" if score >= 50 else "#f44336"
+        )
         icon = "✅" if correct else "💪"
         st.markdown(
             f"""
@@ -464,7 +519,9 @@ def _render_dialogue_tab(profile, profile_id):
             level = st.selectbox(
                 "Niveau",
                 CEFR_LEVELS,
-                index=CEFR_LEVELS.index(saved_level if saved_level in CEFR_LEVELS else "B1"),
+                index=CEFR_LEVELS.index(
+                    saved_level if saved_level in CEFR_LEVELS else "B1"
+                ),
                 key="dial_level_sel",
             )
         with c2:
@@ -502,7 +559,9 @@ def _render_dialogue_tab(profile, profile_id):
 
     if gen_btn:
         with st.spinner(f"Génération du dialogue « {theme} »..."):
-            session, err = generate_themed_dialogue(theme, grammar_focus, level, profile_id)
+            session, err = generate_themed_dialogue(
+                theme, grammar_focus, level, profile_id
+            )
         if err:
             st.error(f"Erreur : {err}")
         else:
@@ -514,7 +573,9 @@ def _render_dialogue_tab(profile, profile_id):
 
     sessions = load_mt_themed_dialogues(profile_id)
     if not sessions:
-        st.info("Aucun dialogue généré. Choisis un thème et clique sur **Générer le dialogue**.")
+        st.info(
+            "Aucun dialogue généré. Choisis un thème et clique sur **Générer le dialogue**."
+        )
         return
 
     session_labels = [
@@ -567,21 +628,34 @@ def _render_dialogue_session(session, sid, profile_id, voice):
     fresh = next((s for s in fresh_sessions if s["id"] == sid), session)
     lines = fresh.get("lines", [])
 
-    missing = [l for l in lines if not (l.get("audio_path_en") and os.path.exists(l.get("audio_path_en", "")))]
+    missing = [
+        l
+        for l in lines
+        if not (l.get("audio_path_en") and os.path.exists(l.get("audio_path_en", "")))
+    ]
     if missing:
         gen_col, _ = st.columns([2, 3])
         with gen_col:
-            if st.button("🔊 Générer audio toutes les lignes", key=f"gen_all_audio_{sid}", use_container_width=True):
+            if st.button(
+                "🔊 Générer audio toutes les lignes",
+                key=f"gen_all_audio_{sid}",
+                use_container_width=True,
+            ):
                 prog = st.progress(0)
                 total = len(lines)
                 for li, line in enumerate(lines):
-                    if not (line.get("audio_path_en") and os.path.exists(line.get("audio_path_en", ""))):
+                    if not (
+                        line.get("audio_path_en")
+                        and os.path.exists(line.get("audio_path_en", ""))
+                    ):
                         ab, _, tts_err = text_to_speech_openrouter(
                             line.get("line_en", ""), voice=voice, language_hint="en"
                         )
                         if not tts_err:
                             path = _save_themed_dialogue_line_audio(sid, li, ab)
-                            _update_themed_dialogue_line_audio(profile_id, sid, li, path)
+                            _update_themed_dialogue_line_audio(
+                                profile_id, sid, li, path
+                            )
                     prog.progress((li + 1) / total)
                 st.rerun()
 
@@ -629,7 +703,8 @@ def _render_dialogue_session(session, sid, profile_id, voice):
         c_fr = colors_fr[speaker_idx % 2]
         grammar_badge = (
             f" <span style='background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:12px;margin-left:8px'>{grammar_tag}</span>"
-            if grammar_tag else ""
+            if grammar_tag
+            else ""
         )
 
         st.markdown(
@@ -661,9 +736,13 @@ def _render_dialogue_session(session, sid, profile_id, voice):
             if audio_en:
                 st.audio(audio_en, format="audio/wav")
             else:
-                if st.button("🔊", key=f"dial-line-gen-{sid}-{li}", help="Générer audio"):
+                if st.button(
+                    "🔊", key=f"dial-line-gen-{sid}-{li}", help="Générer audio"
+                ):
                     with st.spinner("TTS..."):
-                        ab, _, tts_err = text_to_speech_openrouter(line_en, voice=voice, language_hint="en")
+                        ab, _, tts_err = text_to_speech_openrouter(
+                            line_en, voice=voice, language_hint="en"
+                        )
                     if not tts_err:
                         path = _save_themed_dialogue_line_audio(sid, li, ab)
                         _update_themed_dialogue_line_audio(profile_id, sid, li, path)

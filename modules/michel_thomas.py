@@ -849,6 +849,93 @@ def _update_lesson_example_audio(profile_id, sid, example_idx, field, new_path):
     save_mt_lesson_sessions(all_sessions, profile_id)
 
 
+def build_lesson_narration_script(lesson: dict) -> str:
+    """Build a spoken narration script of the full lesson (in French, with English examples).
+
+    Returns a plain text string suitable for TTS.
+    """
+    parts = []
+
+    title = lesson.get("title_fr", "")
+    if title:
+        parts.append(f"Leçon : {title}.")
+        parts.append("")
+
+    what = lesson.get("what_is_it_fr", "")
+    if what:
+        parts.append(what)
+        parts.append("")
+
+    when = lesson.get("when_to_use_fr", "")
+    if when:
+        parts.append("On l'utilise dans ces situations.")
+        for line in when.split("\n"):
+            line = line.lstrip("•- ").strip()
+            if line:
+                parts.append(line + ".")
+        parts.append("")
+
+    struct = lesson.get("structure", {})
+    affirmative = struct.get("affirmative", "")
+    negative = struct.get("negative", "")
+    question = struct.get("question", "")
+    if affirmative or negative or question:
+        parts.append("Voici la structure :")
+        if affirmative:
+            parts.append(f"Forme affirmative : {affirmative}.")
+        if negative:
+            parts.append(f"Forme négative : {negative}.")
+        if question:
+            parts.append(f"Forme interrogative : {question}.")
+        parts.append("")
+
+    analogy = lesson.get("analogy_fr", "")
+    if analogy:
+        parts.append(analogy)
+        parts.append("")
+
+    kp = lesson.get("key_points_fr", [])
+    if kp:
+        parts.append("Points importants à retenir.")
+        for i, point in enumerate(kp, 1):
+            parts.append(f"Point {i} : {point}.")
+        parts.append("")
+
+    examples = lesson.get("examples", [])
+    if examples:
+        parts.append("Voici maintenant des exemples.")
+        parts.append("")
+        for i, ex in enumerate(examples, 1):
+            en = ex.get("english", "")
+            fr = ex.get("french", "")
+            if en and fr:
+                parts.append(f"Exemple {i}.")
+                parts.append(f"En anglais : {en}.")
+                parts.append(f"En français : {fr}.")
+                parts.append("")
+
+    parts.append("C'est tout pour cette leçon. À toi de pratiquer maintenant !")
+    return "\n".join(parts)
+
+
+def _save_lesson_course_audio(session_id: str, audio_bytes: bytes) -> str:
+    """Persist the full course narration TTS audio."""
+    os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(MICHEL_THOMAS_AUDIO_DIR, f"lesson-{session_id}_course.wav")
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _update_lesson_course_audio_path(profile_id, sid, new_path):
+    all_sessions = load_mt_lesson_sessions(profile_id)
+    for s in all_sessions:
+        if s["id"] == sid:
+            s.setdefault("lesson", {})["course_audio_path"] = new_path
+            break
+    save_mt_lesson_sessions(all_sessions, profile_id)
+
+
 def evaluate_practice_pair(pair: dict, user_text: str):
     """Evaluate a FR→EN or EN→FR practice pair.
 
