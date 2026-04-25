@@ -10,7 +10,9 @@
     "id": "profile-paul-mbilong",
     "name": "Paul Mbilong",
     "target_cefr": "B2",
-    "module_levels": {},
+    "module_levels": {
+      "michel_thomas": "B1"
+    },
     "created_at": "2026-04-06T19:35:42Z"
   },
   {

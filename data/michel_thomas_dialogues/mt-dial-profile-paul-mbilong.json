@@ -1,0 +1,148 @@
+[
+  {
+    "id": "mt-dial-202604251040-83f006",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B2",
+    "theme": "Social issues & news",
+    "tense_focus": "Past Perfect (I had already finished when...)",
+    "created_at": "2026-04-25T10:40:45Z",
+    "key_phrases": [
+      {
+        "english": "I had already finished when the meeting started.",
+        "french": "J'avais déjà terminé quand la réunion a commencé.",
+        "grammar_note": "Utilise le Past Perfect pour indiquer une action achevée avant une autre action dans le passé.",
+        "usage_tip": "Utilise cette structure pour montrer que quelque chose a été fait avant un événement passé.",
+        "memory_trick": "Pense à 'had' comme à 'avait' pour montrer que l'action était déjà accomplie avant une autre.",
+        "audio_path_en": "data\\michel_thomas_audio\\dial-mt-dial-202604251040-83f006_phrase0_en.wav",
+        "audio_path_fr": null
+      },
+      {
+        "english": "They had left before I arrived.",
+        "french": "Ils étaient partis avant que j'arrive.",
+        "grammar_note": "Le Past Perfect est souvent utilisé avec 'before' pour montrer l'ordre des événements.",
+        "usage_tip": "Utilise 'before' pour clarifier l'ordre des actions dans le passé.",
+        "memory_trick": "Rappelle-toi que 'before' signifie 'avant' ; donc, l'action du Past Perfect se passe avant celle qui suit.",
+        "audio_path_en": null,
+        "audio_path_fr": null
+      },
+      {
+        "english": "We had discussed the issue prior to the vote.",
+        "french": "Nous avions discuté du problème avant le vote.",
+        "grammar_note": "Le Past Perfect est utile pour montrer qu'une discussion a eu lieu avant une décision.",
+        "usage_tip": "Utilise cette structure pour établir un contexte avant un événement important.",
+        "memory_trick": "Associe 'prior to' avec 'avant' pour te souvenir que l'action était déjà faite.",
+        "audio_path_en": null,
+        "audio_path_fr": null
+      },
+      {
+        "english": "I had never seen such a situation before.",
+        "french": "Je n'avais jamais vu une telle situation auparavant.",
+        "grammar_note": "Le Past Perfect avec 'never' pour exprimer une expérience jusqu'à un moment dans le passé.",
+        "usage_tip": "Utilise 'never' pour parler d'expériences passées qui n'ont pas eu lieu jusqu'à un certain point.",
+        "memory_trick": "Pense à 'never' comme à 'jamais' pour indiquer une absence d'expérience.",
+        "audio_path_en": null,
+        "audio_path_fr": null
+      },
+      {
+        "english": "She had already made her decision when I called.",
+        "french": "Elle avait déjà pris sa décision quand j'ai appelé.",
+        "grammar_note": "Le Past Perfect montre que l'action de prendre une décision a eu lieu avant l'appel.",
+        "usage_tip": "Utilise cette structure pour montrer que quelque chose était déjà décidé avant un autre événement.",
+        "memory_trick": "Rappelle-toi que 'when' signifie 'quand', et l'action du Past Perfect est terminée avant cela.",
+        "audio_path_en": null,
+        "audio_path_fr": null
+      },
+      {
+        "english": "We had planned to address the issue last week.",
+        "french": "Nous avions prévu de traiter le problème la semaine dernière.",
+        "grammar_note": "Le Past Perfect avec 'planned' montre une intention ou un plan avant un moment passé.",
+        "usage_tip": "Utilise cette structure pour parler de projets qui avaient été établis avant un événement passé.",
+        "memory_trick": "Pense à 'planned' comme à 'prévu' pour te souvenir que c'était une intention antérieure.",
+        "audio_path_en": null,
+        "audio_path_fr": null
+      }
+    ],
+    "dialogue": [
+      {
+        "speaker": "Sophie",
+        "line_en": "I had already finished my report when the meeting started.",
+        "line_fr": "J'avais déjà terminé mon rapport quand la réunion a commencé.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Tom",
+        "line_en": "That's great! I had left the office before you submitted it.",
+        "line_fr": "C'est super ! J'étais parti du bureau avant que tu ne le soumettes.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Sophie",
+        "line_en": "Yes, I had discussed the main points with our manager.",
+        "line_fr": "Oui, j'avais discuté des points principaux avec notre manager.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Tom",
+        "line_en": "I had never seen such a detailed report before.",
+        "line_fr": "Je n'avais jamais vu un rapport aussi détaillé auparavant.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Sophie",
+        "line_en": "Thanks! I had already made my decision about the project.",
+        "line_fr": "Merci ! J'avais déjà pris ma décision concernant le projet.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Tom",
+        "line_en": "We had planned to address the issue last week, right?",
+        "line_fr": "Nous avions prévu de traiter le problème la semaine dernière, n'est-ce pas ?",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Sophie",
+        "line_en": "Exactly, but we ran out of time.",
+        "line_fr": "Exactement, mais nous manquions de temps.",
+        "audio_path_en": null
+      },
+      {
+        "speaker": "Tom",
+        "line_en": "Let's make sure to cover it in the next meeting.",
+        "line_fr": "Assurons-nous de le couvrir lors de la prochaine réunion.",
+        "audio_path_en": null
+      }
+    ],
+    "flashcards": [
+      {
+        "id": 0,
+        "front_fr": "J'avais déjà terminé quand la réunion a commencé.",
+        "back_en": "I had already finished when the meeting started."
+      },
+      {
+        "id": 1,
+        "front_fr": "Ils étaient partis avant que j'arrive.",
+        "back_en": "They had left before I arrived."
+      },
+      {
+        "id": 2,
+        "front_fr": "Nous avions discuté du problème avant le vote.",
+        "back_en": "We had discussed the issue prior to the vote."
+      },
+      {
+        "id": 3,
+        "front_fr": "Je n'avais jamais vu une telle situation auparavant.",
+        "back_en": "I had never seen such a situation before."
+      },
+      {
+        "id": 4,
+        "front_fr": "Elle avait déjà pris sa décision quand j'ai appelé.",
+        "back_en": "She had already made her decision when I called."
+      },
+      {
+        "id": 5,
+        "front_fr": "Nous avions prévu de traiter le problème la semaine dernière.",
+        "back_en": "We had planned to address the issue last week."
+      }
+    ]
+  }
+]
