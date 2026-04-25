@@ -491,6 +491,7 @@ STORY_NARRATOR_VOICES = {
 # ── Michel Thomas Method ────────────────────────────────────────────────────
 MICHEL_THOMAS_DIR = os.path.join(DATA_DIR, "michel_thomas")
 MICHEL_THOMAS_AUDIO_DIR = os.path.join(DATA_DIR, "michel_thomas_audio")
+MT_DIALOGUE_SESSION_DIR = os.path.join(DATA_DIR, "michel_thomas_dialogues")
 
 # ── Michel Thomas Perfectionnement (CD 8-11, vrais audios) ──────────────────
 MT_PERFECTIONNEMENT_BASE_DIR = (

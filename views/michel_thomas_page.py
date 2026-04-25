@@ -2,7 +2,6 @@ import os
 import uuid
 
 import streamlit as st
-
 from modules.ai_client import (
     text_to_speech_openrouter,
     transcribe_audio_with_openrouter,
@@ -17,16 +16,23 @@ from modules.config import (
     STORY_NARRATOR_VOICES,
 )
 from modules.michel_thomas import (
+    _save_dial_line_audio,
+    _save_dial_phrase_audio,
     _save_mt_perf_step_audio,
     _save_mt_perf_step_fr_audio,
     _save_mt_step_audio,
     _save_mt_step_fr_audio,
+    _update_dial_line_audio,
+    _update_dial_phrase_audio,
     _update_perf_step_audio_path,
     evaluate_mt_step,
+    generate_mt_dialogue_session,
     generate_mt_perfectionnement_session,
     generate_mt_session,
+    load_mt_dialogue_sessions,
     load_mt_perf_sessions,
     load_mt_sessions,
+    save_mt_dialogue_sessions,
     save_mt_perf_sessions,
     save_mt_sessions,
 )
@@ -1231,6 +1237,454 @@ def _render_mt_perfectionnement_tab(profile, profile_id):
                     st.rerun()
 
 
+# ── Leçons bilingues & Dialogues tab ─────────────────────────────────────────
+
+
+def _render_mt_dialogue_tab(profile, profile_id):
+    """Render the bilingual lessons + dialogue + flashcards tab."""
+    st.write(
+        "Génère une **leçon bilingue** (phrases clés EN + FR avec audio), "
+        "puis écoute le dialogue en contexte, et entraîne-toi avec les **flashcards**."
+    )
+
+    # ── Settings ─────────────────────────────────────────────────────────────
+    with st.expander("⚙️ Paramètres de la leçon", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            level_default = get_profile_module_level(profile, "michel_thomas")
+            level = st.selectbox(
+                "Niveau CEFR",
+                CEFR_LEVELS,
+                index=CEFR_LEVELS.index(level_default),
+                key=f"dial-level-{profile_id}",
+            )
+            themes_for_level = MT_THEMES_BY_LEVEL.get(level, MT_THEMES_BY_LEVEL["B1"])
+            theme = st.selectbox(
+                "Thème",
+                themes_for_level,
+                key=f"dial-theme-{profile_id}-{level}",
+            )
+        with col2:
+            tenses_for_level = MT_TENSES_BY_LEVEL.get(level, MT_TENSES_BY_LEVEL["B1"])
+            tense_focus = st.selectbox(
+                "Temps / structure à pratiquer",
+                ["🔀 Tout pratiquer (aléatoire)"] + tenses_for_level,
+                key=f"dial-tense-{profile_id}-{level}",
+            )
+            phrase_count = st.slider(
+                "Nombre de phrases clés",
+                min_value=4,
+                max_value=8,
+                value=6,
+                key="dial-phrase-count",
+            )
+        voice_label = st.selectbox(
+            "Voix audio (TTS)",
+            list(STORY_NARRATOR_VOICES.keys()),
+            index=0,
+            key="dial-voice",
+        )
+        dial_voice = STORY_NARRATOR_VOICES.get(voice_label, "alloy")
+
+        if st.button(
+            "📚 Générer la leçon bilingue",
+            type="primary",
+            use_container_width=True,
+            key="dial-generate-btn",
+        ):
+            import random as _random
+
+            effective_tense = (
+                _random.choice(tenses_for_level)
+                if tense_focus.startswith("🔀")
+                else tense_focus
+            )
+            with st.spinner(f"Génération — {theme} | {effective_tense}..."):
+                session, err = generate_mt_dialogue_session(
+                    level=level,
+                    theme=theme,
+                    tense_focus=effective_tense,
+                    phrase_count=phrase_count,
+                    profile_id=profile_id,
+                )
+            if err:
+                st.error(f"Erreur : {err}")
+            else:
+                sessions = load_mt_dialogue_sessions(profile_id)
+                sessions.insert(0, session)
+                save_mt_dialogue_sessions(sessions, profile_id)
+                st.session_state["dial_active_session_id"] = session["id"]
+                st.session_state["dial_active_tab"] = "lesson"
+                st.success(
+                    f"Leçon générée : {len(session['key_phrases'])} phrases — {theme}"
+                )
+                st.rerun()
+
+    sessions = load_mt_dialogue_sessions(profile_id)
+    if not sessions:
+        st.info("Aucune leçon encore. Configurez et cliquez sur Générer.")
+        return
+
+    # ── Session selector ─────────────────────────────────────────────────────
+    session_labels = {
+        s["id"]: f"{s.get('level','?')} | {s.get('theme','?')} — {s.get('created_at','')[:10]}"
+        for s in sessions
+    }
+    active_sid = st.session_state.get("dial_active_session_id", sessions[0]["id"])
+    if active_sid not in session_labels:
+        active_sid = sessions[0]["id"]
+        st.session_state["dial_active_session_id"] = active_sid
+
+    col_sel, col_del = st.columns([4, 1])
+    with col_sel:
+        selected_sid = st.selectbox(
+            "Leçon active",
+            list(session_labels.keys()),
+            index=list(session_labels.keys()).index(active_sid),
+            format_func=lambda sid: session_labels[sid],
+            key="dial-session-selector",
+        )
+    with col_del:
+        st.write("")
+        st.write("")
+        if st.button("🗑️ Supprimer", key="dial-delete", use_container_width=True):
+            sessions = [s for s in sessions if s["id"] != selected_sid]
+            save_mt_dialogue_sessions(sessions, profile_id)
+            st.session_state.pop("dial_active_session_id", None)
+            st.rerun()
+
+    if selected_sid != active_sid:
+        st.session_state["dial_active_session_id"] = selected_sid
+        st.session_state["dial_active_tab"] = "lesson"
+        st.rerun()
+
+    active_session = next((s for s in sessions if s["id"] == selected_sid), None)
+    if not active_session:
+        return
+
+    sid = active_session["id"]
+    key_phrases = active_session.get("key_phrases", [])
+    dialogue = active_session.get("dialogue", [])
+    flashcards = active_session.get("flashcards", [])
+
+    # Retrieve voice from session state
+    voice_label_now = st.session_state.get("dial-voice", list(STORY_NARRATOR_VOICES.keys())[0])
+    dial_voice = STORY_NARRATOR_VOICES.get(voice_label_now, "alloy")
+
+    # Sub-tabs inside the dialogue tab
+    sub_lesson, sub_dialogue, sub_flash = st.tabs(
+        ["📖 Phrases clés", "💬 Dialogue", "🃏 Flashcards"]
+    )
+
+    # ─── Sub-tab 1: Phrases clés bilingues ───────────────────────────────────
+    with sub_lesson:
+        st.markdown(
+            f"**{active_session.get('theme','')}** — "
+            f"*{active_session.get('tense_focus','')}* "
+            f"(niveau {active_session.get('level','')})"
+        )
+        st.markdown("---")
+        # Reload to get fresh audio paths
+        fresh_sessions = load_mt_dialogue_sessions(profile_id)
+        fresh_active = next((s for s in fresh_sessions if s["id"] == sid), active_session)
+        fresh_phrases = fresh_active.get("key_phrases", [])
+
+        for pi, phrase in enumerate(fresh_phrases):
+            en = phrase.get("english", "")
+            fr = phrase.get("french", "")
+            grammar = phrase.get("grammar_note", "")
+            tip_txt = phrase.get("usage_tip", "")
+            memory = phrase.get("memory_trick", "")
+            phrase_key = f"dial-{sid}-p{pi}"
+
+            # Phrase card
+            st.markdown(
+                f"""
+<div style="background:#1e3a5f;padding:14px 20px;border-radius:10px;border-left:5px solid #4a90d9;margin-bottom:4px">
+  <span style="font-size:12px;color:#8ab4e8;font-weight:600;letter-spacing:1px">ANGLAIS</span><br/>
+  <span style="font-size:20px;font-weight:700;color:#ffffff">{en}</span>
+</div>
+<div style="background:#1a3320;padding:10px 20px;border-radius:10px;border-left:5px solid #4caf50;margin-bottom:8px">
+  <span style="font-size:12px;color:#88c989;font-weight:600;letter-spacing:1px">FRANÇAIS</span><br/>
+  <span style="font-size:17px;color:#e8f5e9">{fr}</span>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+            # Audio buttons row
+            col_en_audio, col_fr_audio = st.columns(2)
+            with col_en_audio:
+                en_audio_path = phrase.get("audio_path_en")
+                if en_audio_path and os.path.exists(en_audio_path):
+                    with open(en_audio_path, "rb") as af:
+                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"{phrase_key}-en-player")
+                else:
+                    if st.button(
+                        "🔊 Écouter EN",
+                        key=f"{phrase_key}-en-btn",
+                        use_container_width=True,
+                        type="primary",
+                    ):
+                        with st.spinner("Génération audio anglais..."):
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                en, voice=dial_voice, language_hint="en"
+                            )
+                        if tts_err:
+                            st.error(tts_err)
+                        else:
+                            new_path = _save_dial_phrase_audio(sid, pi, "en", ab)
+                            _update_dial_phrase_audio(profile_id, sid, pi, "audio_path_en", new_path)
+                            st.rerun()
+            with col_fr_audio:
+                fr_audio_path = phrase.get("audio_path_fr")
+                if fr_audio_path and os.path.exists(fr_audio_path):
+                    with open(fr_audio_path, "rb") as af:
+                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"{phrase_key}-fr-player")
+                else:
+                    if st.button(
+                        "🔊 Écouter FR",
+                        key=f"{phrase_key}-fr-btn",
+                        use_container_width=True,
+                    ):
+                        with st.spinner("Génération audio français..."):
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                fr, voice=dial_voice, language_hint="fr"
+                            )
+                        if tts_err:
+                            st.error(tts_err)
+                        else:
+                            new_path = _save_dial_phrase_audio(sid, pi, "fr", ab)
+                            _update_dial_phrase_audio(profile_id, sid, pi, "audio_path_fr", new_path)
+                            st.rerun()
+
+            # Grammar / tip / memory trick (collapsed)
+            with st.expander("💡 Note & astuce", expanded=False):
+                if grammar:
+                    st.info(f"📝 **Grammaire :** {grammar}")
+                if tip_txt:
+                    st.success(f"✅ **Usage :** {tip_txt}")
+                if memory:
+                    st.markdown(
+                        f"<div style='background:#1f1a00;padding:10px 14px;border-radius:8px;"
+                        f"border-left:3px solid #f0c040'>"
+                        f"<span style='color:#f0c040;font-weight:700'>🧠 Astuce mémoire : </span>"
+                        f"<span style='color:#fff8dc'>{memory}</span></div>",
+                        unsafe_allow_html=True,
+                    )
+            st.markdown("---")
+
+    # ─── Sub-tab 2: Dialogue ─────────────────────────────────────────────────
+    with sub_dialogue:
+        st.markdown("#### 💬 Dialogue en contexte")
+        st.caption("Lis le dialogue, écoute chaque réplique, puis essaie de le rejouer.")
+
+        fresh_sessions2 = load_mt_dialogue_sessions(profile_id)
+        fresh_active2 = next((s for s in fresh_sessions2 if s["id"] == sid), active_session)
+        fresh_dialogue = fresh_active2.get("dialogue", [])
+
+        for li, line in enumerate(fresh_dialogue):
+            speaker = line.get("speaker", f"Speaker {li % 2 + 1}")
+            line_en = line.get("line_en", "")
+            line_fr = line.get("line_fr", "")
+            line_key = f"dial-{sid}-line{li}"
+            is_a = li % 2 == 0
+            color_en = "#4a90d9" if is_a else "#4caf50"
+            bg_en = "#1e3a5f" if is_a else "#1a3320"
+
+            col_text, col_btn = st.columns([5, 1])
+            with col_text:
+                st.markdown(
+                    f"""
+<div style="background:{bg_en};padding:10px 16px;border-radius:8px;border-left:4px solid {color_en};margin-bottom:2px">
+  <span style="font-size:11px;color:{color_en};font-weight:700">{speaker.upper()}</span><br/>
+  <span style="font-size:16px;font-weight:700;color:#fff">{line_en}</span><br/>
+  <span style="font-size:13px;color:#aaa;font-style:italic">{line_fr}</span>
+</div>
+""",
+                    unsafe_allow_html=True,
+                )
+            with col_btn:
+                audio_path_en = line.get("audio_path_en")
+                if audio_path_en and os.path.exists(audio_path_en):
+                    if st.button("🔊", key=f"{line_key}-play", use_container_width=True, help="Rejouer"):
+                        pass  # audio player below will display
+                    with open(audio_path_en, "rb") as af:
+                        _audio_player_with_repeat(af.read(), "audio/wav", key=f"{line_key}-player")
+                else:
+                    if st.button(
+                        "🔊",
+                        key=f"{line_key}-gen",
+                        use_container_width=True,
+                        help="Générer l'audio de cette réplique",
+                    ):
+                        with st.spinner(""):
+                            ab, _, tts_err = text_to_speech_openrouter(
+                                line_en, voice=dial_voice, language_hint="en"
+                            )
+                        if tts_err:
+                            st.error(tts_err)
+                        else:
+                            new_path = _save_dial_line_audio(sid, li, ab)
+                            _update_dial_line_audio(profile_id, sid, li, new_path)
+                            st.rerun()
+
+        # Generate all audio button
+        st.markdown("---")
+        if st.button(
+            "🔊 Générer l'audio de tout le dialogue",
+            use_container_width=True,
+            key="dial-gen-all-audio",
+        ):
+            progress = st.progress(0)
+            total_lines = len(fresh_dialogue)
+            for li, line in enumerate(fresh_dialogue):
+                if not (line.get("audio_path_en") and os.path.exists(line.get("audio_path_en", ""))):
+                    ab, _, tts_err = text_to_speech_openrouter(
+                        line.get("line_en", ""), voice=dial_voice, language_hint="en"
+                    )
+                    if not tts_err:
+                        new_path = _save_dial_line_audio(sid, li, ab)
+                        _update_dial_line_audio(profile_id, sid, li, new_path)
+                progress.progress((li + 1) / total_lines)
+            st.rerun()
+
+    # ─── Sub-tab 3: Flashcards ───────────────────────────────────────────────
+    with sub_flash:
+        if not flashcards:
+            st.info("Pas de flashcards pour cette session.")
+        else:
+            st.markdown("#### 🃏 Flashcards — Français → Anglais")
+            st.caption(
+                "Lis la phrase française, essaie de la traduire mentalement, "
+                "puis retourne la carte pour voir la réponse."
+            )
+
+            fc_idx_key = f"dial-fc-idx-{sid}"
+            fc_revealed_key = f"dial-fc-rev-{sid}"
+            fc_score_key = f"dial-fc-score-{sid}"
+
+            if fc_idx_key not in st.session_state:
+                st.session_state[fc_idx_key] = 0
+            if fc_score_key not in st.session_state:
+                st.session_state[fc_score_key] = {"correct": 0, "total": 0}
+
+            total_fc = len(flashcards)
+            fc_idx = min(int(st.session_state[fc_idx_key]), total_fc - 1)
+            card = flashcards[fc_idx]
+
+            score = st.session_state[fc_score_key]
+            col_prog, col_score = st.columns([3, 1])
+            with col_prog:
+                st.progress((fc_idx + 1) / total_fc, text=f"Carte {fc_idx + 1} / {total_fc}")
+            with col_score:
+                st.metric("Score", f"{score['correct']}/{score['total']}")
+
+            # Card face (French)
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#1e3a5f,#0d2440);padding:32px 28px;border-radius:14px;
+border:2px solid #4a90d9;margin:16px 0;text-align:center">
+  <div style="font-size:12px;color:#8ab4e8;font-weight:700;letter-spacing:2px;margin-bottom:12px">
+    🇫🇷 FRANÇAIS
+  </div>
+  <div style="font-size:24px;font-weight:800;color:#ffffff">{card['front_fr']}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+            # Reveal toggle
+            revealed = st.session_state.get(fc_revealed_key, False)
+            col_rev, col_know, col_no = st.columns([2, 1, 1])
+            with col_rev:
+                if st.button(
+                    "👁 Voir la traduction anglaise",
+                    key=f"dial-fc-reveal-{sid}-{fc_idx}",
+                    use_container_width=True,
+                    type="secondary",
+                ):
+                    st.session_state[fc_revealed_key] = True
+                    st.rerun()
+
+            if revealed:
+                st.markdown(
+                    f"""
+<div style="background:linear-gradient(135deg,#1a3320,#0d2210);padding:28px 28px;border-radius:14px;
+border:2px solid #4caf50;margin:8px 0;text-align:center">
+  <div style="font-size:12px;color:#88c989;font-weight:700;letter-spacing:2px;margin-bottom:12px">
+    🇬🇧 ANGLAIS
+  </div>
+  <div style="font-size:24px;font-weight:800;color:#e8f5e9">{card['back_en']}</div>
+</div>
+""",
+                    unsafe_allow_html=True,
+                )
+                with col_know:
+                    if st.button(
+                        "✅ Je savais",
+                        key=f"dial-fc-ok-{sid}-{fc_idx}",
+                        use_container_width=True,
+                        type="primary",
+                    ):
+                        score["correct"] += 1
+                        score["total"] += 1
+                        st.session_state[fc_score_key] = score
+                        _advance_flashcard(sid, fc_idx, total_fc, fc_idx_key, fc_revealed_key)
+                        st.rerun()
+                with col_no:
+                    if st.button(
+                        "❌ À revoir",
+                        key=f"dial-fc-no-{sid}-{fc_idx}",
+                        use_container_width=True,
+                    ):
+                        score["total"] += 1
+                        st.session_state[fc_score_key] = score
+                        _advance_flashcard(sid, fc_idx, total_fc, fc_idx_key, fc_revealed_key)
+                        st.rerun()
+
+            # Navigation
+            st.markdown("---")
+            nav_p, nav_c, nav_n = st.columns([1, 2, 1])
+            with nav_p:
+                if st.button(
+                    "← Précédente",
+                    key=f"dial-fc-prev-{sid}-{fc_idx}",
+                    disabled=fc_idx == 0,
+                    use_container_width=True,
+                ):
+                    st.session_state[fc_idx_key] = fc_idx - 1
+                    st.session_state[fc_revealed_key] = False
+                    st.rerun()
+            with nav_c:
+                if st.button(
+                    "🔄 Recommencer les flashcards",
+                    key=f"dial-fc-reset-{sid}",
+                    use_container_width=True,
+                ):
+                    st.session_state[fc_idx_key] = 0
+                    st.session_state[fc_revealed_key] = False
+                    st.session_state[fc_score_key] = {"correct": 0, "total": 0}
+                    st.rerun()
+            with nav_n:
+                if st.button(
+                    "Suivante →",
+                    key=f"dial-fc-next-{sid}-{fc_idx}",
+                    disabled=fc_idx >= total_fc - 1,
+                    use_container_width=True,
+                    type="primary",
+                ):
+                    st.session_state[fc_idx_key] = fc_idx + 1
+                    st.session_state[fc_revealed_key] = False
+                    st.rerun()
+
+
+def _advance_flashcard(sid, current_idx, total, idx_key, revealed_key):
+    if current_idx < total - 1:
+        st.session_state[idx_key] = current_idx + 1
+    st.session_state[revealed_key] = False
+
+
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
@@ -1241,10 +1695,15 @@ def render_michel_thomas_page():
     st.header("Méthode Michel Thomas — Construction progressive de phrases")
     st.caption(f"Profil actif : {profile.get('name', 'Profil principal')}")
 
-    tab_ia, tab_perf = st.tabs(["🤖 Session IA", "🎯 Perfectionnement CD 8–11"])
+    tab_ia, tab_perf, tab_dial = st.tabs(
+        ["🤖 Session IA", "🎯 Perfectionnement CD 8–11", "📚 Leçons & Dialogues"]
+    )
 
     with tab_ia:
         _render_mt_ia_tab(profile, profile_id)
 
     with tab_perf:
         _render_mt_perfectionnement_tab(profile, profile_id)
+
+    with tab_dial:
+        _render_mt_dialogue_tab(profile, profile_id)
