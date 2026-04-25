@@ -1,8 +1,12 @@
+import hashlib
 import os
 
 import streamlit as st
 
-from modules.ai_client import text_to_speech_openrouter
+from modules.ai_client import (
+    text_to_speech_openrouter,
+    transcribe_audio_with_openrouter,
+)
 from modules.config import (
     CEFR_LEVELS,
     MT_DIALOGUE_THEMES,
@@ -436,19 +440,44 @@ def _render_lesson_practice(session, sid, profile_id):
     if hint:
         st.caption(f"💡 Indice : {hint}")
 
+    audio_key = f"mt_practice_audio_{sid}_{idx}"
+    transcript_key = f"mt_practice_transcript_{sid}_{idx}"
+    marker_key = f"mt_practice_marker_{sid}_{idx}"
+    user_audio_bytes_key = f"mt_practice_abytes_{sid}_{idx}"
+
     if not st.session_state[submitted_key]:
-        user_input = st.text_input(
-            "Ta traduction",
-            key=f"practice_input_{sid}_{idx}",
-            placeholder="Écris ta réponse ici…",
+        st.markdown("**🎙️ Ta réponse en audio :**")
+        user_audio_file = st.audio_input(
+            "Enregistre ta réponse, puis clique à nouveau pour arrêter",
+            key=audio_key,
         )
+
+        if user_audio_file:
+            candidate_bytes = user_audio_file.getvalue()
+            fingerprint = hashlib.sha1(candidate_bytes).hexdigest()
+            if st.session_state.get(marker_key) != fingerprint:
+                st.session_state[marker_key] = fingerprint
+                with st.spinner("Transcription…"):
+                    transcript, t_err = transcribe_audio_with_openrouter(
+                        candidate_bytes, audio_format="wav"
+                    )
+                if t_err:
+                    st.warning(f"Transcription échouée : {t_err}")
+                else:
+                    st.session_state[transcript_key] = transcript
+                    st.session_state[user_audio_bytes_key] = candidate_bytes
+
+        user_input = st.session_state.get(transcript_key, "")
+        if user_input:
+            st.caption(f"📝 Transcription : *{user_input}*")
+
         submit_col, skip_col = st.columns([3, 1])
         with submit_col:
             if st.button(
                 "✅ Valider",
                 key=f"practice_submit_{sid}_{idx}",
                 type="primary",
-                disabled=not (user_input or "").strip(),
+                disabled=not user_input.strip(),
                 use_container_width=True,
             ):
                 with st.spinner("Évaluation en cours…"):
@@ -458,6 +487,35 @@ def _render_lesson_practice(session, sid, profile_id):
                 else:
                     st.session_state[eval_key] = eval_result
                     st.session_state[submitted_key] = True
+                    # Generate TTS for feedback and improved answer eagerly
+                    _feedback_text = eval_result.get("feedback_fr", "")
+                    _improved = eval_result.get("improved_answer", "")
+                    if _feedback_text:
+                        with st.spinner("Audio de la correction…"):
+                            _fb_ab, _, _fb_err = text_to_speech_openrouter(
+                                _feedback_text, language_hint="fr"
+                            )
+                        if not _fb_err and _fb_ab:
+                            _fb_path = _save_lesson_practice_audio(
+                                sid, idx, "feedback", _fb_ab
+                            )
+                            _update_lesson_practice_audio(
+                                profile_id, sid, idx, "audio_path_feedback", _fb_path
+                            )
+                            pairs[idx]["audio_path_feedback"] = _fb_path
+                    if _improved and _improved != pair.get("answer", ""):
+                        with st.spinner("Audio de la version améliorée…"):
+                            _imp_ab, _, _imp_err = text_to_speech_openrouter(
+                                _improved, language_hint=answer_lang
+                            )
+                        if not _imp_err and _imp_ab:
+                            _imp_path = _save_lesson_practice_audio(
+                                sid, idx, "improved", _imp_ab
+                            )
+                            _update_lesson_practice_audio(
+                                profile_id, sid, idx, "audio_path_improved", _imp_path
+                            )
+                            pairs[idx]["audio_path_improved"] = _imp_path
                     st.rerun()
         with skip_col:
             if st.button(
@@ -468,6 +526,9 @@ def _render_lesson_practice(session, sid, profile_id):
                 st.session_state[idx_key] = idx + 1
                 st.session_state[submitted_key] = False
                 st.session_state.pop(eval_key, None)
+                st.session_state.pop(transcript_key, None)
+                st.session_state.pop(marker_key, None)
+                st.session_state.pop(user_audio_bytes_key, None)
                 st.rerun()
     else:
         eval_result = st.session_state.get(eval_key, {})
@@ -477,13 +538,26 @@ def _render_lesson_practice(session, sid, profile_id):
         improved = eval_result.get("improved_answer", "")
         expected = pair.get("answer", "")
 
+        # ── User's recorded answer ─────────────────────────────────────────────
+        user_transcript = st.session_state.get(transcript_key, "")
+        user_audio_stored = st.session_state.get(user_audio_bytes_key)
+        if user_transcript or user_audio_stored:
+            st.markdown("**🎙️ Ta réponse :**")
+            if user_transcript:
+                st.caption(f"📝 {user_transcript}")
+            if user_audio_stored:
+                st.audio(user_audio_stored, format="audio/wav")
+
+        st.markdown("---")
+
+        # ── Score + feedback text ──────────────────────────────────────────────
         score_color = (
             "#4caf50" if score >= 75 else "#ff9800" if score >= 50 else "#f44336"
         )
         icon = "✅" if correct else "💪"
         st.markdown(
             f"""
-<div style="background:#1a1a2e;padding:16px 20px;border-radius:12px;border-left:6px solid {score_color};margin-bottom:12px">
+<div style="background:#1a1a2e;padding:16px 20px;border-radius:12px;border-left:6px solid {score_color};margin-bottom:8px">
   <span style="font-size:28px;font-weight:800;color:{score_color}">{icon} {score}/100</span><br/>
   <span style="color:#ddd;font-size:15px">{feedback}</span>
 </div>
@@ -491,9 +565,35 @@ def _render_lesson_practice(session, sid, profile_id):
             unsafe_allow_html=True,
         )
 
+        # ── Feedback audio (correction) ────────────────────────────────────────
+        feedback_audio_path = pair.get("audio_path_feedback", "")
+        feedback_audio_bytes = (
+            _load_audio(feedback_audio_path) if feedback_audio_path else None
+        )
+        if feedback_audio_bytes:
+            st.audio(feedback_audio_bytes, format="audio/wav")
+        elif feedback:
+            if st.button(
+                "🔊 Écouter la correction", key=f"practice_feedback_audio_{sid}_{idx}"
+            ):
+                with st.spinner("Génération de l'audio…"):
+                    ab, _, tts_err = text_to_speech_openrouter(
+                        feedback, language_hint="fr"
+                    )
+                if not tts_err and ab:
+                    path = _save_lesson_practice_audio(sid, idx, "feedback", ab)
+                    _update_lesson_practice_audio(
+                        profile_id, sid, idx, "audio_path_feedback", path
+                    )
+                    pairs[idx]["audio_path_feedback"] = path
+                    st.rerun()
+                else:
+                    st.warning("Audio indisponible.")
+
+        # ── Expected answer ────────────────────────────────────────────────────
         st.markdown(
             f"""
-<div style="background:#1e3a5f;padding:10px 16px;border-radius:8px;margin-bottom:8px">
+<div style="background:#1e3a5f;padding:10px 16px;border-radius:8px;margin-bottom:4px">
   <span style="font-size:11px;color:#8ab4e8;font-weight:700">✔️ RÉPONSE ATTENDUE</span><br/>
   <span style="font-size:17px;color:#fff;font-weight:600">{expected}</span>
 </div>
@@ -526,16 +626,41 @@ def _render_lesson_practice(session, sid, profile_id):
                 else:
                     st.warning("Audio indisponible.")
 
+        # ── Improved answer ────────────────────────────────────────────────────
         if improved and improved != expected:
             st.markdown(
                 f"""
-<div style="background:#332200;padding:10px 16px;border-radius:8px;margin-bottom:8px">
+<div style="background:#332200;padding:10px 16px;border-radius:8px;margin-bottom:4px">
   <span style="font-size:11px;color:#ffb74d;font-weight:700">💡 VERSION AMÉLIORÉE</span><br/>
   <span style="font-size:16px;color:#ffe0b2">{improved}</span>
 </div>
 """,
                 unsafe_allow_html=True,
             )
+            improved_audio_path = pair.get("audio_path_improved", "")
+            improved_audio_bytes = (
+                _load_audio(improved_audio_path) if improved_audio_path else None
+            )
+            if improved_audio_bytes:
+                st.audio(improved_audio_bytes, format="audio/wav")
+            else:
+                if st.button(
+                    "🔊 Écouter la version améliorée",
+                    key=f"practice_improved_audio_{sid}_{idx}",
+                ):
+                    with st.spinner("Génération de l'audio…"):
+                        ab, _, tts_err = text_to_speech_openrouter(
+                            improved, language_hint=answer_lang
+                        )
+                    if not tts_err and ab:
+                        path = _save_lesson_practice_audio(sid, idx, "improved", ab)
+                        _update_lesson_practice_audio(
+                            profile_id, sid, idx, "audio_path_improved", path
+                        )
+                        pairs[idx]["audio_path_improved"] = path
+                        st.rerun()
+                    else:
+                        st.warning("Audio indisponible.")
 
         next_col, retry_col = st.columns([3, 1])
         with next_col:
@@ -549,6 +674,9 @@ def _render_lesson_practice(session, sid, profile_id):
                 st.session_state[idx_key] = idx + 1
                 st.session_state[submitted_key] = False
                 st.session_state.pop(eval_key, None)
+                st.session_state.pop(transcript_key, None)
+                st.session_state.pop(marker_key, None)
+                st.session_state.pop(user_audio_bytes_key, None)
                 st.rerun()
         with retry_col:
             if st.button(
@@ -558,6 +686,9 @@ def _render_lesson_practice(session, sid, profile_id):
             ):
                 st.session_state[submitted_key] = False
                 st.session_state.pop(eval_key, None)
+                st.session_state.pop(transcript_key, None)
+                st.session_state.pop(marker_key, None)
+                st.session_state.pop(user_audio_bytes_key, None)
                 st.rerun()
 
 
