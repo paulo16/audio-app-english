@@ -153,16 +153,28 @@ def _render_lesson_tab(profile, profile_id):
     active_sid = st.session_state.get("lesson_active_sid", sessions[0]["id"])
     active_idx = next((i for i, s in enumerate(sessions) if s["id"] == active_sid), 0)
 
-    chosen_idx = st.selectbox(
-        "Leçon active",
-        range(len(sessions)),
-        index=active_idx,
-        format_func=lambda i: session_labels[i],
-        key="lesson_session_sel",
-    )
+    sel_col, del_col = st.columns([5, 1])
+    with sel_col:
+        chosen_idx = st.selectbox(
+            "Leçon active",
+            range(len(sessions)),
+            index=active_idx,
+            format_func=lambda i: session_labels[i],
+            key="lesson_session_sel",
+        )
     st.session_state["lesson_active_sid"] = sessions[chosen_idx]["id"]
     session = sessions[chosen_idx]
     sid = session["id"]
+
+    with del_col:
+        st.markdown("<div style='margin-top:28px'>", unsafe_allow_html=True)
+        if st.button("🗑️", key=f"lesson_del_{sid}", help="Supprimer cette leçon"):
+            sessions = load_mt_lesson_sessions(profile_id)
+            sessions = [s for s in sessions if s["id"] != sid]
+            save_mt_lesson_sessions(sessions, profile_id)
+            st.session_state.pop("lesson_active_sid", None)
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     mode_key = f"lesson_mode_{sid}"
     if mode_key not in st.session_state:
