@@ -1,6 +1,7 @@
 import os
 
 import streamlit as st
+
 from modules.ai_client import text_to_speech_openrouter
 from modules.config import (
     CEFR_LEVELS,
@@ -11,9 +12,11 @@ from modules.config import (
 from modules.michel_thomas import (
     _save_lesson_course_audio,
     _save_lesson_example_audio,
+    _save_lesson_practice_audio,
     _save_themed_dialogue_line_audio,
     _update_lesson_course_audio_path,
     _update_lesson_example_audio,
+    _update_lesson_practice_audio,
     _update_themed_dialogue_line_audio,
     build_lesson_narration_script,
     evaluate_practice_pair,
@@ -195,7 +198,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
         if st.button("🔄 Regénérer l'audio du cours", key=f"regen_course_audio_{sid}"):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours…"):
-                ab, _, tts_err = text_to_speech_openrouter(script, voice=voice, language_hint="fr")
+                ab, _, tts_err = text_to_speech_openrouter(
+                    script, voice=voice, language_hint="fr"
+                )
             if not tts_err:
                 path = _save_lesson_course_audio(sid, ab)
                 _update_lesson_course_audio_path(profile_id, sid, path)
@@ -212,7 +217,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
         ):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours (quelques secondes)…"):
-                ab, _, tts_err = text_to_speech_openrouter(script, voice=voice, language_hint="fr")
+                ab, _, tts_err = text_to_speech_openrouter(
+                    script, voice=voice, language_hint="fr"
+                )
             if not tts_err:
                 path = _save_lesson_course_audio(sid, ab)
                 _update_lesson_course_audio_path(profile_id, sid, path)
@@ -302,7 +309,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
                             )
                         if not tts_err:
                             path = _save_lesson_example_audio(sid, i, "en", ab)
-                            _update_lesson_example_audio(profile_id, sid, i, "audio_path_en", path)
+                            _update_lesson_example_audio(
+                                profile_id, sid, i, "audio_path_en", path
+                            )
                             st.rerun()
                         else:
                             st.error(tts_err)
@@ -317,7 +326,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
                             )
                         if not tts_err:
                             path = _save_lesson_example_audio(sid, i, "fr", ab)
-                            _update_lesson_example_audio(profile_id, sid, i, "audio_path_fr", path)
+                            _update_lesson_example_audio(
+                                profile_id, sid, i, "audio_path_fr", path
+                            )
                             st.rerun()
                         else:
                             st.error(tts_err)
@@ -377,9 +388,13 @@ def _render_lesson_practice(session, sid, profile_id):
     if direction == "fr_to_en":
         badge = "🇫🇷 → 🇬🇧  Traduis en **ANGLAIS**"
         badge_color = "#1e3a5f"
+        prompt_lang = "fr"
+        answer_lang = "en"
     else:
         badge = "🇬🇧 → 🇫🇷  Traduis en **FRANÇAIS**"
         badge_color = "#1a3320"
+        prompt_lang = "en"
+        answer_lang = "fr"
 
     st.markdown(
         f"<div style='background:{badge_color};padding:8px 14px;border-radius:8px;margin-bottom:12px;"
@@ -389,12 +404,34 @@ def _render_lesson_practice(session, sid, profile_id):
 
     st.markdown(
         f"""
-<div style="background:#2a2a3e;padding:20px 24px;border-radius:12px;margin-bottom:16px;text-align:center">
+<div style="background:#2a2a3e;padding:20px 24px;border-radius:12px;margin-bottom:8px;text-align:center">
   <span style="font-size:22px;font-weight:700;color:#ffffff">{prompt_text}</span>
 </div>
 """,
         unsafe_allow_html=True,
     )
+
+    # ── Prompt audio ───────────────────────────────────────────────────────────
+    prompt_audio_path = pair.get("audio_path_prompt", "")
+    prompt_audio_bytes = _load_audio(prompt_audio_path) if prompt_audio_path else None
+    if prompt_audio_bytes:
+        st.audio(prompt_audio_bytes, format="audio/wav")
+    else:
+        if st.button("🔊 Écouter la phrase", key=f"practice_prompt_audio_{sid}_{idx}"):
+            with st.spinner("Génération de l'audio…"):
+                ab, _, tts_err = text_to_speech_openrouter(
+                    prompt_text, language_hint=prompt_lang
+                )
+            if not tts_err and ab:
+                path = _save_lesson_practice_audio(sid, idx, "prompt", ab)
+                _update_lesson_practice_audio(
+                    profile_id, sid, idx, "audio_path_prompt", path
+                )
+                # Update in-memory pairs list so audio shows immediately
+                pairs[idx]["audio_path_prompt"] = path
+                st.rerun()
+            else:
+                st.warning("Audio indisponible.")
 
     if hint:
         st.caption(f"💡 Indice : {hint}")
@@ -463,6 +500,31 @@ def _render_lesson_practice(session, sid, profile_id):
 """,
             unsafe_allow_html=True,
         )
+
+        # ── Answer audio ───────────────────────────────────────────────────────
+        answer_audio_path = pair.get("audio_path_answer", "")
+        answer_audio_bytes = (
+            _load_audio(answer_audio_path) if answer_audio_path else None
+        )
+        if answer_audio_bytes:
+            st.audio(answer_audio_bytes, format="audio/wav")
+        else:
+            if st.button(
+                "🔊 Écouter la réponse", key=f"practice_answer_audio_{sid}_{idx}"
+            ):
+                with st.spinner("Génération de l'audio…"):
+                    ab, _, tts_err = text_to_speech_openrouter(
+                        expected, language_hint=answer_lang
+                    )
+                if not tts_err and ab:
+                    path = _save_lesson_practice_audio(sid, idx, "answer", ab)
+                    _update_lesson_practice_audio(
+                        profile_id, sid, idx, "audio_path_answer", path
+                    )
+                    pairs[idx]["audio_path_answer"] = path
+                    st.rerun()
+                else:
+                    st.warning("Audio indisponible.")
 
         if improved and improved != expected:
             st.markdown(

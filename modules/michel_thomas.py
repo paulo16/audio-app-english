@@ -3,13 +3,21 @@ import os
 import uuid
 
 from modules.ai_client import openrouter_chat, tts_smart
-from modules.config import (CEFR_DESCRIPTORS, CEFR_LEVELS, CHAT_MODEL,
-                            EVAL_MODEL, MICHEL_THOMAS_AUDIO_DIR,
-                            MICHEL_THOMAS_DIR, MT_DIALOGUE_SESSION_DIR,
-                            MT_LESSON_SESSION_DIR,
-                            MT_PERFECTIONNEMENT_SESSION_DIR,
-                            MT_TENSES_BY_LEVEL, MT_THEMED_DIALOGUE_DIR,
-                            MT_THEMES_BY_LEVEL, STORY_NARRATOR_VOICES)
+from modules.config import (
+    CEFR_DESCRIPTORS,
+    CEFR_LEVELS,
+    CHAT_MODEL,
+    EVAL_MODEL,
+    MICHEL_THOMAS_AUDIO_DIR,
+    MICHEL_THOMAS_DIR,
+    MT_DIALOGUE_SESSION_DIR,
+    MT_LESSON_SESSION_DIR,
+    MT_PERFECTIONNEMENT_SESSION_DIR,
+    MT_TENSES_BY_LEVEL,
+    MT_THEMED_DIALOGUE_DIR,
+    MT_THEMES_BY_LEVEL,
+    STORY_NARRATOR_VOICES,
+)
 from modules.profiles import _profile_storage_slug
 from modules.utils import extract_json_from_text, now_iso, utc_now
 
@@ -621,7 +629,9 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
     return session, None
 
 
-def _save_dial_phrase_audio(session_id: str, phrase_idx: int, lang: str, audio_bytes: bytes) -> str:
+def _save_dial_phrase_audio(
+    session_id: str, phrase_idx: int, lang: str, audio_bytes: bytes
+) -> str:
     """Persist audio for a key phrase (lang = 'en' or 'fr')."""
     os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
     path = os.path.join(
@@ -809,7 +819,9 @@ Critical rules:
             "what_is_it_fr": str(data.get("what_is_it_fr", "")).strip(),
             "when_to_use_fr": str(data.get("when_to_use_fr", "")).strip(),
             "structure": {
-                "affirmative": str(data.get("structure", {}).get("affirmative", "")).strip(),
+                "affirmative": str(
+                    data.get("structure", {}).get("affirmative", "")
+                ).strip(),
                 "negative": str(data.get("structure", {}).get("negative", "")).strip(),
                 "question": str(data.get("structure", {}).get("question", "")).strip(),
             },
@@ -826,7 +838,9 @@ Critical rules:
     return session, None
 
 
-def _save_lesson_example_audio(session_id: str, example_idx: int, lang: str, audio_bytes: bytes) -> str:
+def _save_lesson_example_audio(
+    session_id: str, example_idx: int, lang: str, audio_bytes: bytes
+) -> str:
     """Persist TTS audio for a lesson example (lang = 'en' or 'fr')."""
     os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
     path = os.path.join(
@@ -845,6 +859,31 @@ def _update_lesson_example_audio(profile_id, sid, example_idx, field, new_path):
             examples = s.get("lesson", {}).get("examples", [])
             if example_idx < len(examples):
                 examples[example_idx][field] = new_path
+            break
+    save_mt_lesson_sessions(all_sessions, profile_id)
+
+
+def _save_lesson_practice_audio(
+    session_id: str, pair_idx: int, role: str, audio_bytes: bytes
+) -> str:
+    """Persist TTS audio for a practice pair (role = 'prompt' or 'answer')."""
+    os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(
+        MICHEL_THOMAS_AUDIO_DIR,
+        f"lesson-{session_id}_pair{pair_idx}_{role}.wav",
+    )
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _update_lesson_practice_audio(profile_id, sid, pair_idx, field, new_path):
+    all_sessions = load_mt_lesson_sessions(profile_id)
+    for s in all_sessions:
+        if s["id"] == sid:
+            pairs = s.get("practice_pairs", [])
+            if pair_idx < len(pairs):
+                pairs[pair_idx][field] = new_path
             break
     save_mt_lesson_sessions(all_sessions, profile_id)
 
@@ -1158,7 +1197,9 @@ Critical rules:
     return session, None
 
 
-def _save_themed_dialogue_line_audio(session_id: str, line_idx: int, audio_bytes: bytes) -> str:
+def _save_themed_dialogue_line_audio(
+    session_id: str, line_idx: int, audio_bytes: bytes
+) -> str:
     os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
     path = os.path.join(
         MICHEL_THOMAS_AUDIO_DIR,

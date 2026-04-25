@@ -1,5 +1,122 @@
 [
   {
+    "id": "mt-lesson-202604251627-88d274",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B1",
+    "concept": "Present Perfect — ever/never (Have you ever been to...?)",
+    "created_at": "2026-04-25T16:27:45Z",
+    "lesson": {
+      "title_fr": "Le Present Perfect — ever/never (Have you ever been to...?)",
+      "what_is_it_fr": "Le Present Perfect — ever/never (Have you ever been to...?) s'utilise pour parler d'expériences de vie sans préciser quand elles ont eu lieu. En français, cela correspond souvent à l'utilisation du passé composé. Cette structure permet de poser des questions sur des expériences passées ou de dire si on a fait quelque chose ou non.",
+      "when_to_use_fr": "• Pour poser des questions sur des expériences de vie. \n• Pour dire que l'on a fait quelque chose à un moment indéfini dans le passé. \n• Pour exprimer que l'on n'a jamais fait quelque chose.",
+      "structure": {
+        "affirmative": "Sujet + have/has + verbe au participe passé",
+        "negative": "Sujet + have/has + not + verbe au participe passé",
+        "question": "Have/Has + sujet + verbe au participe passé ?"
+      },
+      "analogy_fr": "C'est exactement comme en français : 'As-tu déjà été à... ?' = 'Have you ever been to... ?'",
+      "key_points_fr": [
+        "N'oubliez pas que 'ever' est utilisé dans les questions et 'never' dans les phrases négatives.",
+        "Le participe passé des verbes irréguliers doit être mémorisé.",
+        "La forme correcte de 'have' dépend du sujet : 'I/you/we/they have' et 'he/she/it has'."
+      ],
+      "examples": [
+        {
+          "english": "Have you ever been to Paris?",
+          "french": "Es-tu déjà allé à Paris ?",
+          "audio_path_en": null,
+          "audio_path_fr": null
+        },
+        {
+          "english": "I have never seen a lion.",
+          "french": "Je n'ai jamais vu de lion.",
+          "audio_path_en": null,
+          "audio_path_fr": null
+        },
+        {
+          "english": "She has been to London three times.",
+          "french": "Elle est allée à Londres trois fois.",
+          "audio_path_en": null,
+          "audio_path_fr": null
+        },
+        {
+          "english": "Have they ever tried sushi?",
+          "french": "Ont-ils déjà essayé des sushis ?",
+          "audio_path_en": null,
+          "audio_path_fr": null
+        },
+        {
+          "english": "We have never traveled outside the country.",
+          "french": "Nous n'avons jamais voyagé à l'étranger.",
+          "audio_path_en": null,
+          "audio_path_fr": null
+        }
+      ]
+    },
+    "practice_pairs": [
+      {
+        "direction": "fr_to_en",
+        "prompt": "As-tu déjà mangé des escargots ?",
+        "answer": "Have you ever eaten snails?",
+        "hint": ""
+      },
+      {
+        "direction": "fr_to_en",
+        "prompt": "Je n'ai jamais visité l'Italie.",
+        "answer": "I have never visited Italy.",
+        "hint": ""
+      },
+      {
+        "direction": "fr_to_en",
+        "prompt": "Avez-vous déjà pris le train ?",
+        "answer": "Have you ever taken the train?",
+        "hint": ""
+      },
+      {
+        "direction": "fr_to_en",
+        "prompt": "Il n'a jamais joué au football.",
+        "answer": "He has never played football.",
+        "hint": ""
+      },
+      {
+        "direction": "fr_to_en",
+        "prompt": "Nous avons déjà vu ce film.",
+        "answer": "We have already seen this movie.",
+        "hint": ""
+      },
+      {
+        "direction": "fr_to_en",
+        "prompt": "Elle a déjà visité le musée.",
+        "answer": "She has already visited the museum.",
+        "hint": ""
+      },
+      {
+        "direction": "en_to_fr",
+        "prompt": "Have you ever been to New York?",
+        "answer": "Es-tu déjà allé à New York ?",
+        "hint": ""
+      },
+      {
+        "direction": "en_to_fr",
+        "prompt": "They have never eaten sushi.",
+        "answer": "Ils n'ont jamais mangé de sushi.",
+        "hint": ""
+      },
+      {
+        "direction": "en_to_fr",
+        "prompt": "I have been to France twice.",
+        "answer": "Je suis allé en France deux fois.",
+        "hint": ""
+      },
+      {
+        "direction": "en_to_fr",
+        "prompt": "Has she ever traveled abroad?",
+        "answer": "A-t-elle déjà voyagé à l'étranger ?",
+        "hint": ""
+      }
+    ]
+  },
+  {
     "id": "mt-lesson-202604251112-72b7ff",
     "profile_id": "profile-paul-mbilong",
     "level": "B1",
