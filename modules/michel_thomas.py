@@ -3,19 +3,13 @@ import os
 import uuid
 
 from modules.ai_client import openrouter_chat, tts_smart
-from modules.config import (
-    CEFR_DESCRIPTORS,
-    CEFR_LEVELS,
-    CHAT_MODEL,
-    EVAL_MODEL,
-    MICHEL_THOMAS_AUDIO_DIR,
-    MICHEL_THOMAS_DIR,
-    MT_DIALOGUE_SESSION_DIR,
-    MT_PERFECTIONNEMENT_SESSION_DIR,
-    MT_TENSES_BY_LEVEL,
-    MT_THEMES_BY_LEVEL,
-    STORY_NARRATOR_VOICES,
-)
+from modules.config import (CEFR_DESCRIPTORS, CEFR_LEVELS, CHAT_MODEL,
+                            EVAL_MODEL, MICHEL_THOMAS_AUDIO_DIR,
+                            MICHEL_THOMAS_DIR, MT_DIALOGUE_SESSION_DIR,
+                            MT_LESSON_SESSION_DIR,
+                            MT_PERFECTIONNEMENT_SESSION_DIR,
+                            MT_TENSES_BY_LEVEL, MT_THEMED_DIALOGUE_DIR,
+                            MT_THEMES_BY_LEVEL, STORY_NARRATOR_VOICES)
 from modules.profiles import _profile_storage_slug
 from modules.utils import extract_json_from_text, now_iso, utc_now
 
@@ -667,3 +661,431 @@ def _update_dial_line_audio(profile_id, sid, line_idx, new_path):
             s["dialogue"][line_idx]["audio_path_en"] = new_path
             break
     save_mt_dialogue_sessions(all_sessions, profile_id)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LESSON SESSIONS — Leçons bilingues structurées avec pratique EN↔FR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def mt_lesson_sessions_file_path(profile_id="default"):
+    slug = _profile_storage_slug(profile_id)
+    os.makedirs(MT_LESSON_SESSION_DIR, exist_ok=True)
+    return os.path.join(MT_LESSON_SESSION_DIR, f"lessons-{slug}.json")
+
+
+def load_mt_lesson_sessions(profile_id="default"):
+    path = mt_lesson_sessions_file_path(profile_id)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_mt_lesson_sessions(sessions, profile_id="default"):
+    os.makedirs(MT_LESSON_SESSION_DIR, exist_ok=True)
+    with open(mt_lesson_sessions_file_path(profile_id), "w", encoding="utf-8") as f:
+        json.dump(sessions, f, ensure_ascii=False, indent=2)
+
+
+def generate_lesson_session(
+    concept: str,
+    level: str,
+    profile_id: str = "default",
+):
+    """Generate a full bilingual lesson: explanation + examples + FR↔EN practice pairs.
+
+    Returns (session_dict, error_str).
+    """
+    target = str(level or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+    cefr = CEFR_DESCRIPTORS[target]
+
+    prompt = f"""
+You are an expert bilingual English-French language teacher.
+Generate a complete structured lesson on: "{concept}" for CEFR level {target} ({cefr['label']}).
+The learner speaks French natively. ALL explanations MUST be in FRENCH.
+
+Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
+{{
+  "title_fr": "Titre de la leçon en français (ex: Le 2ème Conditionnel — Hypothèses irréelles)",
+  "what_is_it_fr": "Explication de 3-4 phrases en français : ce que c'est, à quoi ça correspond en français, sens général. Commence par 'Le/La {concept} s'utilise pour...'",
+  "when_to_use_fr": "Quand utiliser cette structure : liste de 3-4 cas d'usage séparés par \\n, chaque ligne commençant par •",
+  "structure": {{
+    "affirmative": "formule affirmative (ex: If + Past Simple, would + base verb)",
+    "negative": "formule négative (ex: If ... didn't + verb, wouldn't + base verb)",
+    "question": "formule interrogative (ex: What would you do if + Past Simple?)"
+  }},
+  "analogy_fr": "L'analogie clé FR→EN en 1-2 phrases très concrètes (ex: 'C'est exactement comme en français : Si j'avais... je ferais... = If I had... I would...')",
+  "key_points_fr": [
+    "Point clé ou erreur fréquente #1 (pratique, pas trop technique)",
+    "Point clé ou erreur fréquente #2",
+    "Point clé ou erreur fréquente #3"
+  ],
+  "examples": [
+    {{"english": "phrase anglaise naturelle", "french": "traduction française"}},
+    {{"english": "...", "french": "..."}},
+    {{"english": "...", "french": "..."}},
+    {{"english": "...", "french": "..."}},
+    {{"english": "...", "french": "..."}}
+  ],
+  "practice_pairs": [
+    {{"direction": "fr_to_en", "prompt": "phrase française à traduire en anglais", "answer": "traduction anglaise attendue", "hint": ""}},
+    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "indice si nécessaire, sinon chaîne vide"}},
+    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "en_to_fr", "prompt": "English sentence to translate into French", "answer": "traduction française attendue", "hint": ""}},
+    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}},
+    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}}
+  ]
+}}
+
+Critical rules:
+1. Exactly 5 examples ordered by complexity (simple → complex).
+2. Exactly 10 practice pairs: first 6 FR→EN, last 4 EN→FR.
+3. Practice pairs must vary: affirmative, negative, question forms, different subjects.
+4. English sentences must be natural {cefr['label']}-level American English.
+5. Hints should be empty strings unless genuinely helpful (e.g., irregular verb warning).
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.4,
+        max_tokens=4000,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, dict) or not data.get("examples"):
+        return None, "Génération invalide : structure JSON incorrecte."
+
+    # Normalise examples
+    examples = []
+    for ex in data.get("examples", [])[:5]:
+        if not isinstance(ex, dict):
+            continue
+        examples.append(
+            {
+                "english": str(ex.get("english", "")).strip(),
+                "french": str(ex.get("french", "")).strip(),
+                "audio_path_en": None,
+                "audio_path_fr": None,
+            }
+        )
+
+    # Normalise practice_pairs
+    practice_pairs = []
+    for pp in data.get("practice_pairs", [])[:10]:
+        if not isinstance(pp, dict):
+            continue
+        practice_pairs.append(
+            {
+                "direction": str(pp.get("direction", "fr_to_en")),
+                "prompt": str(pp.get("prompt", "")).strip(),
+                "answer": str(pp.get("answer", "")).strip(),
+                "hint": str(pp.get("hint", "")).strip(),
+            }
+        )
+
+    session_id = f"mt-lesson-{utc_now().strftime('%Y%m%d%H%M')}-{uuid.uuid4().hex[:6]}"
+    session = {
+        "id": session_id,
+        "profile_id": profile_id,
+        "level": target,
+        "concept": concept,
+        "created_at": now_iso(),
+        "lesson": {
+            "title_fr": str(data.get("title_fr", concept)).strip(),
+            "what_is_it_fr": str(data.get("what_is_it_fr", "")).strip(),
+            "when_to_use_fr": str(data.get("when_to_use_fr", "")).strip(),
+            "structure": {
+                "affirmative": str(data.get("structure", {}).get("affirmative", "")).strip(),
+                "negative": str(data.get("structure", {}).get("negative", "")).strip(),
+                "question": str(data.get("structure", {}).get("question", "")).strip(),
+            },
+            "analogy_fr": str(data.get("analogy_fr", "")).strip(),
+            "key_points_fr": [
+                str(kp).strip()
+                for kp in data.get("key_points_fr", [])
+                if isinstance(kp, str) and kp.strip()
+            ],
+            "examples": examples,
+        },
+        "practice_pairs": practice_pairs,
+    }
+    return session, None
+
+
+def _save_lesson_example_audio(session_id: str, example_idx: int, lang: str, audio_bytes: bytes) -> str:
+    """Persist TTS audio for a lesson example (lang = 'en' or 'fr')."""
+    os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(
+        MICHEL_THOMAS_AUDIO_DIR,
+        f"lesson-{session_id}_ex{example_idx}_{lang}.wav",
+    )
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _update_lesson_example_audio(profile_id, sid, example_idx, field, new_path):
+    all_sessions = load_mt_lesson_sessions(profile_id)
+    for s in all_sessions:
+        if s["id"] == sid:
+            examples = s.get("lesson", {}).get("examples", [])
+            if example_idx < len(examples):
+                examples[example_idx][field] = new_path
+            break
+    save_mt_lesson_sessions(all_sessions, profile_id)
+
+
+def evaluate_practice_pair(pair: dict, user_text: str):
+    """Evaluate a FR→EN or EN→FR practice pair.
+
+    Returns (eval_dict, error_str).
+    eval_dict keys: score (0-100), correct (bool), feedback_fr (str), improved_answer (str).
+    """
+    if not user_text.strip():
+        return None, "Réponse vide."
+
+    direction = pair.get("direction", "fr_to_en")
+    prompt_shown = pair.get("prompt", "")
+    expected = pair.get("answer", "")
+
+    if direction == "fr_to_en":
+        source_lang, target_lang = "français", "anglais"
+    else:
+        source_lang, target_lang = "anglais", "français"
+
+    prompt = f"""
+You are a kind, encouraging bilingual English-French language coach.
+
+Direction: translate from {source_lang} to {target_lang}
+Sentence shown: {prompt_shown}
+Expected answer: {expected}
+Learner's answer: {user_text}
+
+Evaluation rules:
+- Accept minor spelling errors (do not penalize heavily).
+- Accept paraphrases that convey the same meaning with correct grammar.
+- Award full marks (100) if grammar structure AND meaning are both correct.
+- Penalize incorrect grammar more than minor vocabulary differences.
+- Give feedback IN FRENCH, encouraging and practical (2-3 sentences max).
+- Suggest an improved version only if the learner's answer had errors.
+
+Return ONLY valid JSON:
+{{
+  "score": 85,
+  "correct": true,
+  "feedback_fr": "Très bien ! ...",
+  "improved_answer": ""
+}}
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        EVAL_MODEL,
+        temperature=0.2,
+        max_tokens=300,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, dict):
+        return None, "Évaluation invalide : réponse JSON non reconnue."
+    return data, None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# THEMED DIALOGUES — Dialogues par thème de vie + focus grammatical
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def mt_themed_dialogue_file_path(profile_id="default"):
+    slug = _profile_storage_slug(profile_id)
+    os.makedirs(MT_THEMED_DIALOGUE_DIR, exist_ok=True)
+    return os.path.join(MT_THEMED_DIALOGUE_DIR, f"tdial-{slug}.json")
+
+
+def load_mt_themed_dialogues(profile_id="default"):
+    path = mt_themed_dialogue_file_path(profile_id)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_mt_themed_dialogues(sessions, profile_id="default"):
+    os.makedirs(MT_THEMED_DIALOGUE_DIR, exist_ok=True)
+    with open(mt_themed_dialogue_file_path(profile_id), "w", encoding="utf-8") as f:
+        json.dump(sessions, f, ensure_ascii=False, indent=2)
+
+
+def generate_themed_dialogue(
+    theme: str,
+    grammar_focus: str,
+    level: str,
+    profile_id: str = "default",
+):
+    """Generate a realistic themed dialogue that naturally embeds a grammar focus.
+
+    Returns (session_dict, error_str).
+    """
+    target = str(level or "B1").upper()
+    if target not in CEFR_LEVELS:
+        target = "B1"
+    cefr = CEFR_DESCRIPTORS[target]
+
+    prompt = f"""
+You are an expert bilingual English-French language coach.
+Generate a realistic dialogue for:
+- Theme: {theme}
+- Grammar focus: {grammar_focus} (must appear naturally 3-4 times in the dialogue)
+- CEFR Level: {target} ({cefr['label']})
+
+The dialogue must feel like a real conversation between two people, NOT an artificial exercise.
+It should naturally use the target grammar structure in context.
+Each line needs both English and French versions.
+
+Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
+{{
+  "title": "Short descriptive title of the dialogue (in English)",
+  "context_fr": "Description du contexte en français : où ça se passe, qui parle, de quoi. 2-3 phrases.",
+  "speakers": [
+    {{"name": "Prénom", "role": "Rôle (ex: Client, Serveur, Collègue...)"}},
+    {{"name": "Prénom", "role": "Rôle"}}
+  ],
+  "lines": [
+    {{
+      "speaker": "Prénom (identique à speakers)",
+      "line_en": "Natural English line",
+      "line_fr": "Traduction française naturelle",
+      "grammar_tag": "{grammar_focus}" if this line uses the target grammar, else ""
+    }},
+    ... exactly 12 lines alternating between the two speakers
+  ],
+  "grammar_spotlight": [
+    {{
+      "structure": "Formule clé extraite du dialogue (ex: If I had..., I would...)",
+      "example_from_dialogue": "The exact line from the dialogue that uses it",
+      "explanation_fr": "Courte explication en français (1-2 phrases)"
+    }}
+  ],
+  "vocabulary_fr": [
+    {{"word": "English word or phrase", "french": "traduction française", "tip": "astuce ou contexte d'usage"}}
+  ]
+}}
+
+Critical rules:
+1. Exactly 12 dialogue lines, alternating speakers.
+2. The target grammar ({grammar_focus}) must appear in at least 3-4 lines (mark them with grammar_tag).
+3. Dialogue must feel natural — characters have real motivations and emotions.
+4. English must be natural {cefr['label']}-level American English.
+5. Include 3-4 grammar_spotlight entries and 4-6 vocabulary items.
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.5,
+        max_tokens=4000,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, dict) or not data.get("lines"):
+        return None, "Génération invalide : structure JSON incorrecte."
+
+    # Normalise lines
+    lines = []
+    for line in data.get("lines", [])[:14]:
+        if not isinstance(line, dict):
+            continue
+        lines.append(
+            {
+                "speaker": str(line.get("speaker", "")).strip(),
+                "line_en": str(line.get("line_en", "")).strip(),
+                "line_fr": str(line.get("line_fr", "")).strip(),
+                "grammar_tag": str(line.get("grammar_tag", "")).strip(),
+                "audio_path_en": None,
+            }
+        )
+
+    grammar_spotlight = [
+        {
+            "structure": str(gs.get("structure", "")).strip(),
+            "example_from_dialogue": str(gs.get("example_from_dialogue", "")).strip(),
+            "explanation_fr": str(gs.get("explanation_fr", "")).strip(),
+        }
+        for gs in data.get("grammar_spotlight", [])
+        if isinstance(gs, dict)
+    ]
+
+    vocabulary_fr = [
+        {
+            "word": str(v.get("word", "")).strip(),
+            "french": str(v.get("french", "")).strip(),
+            "tip": str(v.get("tip", "")).strip(),
+        }
+        for v in data.get("vocabulary_fr", [])
+        if isinstance(v, dict) and v.get("word")
+    ]
+
+    speakers = [
+        {"name": str(s.get("name", "")).strip(), "role": str(s.get("role", "")).strip()}
+        for s in data.get("speakers", [])
+        if isinstance(s, dict)
+    ]
+
+    session_id = f"mt-tdial-{utc_now().strftime('%Y%m%d%H%M')}-{uuid.uuid4().hex[:6]}"
+    session = {
+        "id": session_id,
+        "profile_id": profile_id,
+        "level": target,
+        "theme": theme,
+        "grammar_focus": grammar_focus,
+        "created_at": now_iso(),
+        "title": str(data.get("title", theme)).strip(),
+        "context_fr": str(data.get("context_fr", "")).strip(),
+        "speakers": speakers,
+        "lines": lines,
+        "grammar_spotlight": grammar_spotlight,
+        "vocabulary_fr": vocabulary_fr,
+    }
+    return session, None
+
+
+def _save_themed_dialogue_line_audio(session_id: str, line_idx: int, audio_bytes: bytes) -> str:
+    os.makedirs(MICHEL_THOMAS_AUDIO_DIR, exist_ok=True)
+    path = os.path.join(
+        MICHEL_THOMAS_AUDIO_DIR,
+        f"tdial-{session_id}_line{line_idx}_en.wav",
+    )
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+    return path
+
+
+def _update_themed_dialogue_line_audio(profile_id, sid, line_idx, new_path):
+    all_sessions = load_mt_themed_dialogues(profile_id)
+    for s in all_sessions:
+        if s["id"] == sid and line_idx < len(s.get("lines", [])):
+            s["lines"][line_idx]["audio_path_en"] = new_path
+            break
+    save_mt_themed_dialogues(all_sessions, profile_id)

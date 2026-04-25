@@ -492,6 +492,72 @@ STORY_NARRATOR_VOICES = {
 MICHEL_THOMAS_DIR = os.path.join(DATA_DIR, "michel_thomas")
 MICHEL_THOMAS_AUDIO_DIR = os.path.join(DATA_DIR, "michel_thomas_audio")
 MT_DIALOGUE_SESSION_DIR = os.path.join(DATA_DIR, "michel_thomas_dialogues")
+MT_LESSON_SESSION_DIR = os.path.join(DATA_DIR, "mt_lessons")
+MT_THEMED_DIALOGUE_DIR = os.path.join(DATA_DIR, "mt_themed_dialogues")
+
+MT_GRAMMAR_CONCEPTS = {
+    "A1": [
+        "Present Simple — être & avoir (I am, I have)",
+        "Present Simple — verbes d'action (I work, I like)",
+        "Questions simples (What is...? Where is...?)",
+        "There is / There are",
+        "Adjectifs possessifs (my, your, his, her...)",
+    ],
+    "A2": [
+        "Present Continuous (I am working)",
+        "Past Simple — verbes réguliers (I worked, I played)",
+        "Past Simple — verbes irréguliers (went, saw, had)",
+        "Future avec will (I will call you)",
+        "Future avec going to (I am going to travel)",
+        "Modaux de base — can, can't, could",
+    ],
+    "B1": [
+        "Present Perfect — ever/never (Have you ever been to...?)",
+        "Present Perfect — for/since (I have lived here for 3 years)",
+        "Past Continuous (I was working when...)",
+        "First Conditional (If I have time, I will...)",
+        "Modaux — should, must, have to",
+        "Comparatifs & superlatifs",
+    ],
+    "B2": [
+        "Second Conditional (If I had..., I would...)",
+        "Past Perfect (I had already finished when...)",
+        "Passive Voice — présent & passé",
+        "Reported Speech (She said that...)",
+        "Modaux avancés — might, ought to, would rather",
+        "Wish + Past Simple (I wish I had...)",
+    ],
+    "C1": [
+        "Third Conditional (If I had known, I would have...)",
+        "Mixed Conditionals",
+        "Inversion pour l'emphase (Never have I...)",
+        "Subjunctive (I suggest that he be...)",
+        "Passive avancé — progressif & perfect",
+        "Cleft sentences (What I need is...)",
+    ],
+    "C2": [
+        "Nominalisation (the improvement of...)",
+        "Modaux nuancés au passé (must have, can't have...)",
+        "Discourse markers & cohésion",
+        "Register shifts — formel ↔ familier",
+        "Emphatic structures",
+    ],
+}
+
+MT_DIALOGUE_THEMES = [
+    "Au restaurant — commander, se plaindre, payer",
+    "En voyage — aéroport, hôtel, se perdre",
+    "Au travail — réunion, demande, collègues",
+    "Chez le médecin — symptômes, conseils",
+    "Shopping — négocier, retourner un article",
+    "Premiers rendez-vous — se présenter, flirter poliment",
+    "Entre amis — soirée, projets, plans",
+    "Débat d'opinion — société, actualité, tendances",
+    "Résoudre un problème — réclamation, service client",
+    "Planifier des vacances — itinéraire, activités",
+    "Appel téléphonique professionnel",
+    "Louer un appartement — visiter, négocier",
+]
 
 # ── Michel Thomas Perfectionnement (CD 8-11, vrais audios) ──────────────────
 MT_PERFECTIONNEMENT_BASE_DIR = (
