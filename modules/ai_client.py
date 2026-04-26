@@ -3,6 +3,8 @@ import io
 import json
 import os
 import re
+import tempfile
+import time
 import wave
 from datetime import datetime
 
@@ -10,6 +12,33 @@ import requests
 import streamlit as st
 
 from modules.config import *
+
+STT_PROVIDER_AUTO = "auto"
+STT_PROVIDER_OPENROUTER = "openrouter"
+STT_PROVIDER_GOOGLE = "google_free"
+STT_PROVIDER_WHISPER = "whisper_local"
+
+
+def get_stt_provider_options():
+    return [
+        (STT_PROVIDER_AUTO, "Auto (OpenRouter -> Google -> Whisper)"),
+        (STT_PROVIDER_OPENROUTER, "OpenRouter"),
+        (STT_PROVIDER_GOOGLE, "Google gratuit"),
+        (STT_PROVIDER_WHISPER, "Whisper local"),
+    ]
+
+
+def get_stt_mode():
+    return st.session_state.get("stt_mode", STT_PROVIDER_AUTO)
+
+
+def set_stt_mode(mode):
+    valid = {k for k, _ in get_stt_provider_options()}
+    st.session_state["stt_mode"] = mode if mode in valid else STT_PROVIDER_AUTO
+
+
+def get_last_stt_provider_used():
+    return st.session_state.get("stt_last_provider_used", "")
 
 
 def openrouter_headers(title="English Audio Coach"):
@@ -50,7 +79,32 @@ def openrouter_chat(messages, model, temperature=0.4, max_tokens=1200):
     return content, None
 
 
-def transcribe_audio_with_openrouter(audio_bytes, audio_format="wav"):
+def _openrouter_stt_in_cooldown():
+    until_ts = st.session_state.get("openrouter_stt_unavailable_until", 0)
+    return time.time() < float(until_ts)
+
+
+def _mark_openrouter_stt_unavailable(seconds=900):
+    st.session_state["openrouter_stt_unavailable_until"] = time.time() + int(seconds)
+
+
+def _is_openrouter_quota_error(err_text):
+    raw = str(err_text or "")
+    txt = raw.lower()
+    patterns = [
+        "insufficient credits",
+        "insufficient credit",
+        "insufficient balance",
+        "payment required",
+        "quota",
+        "exceeded your current quota",
+        "billing",
+        '"402"',
+    ]
+    return any(p in txt for p in patterns)
+
+
+def _transcribe_audio_openrouter_once(audio_bytes, audio_format="wav"):
     if not OPENROUTER_API_KEY:
         return None, "OPENROUTER_API_KEY manquante."
 
@@ -79,6 +133,157 @@ def transcribe_audio_with_openrouter(audio_bytes, audio_format="wav"):
     if err:
         return None, err
     return text.strip(), None
+
+
+def _transcribe_audio_google_free(audio_bytes):
+    try:
+        import speech_recognition as sr
+    except Exception:
+        return (
+            None,
+            "Fallback STT gratuit indisponible. Installe SpeechRecognition: pip install SpeechRecognition",
+        )
+
+    try:
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(io.BytesIO(audio_bytes)) as source:
+            audio_data = recognizer.record(source)
+
+        # Try English first because the app is mainly for English speaking practice.
+        try:
+            text = recognizer.recognize_google(audio_data, language="en-US")
+        except sr.UnknownValueError:
+            text = recognizer.recognize_google(audio_data, language="fr-FR")
+        if not text or not text.strip():
+            return None, "Transcription vide (fallback gratuit)."
+        return text.strip(), None
+    except Exception as exc:
+        return None, f"Google STT gratuit: {exc}"
+
+
+def _transcribe_audio_whisper_last_resort(audio_bytes):
+    try:
+        from faster_whisper import WhisperModel
+    except Exception:
+        return (
+            None,
+            "Whisper local indisponible. Installe faster-whisper: pip install faster-whisper",
+        )
+
+    try:
+        model = st.session_state.get("_whisper_model_instance")
+        if model is None:
+            # Lightweight default model for acceptable speed on CPU.
+            model = WhisperModel("small", device="cpu", compute_type="int8")
+            st.session_state["_whisper_model_instance"] = model
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
+        try:
+            segments, _ = model.transcribe(tmp_path, beam_size=1, vad_filter=True)
+            text = " ".join(seg.text.strip() for seg in segments if seg.text).strip()
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+        if not text:
+            return None, "Whisper local: transcription vide."
+        return text, None
+    except Exception as exc:
+        return None, f"Whisper local: {exc}"
+
+
+def transcribe_audio_with_openrouter(
+    audio_bytes, audio_format="wav", preferred_provider=None
+):
+    selected = preferred_provider or get_stt_mode()
+
+    def _mark_used(provider_key):
+        st.session_state["stt_last_provider_used"] = provider_key
+
+    # Forced provider mode: use only the selected engine.
+    if selected == STT_PROVIDER_OPENROUTER:
+        if _openrouter_stt_in_cooldown():
+            return (
+                None,
+                "OpenRouter STT est en pause temporaire (quota). Passe en mode Auto ou Google/Whisper.",
+            )
+        text, err = _transcribe_audio_openrouter_once(audio_bytes, audio_format)
+        if err:
+            if _is_openrouter_quota_error(err):
+                _mark_openrouter_stt_unavailable(seconds=900)
+            return None, f"OpenRouter: {err}"
+        st.session_state.pop("openrouter_stt_unavailable_until", None)
+        _mark_used(STT_PROVIDER_OPENROUTER)
+        return text, None
+
+    if selected == STT_PROVIDER_GOOGLE:
+        text, err = _transcribe_audio_google_free(audio_bytes)
+        if err:
+            return None, f"Google gratuit: {err}"
+        _mark_used(STT_PROVIDER_GOOGLE)
+        return text, None
+
+    if selected == STT_PROVIDER_WHISPER:
+        text, err = _transcribe_audio_whisper_last_resort(audio_bytes)
+        if err:
+            return None, f"Whisper local: {err}"
+        _mark_used(STT_PROVIDER_WHISPER)
+        return text, None
+
+    # Preferred path: OpenRouter when available and not in temporary quota cooldown.
+    if OPENROUTER_API_KEY and not _openrouter_stt_in_cooldown():
+        text, err = _transcribe_audio_openrouter_once(audio_bytes, audio_format)
+        if not err:
+            # OpenRouter works again; clear any previous cooldown marker.
+            st.session_state.pop("openrouter_stt_unavailable_until", None)
+            _mark_used(STT_PROVIDER_OPENROUTER)
+            return text, None
+
+        # If credits/quota are exhausted, avoid hammering OpenRouter for a while.
+        if _is_openrouter_quota_error(err):
+            _mark_openrouter_stt_unavailable(seconds=900)
+
+        # Fallback order requested by user: Google free first, Whisper last.
+        google_text, google_err = _transcribe_audio_google_free(audio_bytes)
+        if not google_err:
+            _mark_used(STT_PROVIDER_GOOGLE)
+            return google_text, None
+
+        whisper_text, whisper_err = _transcribe_audio_whisper_last_resort(audio_bytes)
+        if not whisper_err:
+            _mark_used(STT_PROVIDER_WHISPER)
+            return whisper_text, None
+
+        return (
+            None,
+            f"OpenRouter: {err} | Google gratuit: {google_err} | Whisper local: {whisper_err}",
+        )
+
+    # No key or temporary cooldown: Google free first, Whisper local last.
+    google_text, google_err = _transcribe_audio_google_free(audio_bytes)
+    if not google_err:
+        _mark_used(STT_PROVIDER_GOOGLE)
+        return google_text, None
+
+    whisper_text, whisper_err = _transcribe_audio_whisper_last_resort(audio_bytes)
+    if not whisper_err:
+        _mark_used(STT_PROVIDER_WHISPER)
+        return whisper_text, None
+
+    if not OPENROUTER_API_KEY:
+        return (
+            None,
+            f"OPENROUTER indisponible + Google gratuit: {google_err} + Whisper local: {whisper_err}",
+        )
+    return (
+        None,
+        f"OpenRouter temporairement indisponible + Google gratuit: {google_err} + Whisper local: {whisper_err}",
+    )
 
 
 def _mime_for_audio_format(audio_format):
