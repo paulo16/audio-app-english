@@ -115,16 +115,30 @@ def _force_play_latest_audio_js(tag: str):
 <div id="ap-{tag}" style="display:none"></div>
 <script>
 (function() {{
-    try {{
-        const doc = window.parent.document;
-        const audios = doc.querySelectorAll('audio');
-        if (!audios || !audios.length) return;
-        const a = audios[audios.length - 1];
-        a.autoplay = true;
-        a.muted = false;
-        const p = a.play();
-        if (p && p.catch) p.catch(() => {{}});
-    }} catch (e) {{}}
+        let attempts = 0;
+        function tryPlay() {{
+            try {{
+                const doc = window.parent.document;
+                const audios = doc.querySelectorAll('audio');
+                if (!audios || !audios.length) {{
+                    if (attempts++ < 20) setTimeout(tryPlay, 120);
+                    return;
+                }}
+                const a = audios[audios.length - 1];
+                a.autoplay = true;
+                a.muted = false;
+                a.volume = 1.0;
+                const p = a.play();
+                if (p && p.catch) {{
+                    p.catch(() => {{
+                        if (attempts++ < 20) setTimeout(tryPlay, 120);
+                    }});
+                }}
+            }} catch (e) {{
+                if (attempts++ < 20) setTimeout(tryPlay, 120);
+            }}
+        }}
+        tryPlay();
 }})();
 </script>
 """,
@@ -1373,10 +1387,11 @@ def _render_quiz_tab(profile, profile_id):
         for i, q in enumerate(questions):
             lang = "fr" if q["direction"] == "fr_to_en" else "en"
             voice_for_prompt = "shimmer" if lang == "fr" else quiz_voice
-            ab, _, _ = text_to_speech_openrouter(
+            ab, mime, _ = text_to_speech_openrouter(
                 q["prompt"], voice=voice_for_prompt, language_hint=lang
             )
             questions[i]["audio_bytes"] = ab
+            questions[i]["audio_mime"] = mime or "audio/wav"
             prog.progress(
                 (i + 1) / len(questions), text=f"Audio {i+1}/{len(questions)}…"
             )
@@ -1505,7 +1520,11 @@ def _render_quiz_tab(profile, profile_id):
     # Play prompt audio
     audio_bytes = question.get("audio_bytes")
     if audio_bytes:
-        st.audio(audio_bytes, format="audio/wav", autoplay=True)
+        st.audio(
+            audio_bytes,
+            format=question.get("audio_mime", "audio/wav"),
+            autoplay=True,
+        )
         _force_play_latest_audio_js(f"quiz-{idx}")
 
     if result is None:
@@ -1662,15 +1681,18 @@ def _render_quiz_tab(profile, profile_id):
 
         # TTS for the correct answer
         answer_audio_key = f"quiz_answer_audio_{idx}"
+        answer_mime_key = f"quiz_answer_mime_{idx}"
         if answer_audio_key not in st.session_state:
             voice_ans = quiz_voice_active if answer_lang == "en" else "shimmer"
-            ab, _, _ = text_to_speech_openrouter(
+            ab, mime, _ = text_to_speech_openrouter(
                 answer_text, voice=voice_ans, language_hint=answer_lang
             )
             st.session_state[answer_audio_key] = ab
+            st.session_state[answer_mime_key] = mime or "audio/wav"
         ans_audio = st.session_state.get(answer_audio_key)
+        ans_mime = st.session_state.get(answer_mime_key, "audio/wav")
         if ans_audio:
-            st.audio(ans_audio, format="audio/wav")
+            st.audio(ans_audio, format=ans_mime)
 
         # ── Next question ──────────────────────────────────────────────────────
         is_last = idx >= total_q - 1
