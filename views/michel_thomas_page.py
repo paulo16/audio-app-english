@@ -1160,6 +1160,11 @@ Rules:
 - Weave grammar concepts and themes naturally into each sentence.
 - Vary sentence length and complexity across questions.
 - Provide the most idiomatic correct translation as the answer.
+- IMPORTANT tense mapping for duration:
+    - For ongoing actions with "depuis + durée/date" in French, prefer French present (e.g. "Elle étudie le français depuis 3 ans")
+        and English present perfect / present perfect continuous ("She has studied..." / "She has been studying...").
+    - Avoid unnatural French like "a étudié ... depuis 3 ans" when the action is still ongoing.
+    - Use French passé composé + "pendant" only for completed past duration.
 - Return exactly {count} items in the array.
 """.strip()
 

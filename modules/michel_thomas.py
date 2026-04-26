@@ -1058,6 +1058,11 @@ Evaluation rules:
 - Accept paraphrases that convey the same meaning with correct grammar.
 - Award full marks (100) if grammar structure AND meaning are both correct.
 - Penalize incorrect grammar more than minor vocabulary differences.
+- IMPORTANT tense nuance for duration expressions:
+    - If the meaning is an action still true now (French often uses "depuis"), accept correct equivalents such as
+        English present perfect OR present perfect continuous (e.g. "has studied" / "has been studying").
+    - For EN->FR, prefer natural French present with "depuis" for ongoing duration (e.g. "Elle etudie ... depuis 3 ans").
+    - Do NOT prefer unnatural French like "a etudie ... depuis 3 ans" when the action is still ongoing.
 - Give feedback IN FRENCH, encouraging and practical (2-3 sentences max).
 - Suggest an improved version only if the learner's answer had errors.
 
