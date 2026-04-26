@@ -1942,7 +1942,7 @@ def _render_free_practice_tab(profile, profile_id):
                         f"Essaie encore avec la structure grammaticale cible."
                     )
                     st.session_state["fp_history"] = history
-                    st.rerun()
+                    return
 
                 # Append user turn
                 history.append({"role": "user", "text": transcript.strip()})
