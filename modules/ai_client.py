@@ -734,18 +734,44 @@ def get_tts_engine():
     return st.session_state.get("tts_engine", "default")
 
 
+def _is_openrouter_audio_balance_error(err_text):
+    txt = str(err_text or "").lower()
+    patterns = [
+        "balance for audio output",
+        "requires at least",
+        "insufficient balance",
+        "insufficient credits",
+        "payment required",
+    ]
+    return any(p in txt for p in patterns)
+
+
 def tts_smart(
     text, voice=TTS_VOICE, voice_elevenlabs_id=None, tone_hint=None, language_hint=None
 ):
-    """Unified TTS: routes to ElevenLabs or default based on session choice."""
+    """Unified TTS with automatic fallback to ElevenLabs on OpenRouter balance errors."""
     engine = get_tts_engine()
     if engine == "elevenlabs":
         return text_to_speech_elevenlabs(
             text, voice_id=voice_elevenlabs_id, language_hint=language_hint
         )
-    return text_to_speech_openrouter(
+
+    audio_bytes, mime_type, err = text_to_speech_openrouter(
         text, voice=voice, tone_hint=tone_hint, language_hint=language_hint
     )
+    if not err:
+        return audio_bytes, mime_type, None
+
+    # If OpenRouter blocks audio for balance reasons, transparently fallback to ElevenLabs.
+    if ELEVENLABS_API_KEY and _is_openrouter_audio_balance_error(err):
+        el_bytes, el_mime, el_err = text_to_speech_elevenlabs(
+            text, voice_id=voice_elevenlabs_id, language_hint=language_hint
+        )
+        if not el_err:
+            return el_bytes, el_mime, None
+        return None, None, f"{err} | ElevenLabs fallback: {el_err}"
+
+    return audio_bytes, mime_type, err
 
 
 def dual_voice_tts_smart(

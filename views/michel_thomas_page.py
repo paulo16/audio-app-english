@@ -11,6 +11,7 @@ from modules.ai_client import (
     openrouter_chat,
     text_to_speech_openrouter,
     transcribe_audio_with_openrouter,
+    tts_smart,
 )
 from modules.config import (
     CEFR_LEVELS,
@@ -1384,16 +1385,26 @@ def _render_quiz_tab(profile, profile_id):
 
         # Pre-generate TTS for all prompts
         prog = st.progress(0, text="Génération des audios…")
+        failed_audio_count = 0
         for i, q in enumerate(questions):
             lang = "fr" if q["direction"] == "fr_to_en" else "en"
             voice_for_prompt = "shimmer" if lang == "fr" else quiz_voice
-            ab, mime, _ = text_to_speech_openrouter(
+            ab, mime, tts_err = tts_smart(
                 q["prompt"], voice=voice_for_prompt, language_hint=lang
             )
             questions[i]["audio_bytes"] = ab
             questions[i]["audio_mime"] = mime or "audio/wav"
+            questions[i]["audio_error"] = tts_err
+            if not ab:
+                failed_audio_count += 1
             prog.progress(
                 (i + 1) / len(questions), text=f"Audio {i+1}/{len(questions)}…"
+            )
+
+        if failed_audio_count:
+            st.warning(
+                f"{failed_audio_count} question(s) sans audio au préchargement. "
+                "Le quiz tentera de régénérer l'audio automatiquement à l'affichage."
             )
 
         st.session_state["quiz_active"] = True
@@ -1519,6 +1530,23 @@ def _render_quiz_tab(profile, profile_id):
 
     # Play prompt audio
     audio_bytes = question.get("audio_bytes")
+    if not audio_bytes:
+        lang = "fr" if direction == "fr_to_en" else "en"
+        voice_for_prompt = "shimmer" if lang == "fr" else quiz_voice_active
+        with st.spinner("Génération audio de la question…"):
+            ab, mime, tts_err = tts_smart(
+                prompt_text, voice=voice_for_prompt, language_hint=lang
+            )
+        if ab:
+            question["audio_bytes"] = ab
+            question["audio_mime"] = mime or "audio/wav"
+            question["audio_error"] = None
+            st.session_state["quiz_questions"][idx] = question
+            audio_bytes = ab
+        else:
+            question["audio_error"] = tts_err or "Audio indisponible"
+            st.session_state["quiz_questions"][idx] = question
+
     if audio_bytes:
         st.audio(
             audio_bytes,
@@ -1526,6 +1554,8 @@ def _render_quiz_tab(profile, profile_id):
             autoplay=True,
         )
         _force_play_latest_audio_js(f"quiz-{idx}")
+    elif question.get("audio_error"):
+        st.warning(f"Audio question indisponible: {question.get('audio_error')}")
 
     if result is None:
         # ── Countdown timer ────────────────────────────────────────────────────
@@ -1684,7 +1714,7 @@ def _render_quiz_tab(profile, profile_id):
         answer_mime_key = f"quiz_answer_mime_{idx}"
         if answer_audio_key not in st.session_state:
             voice_ans = quiz_voice_active if answer_lang == "en" else "shimmer"
-            ab, mime, _ = text_to_speech_openrouter(
+            ab, mime, _ = tts_smart(
                 answer_text, voice=voice_ans, language_hint=answer_lang
             )
             st.session_state[answer_audio_key] = ab
