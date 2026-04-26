@@ -273,7 +273,7 @@ def main():
                         )
 
                 st.markdown("**Résultats comparatifs**")
-                st.dataframe(rows, width="stretch")
+                st.dataframe(rows, use_container_width=True)
 
                 ok_rows = [r for r in rows if r["statut"] == "OK"]
                 if ok_rows:

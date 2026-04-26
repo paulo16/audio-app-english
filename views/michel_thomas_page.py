@@ -108,6 +108,30 @@ def _generate_dialogue_full_audio(session, sid, profile_id, voice):
     return True, None
 
 
+def _force_play_latest_audio_js(tag: str):
+    """Attempt to force-play the latest audio element rendered by Streamlit."""
+    _components.html(
+        f"""
+<div id="ap-{tag}" style="display:none"></div>
+<script>
+(function() {{
+    try {{
+        const doc = window.parent.document;
+        const audios = doc.querySelectorAll('audio');
+        if (!audios || !audios.length) return;
+        const a = audios[audios.length - 1];
+        a.autoplay = true;
+        a.muted = false;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {{}});
+    }} catch (e) {{}}
+}})();
+</script>
+""",
+        height=0,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — Leçon & Pratique
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1482,6 +1506,7 @@ def _render_quiz_tab(profile, profile_id):
     audio_bytes = question.get("audio_bytes")
     if audio_bytes:
         st.audio(audio_bytes, format="audio/wav", autoplay=True)
+        _force_play_latest_audio_js(f"quiz-{idx}")
 
     if result is None:
         # ── Countdown timer ────────────────────────────────────────────────────
@@ -1833,7 +1858,10 @@ def _render_free_practice_tab(profile, profile_id):
             )
 
         if audio_bytes:
-            st.audio(audio_bytes, format="audio/wav", autoplay=True)
+            should_autoplay = role == "ai"
+            st.audio(audio_bytes, format="audio/wav", autoplay=should_autoplay)
+            if should_autoplay:
+                _force_play_latest_audio_js(f"fp-{i}")
 
         st.markdown("")
 
