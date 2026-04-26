@@ -1481,7 +1481,7 @@ def _render_quiz_tab(profile, profile_id):
     # Play prompt audio
     audio_bytes = question.get("audio_bytes")
     if audio_bytes:
-        st.audio(audio_bytes, format="audio/wav")
+        st.audio(audio_bytes, format="audio/wav", autoplay=True)
 
     if result is None:
         # ── Countdown timer ────────────────────────────────────────────────────
@@ -1746,18 +1746,23 @@ def _render_free_practice_tab(profile, profile_id):
         concepts_str = ", ".join(fp_concepts) if fp_concepts else "general English"
 
         system_prompt = (
-            f"You are a friendly and encouraging English language teacher having a spoken "
+            f"You are a strict and encouraging English language teacher having a spoken "
             f"conversation with a French-speaking student to help them practice English. "
             f"The student's CEFR level is {fp_level}. "
+            f"CRITICAL: Your job is to FORCE the student to use these grammar structures: {concepts_str}. "
+            f"You MUST weave these target grammar structures into EVERY reply and deliberately encourage "
+            f"the student to use them in their answers. Ask questions that require them to use these structures. "
+            f"If the student tries to answer without using the target grammar, reject their answer politely "
+            f"and ask them to rephrase using the target structure. "
             f"Focus conversation naturally around these themes: {themes_str}. "
-            f"Weave in practice of these grammar structures: {concepts_str}. "
             f"Keep each reply concise (2-4 sentences max). "
             f"Speak exclusively in English. When you deliberately use one of the target grammar "
             f"structures, add a very brief French note at the end in parentheses, e.g.: "
             f"(→ 2nd conditionnel). "
             f"If the student makes a noticeable grammar mistake, gently correct it by repeating "
             f"the correct form naturally in your reply. "
-            f"Start by greeting the student warmly and asking an opening question related to the themes."
+            f"Start by greeting the student warmly and asking an opening question that REQUIRES "
+            f"them to use one of the target grammar structures."
         )
 
         with st.spinner("L'IA prépare son premier message…"):
@@ -1828,7 +1833,7 @@ def _render_free_practice_tab(profile, profile_id):
             )
 
         if audio_bytes:
-            st.audio(audio_bytes, format="audio/wav")
+            st.audio(audio_bytes, format="audio/wav", autoplay=True)
 
         st.markdown("")
 
@@ -1881,6 +1886,63 @@ def _render_free_practice_tab(profile, profile_id):
                     st.session_state[f"fp_audio_{next_turn_idx}"] = (
                         user_audio_file.getvalue()
                     )
+
+                # Check if concepts are used (if concepts were selected)
+                fp_concepts = st.session_state.get("fp_concepts_sel", [])
+                user_response_lower = transcript.strip().lower()
+
+                # Simple concept check: see if any concept keywords appear
+                concepts_used = False
+                if not fp_concepts or len(fp_concepts) == 0:
+                    # No specific concepts selected, accept any response
+                    concepts_used = True
+                else:
+                    # Map concept names to common keywords/patterns for detection
+                    concept_keywords = {
+                        "Present Continuous": ["ing ", "-ing", "is ", "are ", "am "],
+                        "Past Continuous": ["was ", "were ", "ing"],
+                        "Present Perfect": ["have ", "has ", "ed", "'ve", "'s"],
+                        "Past Perfect": ["had ", "ed"],
+                        "Conditionals": ["would ", "if ", "should ", "could "],
+                        "Passif": ["is ", "are ", "was ", "were ", "be ", "been"],
+                        "Reported Speech": ["said ", "told ", "asked "],
+                        "Phrasal Verbs": [
+                            " up",
+                            " down",
+                            " out",
+                            " back",
+                            " on",
+                            " off",
+                        ],
+                        "Modal Verbs": [
+                            "must ",
+                            "could ",
+                            "should ",
+                            "would ",
+                            "can ",
+                            "may ",
+                        ],
+                        "Relative Clauses": [" that ", " who ", " which ", " where "],
+                    }
+
+                    # Check if at least one concept keyword appears in response
+                    for concept in fp_concepts:
+                        keywords = concept_keywords.get(concept, [concept.lower()])
+                        for keyword in keywords:
+                            if keyword in user_response_lower:
+                                concepts_used = True
+                                break
+                        if concepts_used:
+                            break
+
+                # If concepts not used, ask user to retry
+                if not concepts_used:
+                    st.warning(
+                        f"⚠️ Tu dois utiliser les concepts choisis dans ta réponse : {', '.join(fp_concepts)} ! "
+                        f"Essaie encore avec la structure grammaticale cible."
+                    )
+                    st.session_state["fp_history"] = history
+                    st.rerun()
 
                 # Append user turn
                 history.append({"role": "user", "text": transcript.strip()})
