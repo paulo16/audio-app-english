@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import os
 import time as _time
 import wave
@@ -1263,6 +1264,42 @@ def _quiz_countdown_html(remaining_sec: float, total_sec: int) -> str:
 """
 
 
+def _quiz_history_path(profile_id: str) -> str:
+    """Return path to the quiz history JSON file for this profile."""
+    return os.path.join("data", "mt_lessons", f"quiz-history-{profile_id}.json")
+
+
+def _load_quiz_history(profile_id: str) -> list:
+    """Load quiz history list from disk (newest first)."""
+    path = _quiz_history_path(profile_id)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save_quiz_history(profile_id: str, entry: dict) -> None:
+    """Append a quiz result entry to the history file (cap at 100 entries)."""
+    path = _quiz_history_path(profile_id)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    history = _load_quiz_history(profile_id)
+    history.insert(0, entry)
+    history = history[:100]
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+
+
+def _format_duration(seconds: float) -> str:
+    """Format a duration in seconds as mm:ss."""
+    secs = int(round(seconds))
+    m, s = divmod(secs, 60)
+    return f"{m}m {s:02d}s" if m else f"{s}s"
+
+
 def _render_quiz_tab(profile, profile_id):
     st.subheader("⚡ Quiz Chrono — Traduction Express")
     st.caption(
@@ -1307,7 +1344,7 @@ def _render_quiz_tab(profile, profile_id):
             quiz_count = st.number_input(
                 "Nombre de questions",
                 min_value=3,
-                max_value=20,
+                max_value=50,
                 value=8,
                 step=1,
                 key="quiz_count_sel",
@@ -1413,6 +1450,7 @@ def _render_quiz_tab(profile, profile_id):
         st.session_state["quiz_score"] = {"correct": 0, "wrong": 0, "skipped": 0}
         st.session_state["quiz_level"] = quiz_level
         st.session_state["quiz_voice"] = quiz_voice
+        st.session_state["quiz_global_start"] = _time.time()
         st.rerun()
 
     if not is_active:
@@ -1447,6 +1485,53 @@ def _render_quiz_tab(profile, profile_id):
         total_answered = score["correct"] + score["wrong"] + score["skipped"]
         pct = round(score["correct"] / total_answered * 100) if total_answered else 0
         icon = "🏆" if pct >= 80 else "👍" if pct >= 50 else "💪"
+
+        # Compute total elapsed time
+        global_start = st.session_state.get("quiz_global_start")
+        total_elapsed_sec = (_time.time() - global_start) if global_start else 0.0
+        elapsed_display = _format_duration(total_elapsed_sec)
+
+        # Save result to history (only once per quiz run, guard with a flag)
+        if not st.session_state.get("quiz_result_saved"):
+            import datetime as _dt
+
+            entry = {
+                "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
+                "question_count": total_q,
+                "correct": score["correct"],
+                "wrong": score["wrong"],
+                "skipped": score["skipped"],
+                "score_pct": pct,
+                "total_time_sec": round(total_elapsed_sec, 1),
+            }
+            _save_quiz_history(profile_id, entry)
+            st.session_state["quiz_result_saved"] = True
+
+        # Load history to compute improvement
+        history = _load_quiz_history(profile_id)
+        # Find previous run with same question count (skip the entry we just saved = index 0)
+        prev_same = next(
+            (h for h in history[1:] if h.get("question_count") == total_q), None
+        )
+
+        if prev_same:
+            delta_pct = pct - prev_same["score_pct"]
+            delta_time = total_elapsed_sec - prev_same.get(
+                "total_time_sec", total_elapsed_sec
+            )
+            score_trend = (
+                "📈 +" if delta_pct > 0 else ("📉 " if delta_pct < 0 else "➡️ ")
+            ) + f"{abs(delta_pct):.0f}%"
+            time_trend = (
+                "⚡ -" if delta_time < 0 else ("🐢 +" if delta_time > 0 else "➡️ ")
+            ) + _format_duration(abs(delta_time))
+            improvement_html = f"""
+  <div style="font-size:15px;color:#a0c8ff;margin-top:8px">
+    vs run précédent ({total_q}q) : score {score_trend} &nbsp;|&nbsp; temps {time_trend}
+  </div>"""
+        else:
+            improvement_html = ""
+
         st.markdown(
             f"""
 <div style="background:linear-gradient(135deg,#1e3a5f,#0d2137);padding:28px 32px;
@@ -1454,10 +1539,53 @@ def _render_quiz_tab(profile, profile_id):
   <div style="font-size:48px">{icon}</div>
   <div style="font-size:28px;font-weight:800;color:#fff;margin:8px 0">Quiz terminé !</div>
   <div style="font-size:20px;color:#8ab4e8">{score['correct']} / {total_answered} correctes — {pct}%</div>
+  <div style="font-size:17px;color:#ffd580;margin-top:6px">⏱️ Temps total : {elapsed_display}</div>
+  {improvement_html}
 </div>
 """,
             unsafe_allow_html=True,
         )
+
+        # ── History table (last 10 runs for same question count) ────────────
+        same_count_history = [h for h in history if h.get("question_count") == total_q][
+            :10
+        ]
+        if len(same_count_history) > 1:
+            with st.expander(f"📊 Historique — {total_q} questions", expanded=True):
+                rows = []
+                for i, h in enumerate(same_count_history):
+                    prev_h = (
+                        same_count_history[i + 1]
+                        if i + 1 < len(same_count_history)
+                        else None
+                    )
+                    if prev_h:
+                        d_pct = h["score_pct"] - prev_h["score_pct"]
+                        d_time = h.get("total_time_sec", 0) - prev_h.get(
+                            "total_time_sec", 0
+                        )
+                        trend_score = (
+                            "↑" if d_pct > 0 else ("↓" if d_pct < 0 else "=")
+                        ) + f" {abs(d_pct):.0f}%"
+                        trend_time = (
+                            ("⚡" if d_time < 0 else ("🐢" if d_time > 0 else "="))
+                            + " "
+                            + _format_duration(abs(d_time))
+                        )
+                    else:
+                        trend_score = "—"
+                        trend_time = "—"
+                    rows.append(
+                        {
+                            "Date": h.get("timestamp", "")[:16].replace("T", " "),
+                            "Score": f"{h['score_pct']}%",
+                            "Correct": h.get("correct", "?"),
+                            "Temps": _format_duration(h.get("total_time_sec", 0)),
+                            "Δ Score": trend_score,
+                            "Δ Temps": trend_time,
+                        }
+                    )
+                st.dataframe(rows, use_container_width=True)
         if st.button(
             "🔄 Nouveau quiz",
             key="quiz_restart_btn",
