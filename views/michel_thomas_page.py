@@ -3,41 +3,30 @@ import os
 
 import streamlit as st
 
-from modules.ai_client import (
-    text_to_speech_openrouter,
-    transcribe_audio_with_openrouter,
-)
-from modules.config import (
-    CEFR_LEVELS,
-    MT_DIALOGUE_THEMES,
-    MT_GRAMMAR_CONCEPTS,
-    STORY_NARRATOR_VOICES,
-)
-from modules.michel_thomas import (
-    _save_dialogue_full_audio,
-    _save_lesson_course_audio,
-    _save_lesson_example_audio,
-    _save_lesson_practice_audio,
-    _save_themed_dialogue_line_audio,
-    _update_dialogue_full_audio,
-    _update_lesson_course_audio_path,
-    _update_lesson_example_audio,
-    _update_lesson_practice_audio,
-    _update_themed_dialogue_line_audio,
-    build_lesson_narration_script,
-    evaluate_practice_pair,
-    generate_lesson_session,
-    generate_themed_dialogue,
-    load_mt_lesson_sessions,
-    load_mt_themed_dialogues,
-    save_mt_lesson_sessions,
-    save_mt_themed_dialogues,
-)
-from modules.profiles import (
-    get_active_profile,
-    get_profile_module_level,
-    set_profile_module_level,
-)
+from modules.ai_client import (openrouter_chat, text_to_speech_openrouter,
+                               transcribe_audio_with_openrouter)
+from modules.config import (CEFR_LEVELS, CHAT_MODEL, MT_DIALOGUE_THEMES,
+                            MT_GRAMMAR_CONCEPTS, STORY_NARRATOR_VOICES)
+from modules.michel_thomas import (_save_dialogue_full_audio,
+                                   _save_lesson_course_audio,
+                                   _save_lesson_example_audio,
+                                   _save_lesson_practice_audio,
+                                   _save_themed_dialogue_line_audio,
+                                   _update_dialogue_full_audio,
+                                   _update_lesson_course_audio_path,
+                                   _update_lesson_example_audio,
+                                   _update_lesson_practice_audio,
+                                   _update_themed_dialogue_line_audio,
+                                   build_lesson_narration_script,
+                                   evaluate_practice_pair,
+                                   generate_lesson_session,
+                                   generate_themed_dialogue,
+                                   load_mt_lesson_sessions,
+                                   load_mt_themed_dialogues,
+                                   save_mt_lesson_sessions,
+                                   save_mt_themed_dialogues)
+from modules.profiles import (get_active_profile, get_profile_module_level,
+                              set_profile_module_level)
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,11 +89,12 @@ def _render_lesson_tab(profile, profile_id):
             if level != saved_level:
                 set_profile_module_level(profile_id, "michel_thomas", level)
         with c2:
-            concepts = MT_GRAMMAR_CONCEPTS.get(level, [])
-            concept = st.selectbox(
-                "Concept grammatical",
-                concepts,
+            all_lesson_concepts = MT_GRAMMAR_CONCEPTS.get(level, [])
+            concepts_selected = st.multiselect(
+                "Concept(s) grammatical(aux)",
+                all_lesson_concepts,
                 key="lesson_concept_sel",
+                placeholder="Choisir un ou plusieurs concepts…",
             )
         with c3:
             voices = list(STORY_NARRATOR_VOICES.values())
@@ -124,9 +114,11 @@ def _render_lesson_tab(profile, profile_id):
                 key="lesson_gen_btn",
                 type="primary",
                 use_container_width=True,
+                disabled=not concepts_selected,
             )
 
     if generate_btn:
+        concept = " & ".join(concepts_selected)
         with st.spinner(f"Génération du cours sur « {concept} »..."):
             session, err = generate_lesson_session(concept, level, profile_id)
         if err:
@@ -755,17 +747,19 @@ def _render_dialogue_tab(profile, profile_id):
                 key="dial_level_sel",
             )
         with c2:
-            theme = st.selectbox(
-                "Thème de vie",
+            themes_selected = st.multiselect(
+                "Thème(s) de vie",
                 MT_DIALOGUE_THEMES,
                 key="dial_theme_sel",
+                placeholder="Choisir un ou plusieurs thèmes…",
             )
         with c3:
             concepts = MT_GRAMMAR_CONCEPTS.get(level, [])
-            grammar_focus = st.selectbox(
+            grammar_focuses_selected = st.multiselect(
                 "Focus grammatical",
                 concepts,
                 key="dial_grammar_sel",
+                placeholder="Choisir un ou plusieurs concepts…",
             )
         with c4:
             voices = list(STORY_NARRATOR_VOICES.values())
@@ -785,6 +779,7 @@ def _render_dialogue_tab(profile, profile_id):
                 key="dial_gen_btn",
                 type="primary",
                 use_container_width=True,
+                disabled=not (themes_selected or grammar_focuses_selected),
             )
         with qty_col:
             gen_qty = st.number_input(
@@ -798,6 +793,10 @@ def _render_dialogue_tab(profile, profile_id):
             )
 
     if gen_btn:
+        theme = " & ".join(themes_selected) if themes_selected else "general"
+        grammar_focus = (
+            " & ".join(grammar_focuses_selected) if grammar_focuses_selected else ""
+        )
         qty = int(st.session_state.get("dial_gen_qty", 1))
         last_sid = None
         errors = []
@@ -1060,6 +1059,264 @@ def _render_dialogue_session(session, sid, profile_id, voice):
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — Pratique libre avec l'IA (conversation audio)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _render_free_practice_tab(profile, profile_id):
+    st.subheader("🎙️ Pratique libre avec l'IA — Conversation audio")
+    st.caption(
+        "Choisis tes thèmes et concepts grammaticaux. L'IA démarre une conversation "
+        "parlée avec toi : elle s'exprime en anglais (audio), tu enregistres ta réponse "
+        "à chaque tour et elle te corrige naturellement."
+    )
+
+    saved_level = get_profile_module_level(profile, "michel_thomas") or "B1"
+    if saved_level not in CEFR_LEVELS:
+        saved_level = "B1"
+
+    is_active = st.session_state.get("fp_active", False)
+
+    with st.expander("⚙️ Paramètres de la conversation", expanded=not is_active):
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            fp_level = st.selectbox(
+                "Niveau CEFR",
+                CEFR_LEVELS,
+                index=CEFR_LEVELS.index(saved_level),
+                key="fp_level_sel",
+                disabled=is_active,
+            )
+        with c2:
+            all_fp_concepts = MT_GRAMMAR_CONCEPTS.get(fp_level, [])
+            fp_concepts = st.multiselect(
+                "Concept(s) grammatical(aux)",
+                all_fp_concepts,
+                key="fp_concepts_sel",
+                placeholder="Choisir un ou plusieurs concepts…",
+                disabled=is_active,
+            )
+
+        fp_themes = st.multiselect(
+            "Thème(s) de conversation",
+            MT_DIALOGUE_THEMES,
+            key="fp_themes_sel",
+            placeholder="Choisir un ou plusieurs thèmes…",
+            disabled=is_active,
+        )
+
+        voices = list(STORY_NARRATOR_VOICES.values())
+        voice_labels = list(STORY_NARRATOR_VOICES.keys())
+        fp_voice_idx = st.selectbox(
+            "Voix de l'IA",
+            range(len(voice_labels)),
+            format_func=lambda i: voice_labels[i],
+            key="fp_voice_sel",
+            disabled=is_active,
+        )
+        fp_voice = voices[fp_voice_idx]
+
+        ctrl_col1, ctrl_col2 = st.columns(2)
+        with ctrl_col1:
+            start_btn = st.button(
+                "▶️ Démarrer la conversation",
+                key="fp_start_btn",
+                type="primary",
+                use_container_width=True,
+                disabled=is_active or not (fp_themes or fp_concepts),
+            )
+        with ctrl_col2:
+            stop_btn = st.button(
+                "⏹️ Terminer / Réinitialiser",
+                key="fp_stop_btn",
+                use_container_width=True,
+                disabled=not is_active,
+            )
+
+    if stop_btn:
+        for key in list(st.session_state.keys()):
+            if key.startswith("fp_"):
+                del st.session_state[key]
+        st.rerun()
+
+    if start_btn:
+        themes_str = ", ".join(fp_themes) if fp_themes else "daily life"
+        concepts_str = ", ".join(fp_concepts) if fp_concepts else "general English"
+
+        system_prompt = (
+            f"You are a friendly and encouraging English language teacher having a spoken "
+            f"conversation with a French-speaking student to help them practice English. "
+            f"The student's CEFR level is {fp_level}. "
+            f"Focus conversation naturally around these themes: {themes_str}. "
+            f"Weave in practice of these grammar structures: {concepts_str}. "
+            f"Keep each reply concise (2-4 sentences max). "
+            f"Speak exclusively in English. When you deliberately use one of the target grammar "
+            f"structures, add a very brief French note at the end in parentheses, e.g.: "
+            f"(→ 2nd conditionnel). "
+            f"If the student makes a noticeable grammar mistake, gently correct it by repeating "
+            f"the correct form naturally in your reply. "
+            f"Start by greeting the student warmly and asking an opening question related to the themes."
+        )
+
+        with st.spinner("L'IA prépare son premier message…"):
+            ai_text, ai_err = openrouter_chat(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": "Start the conversation."},
+                ],
+                CHAT_MODEL,
+                temperature=0.7,
+                max_tokens=200,
+            )
+        if ai_err:
+            st.error(f"Erreur IA : {ai_err}")
+            return
+
+        with st.spinner("Génération de l'audio de l'IA…"):
+            ai_audio_bytes, _, tts_err = text_to_speech_openrouter(
+                ai_text, voice=fp_voice, language_hint="en"
+            )
+
+        st.session_state["fp_active"] = True
+        st.session_state["fp_system_prompt"] = system_prompt
+        st.session_state["fp_voice"] = fp_voice
+        st.session_state["fp_history"] = [{"role": "ai", "text": ai_text}]
+        st.session_state["fp_audio_0"] = ai_audio_bytes
+        st.rerun()
+
+    if not st.session_state.get("fp_active", False):
+        st.info(
+            "Configure les paramètres ci-dessus puis clique sur **▶️ Démarrer** pour commencer."
+        )
+        return
+
+    # ── Render conversation history ────────────────────────────────────────────
+    history = st.session_state.get("fp_history", [])
+    fp_voice_active = st.session_state.get("fp_voice", fp_voice if not is_active else "shimmer")
+
+    st.markdown("### 🗣️ Conversation")
+
+    for i, turn in enumerate(history):
+        role = turn["role"]
+        text = turn["text"]
+        audio_bytes = st.session_state.get(f"fp_audio_{i}")
+
+        if role == "ai":
+            st.markdown(
+                f"""
+<div style="background:#1e3a5f;padding:12px 18px;border-radius:12px;border-left:5px solid #4a90d9;margin-bottom:4px;max-width:85%">
+  <span style="font-size:10px;color:#8ab4e8;font-weight:700;text-transform:uppercase">🤖 IA — Anglais</span><br/>
+  <span style="font-size:15px;color:#fff">{text}</span>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+<div style="background:#1a3320;padding:12px 18px;border-radius:12px;border-right:5px solid #4caf50;
+            margin-bottom:4px;margin-left:15%;text-align:right">
+  <span style="font-size:10px;color:#88c989;font-weight:700;text-transform:uppercase">🎙️ Toi</span><br/>
+  <span style="font-size:15px;color:#e8f5e9">{text}</span>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+        st.markdown("")
+
+    # ── User's turn ────────────────────────────────────────────────────────────
+    # User turn when len(history) is odd (1, 3, 5…) — AI started at 0
+    next_turn_idx = len(history)
+    is_user_turn = next_turn_idx % 2 == 1
+
+    if is_user_turn:
+        st.markdown("---")
+        st.markdown("**🎙️ Ton tour — Réponds en anglais :**")
+
+        transcript_key = f"fp_transcript_{next_turn_idx}"
+        marker_key = f"fp_marker_{next_turn_idx}"
+
+        user_audio_file = st.audio_input(
+            "Enregistre ta réponse",
+            key=f"fp_audio_input_{next_turn_idx}",
+        )
+
+        if user_audio_file:
+            candidate_bytes = user_audio_file.getvalue()
+            fingerprint = hashlib.sha1(candidate_bytes).hexdigest()
+            if st.session_state.get(marker_key) != fingerprint:
+                st.session_state[marker_key] = fingerprint
+                with st.spinner("Transcription…"):
+                    transcript, t_err = transcribe_audio_with_openrouter(
+                        candidate_bytes, audio_format="wav"
+                    )
+                if t_err:
+                    st.warning(f"Transcription échouée : {t_err}")
+                else:
+                    st.session_state[transcript_key] = transcript
+
+        transcript = st.session_state.get(transcript_key, "")
+        if transcript:
+            st.caption(f"📝 Transcription : *{transcript}*")
+
+        send_col, _ = st.columns([2, 3])
+        with send_col:
+            if st.button(
+                "✅ Envoyer ma réponse",
+                key=f"fp_send_{next_turn_idx}",
+                type="primary",
+                disabled=not transcript.strip(),
+                use_container_width=True,
+            ):
+                # Store user audio bytes before rerun
+                if user_audio_file:
+                    st.session_state[f"fp_audio_{next_turn_idx}"] = (
+                        user_audio_file.getvalue()
+                    )
+
+                # Append user turn
+                history.append({"role": "user", "text": transcript.strip()})
+
+                # Build messages for AI
+                system_prompt = st.session_state.get("fp_system_prompt", "")
+                messages = [{"role": "system", "content": system_prompt}]
+                for turn in history:
+                    r = "assistant" if turn["role"] == "ai" else "user"
+                    messages.append({"role": r, "content": turn["text"]})
+
+                # Generate AI response
+                with st.spinner("L'IA réfléchit…"):
+                    ai_text, ai_err = openrouter_chat(
+                        messages, CHAT_MODEL, temperature=0.7, max_tokens=200
+                    )
+                if ai_err:
+                    st.error(f"Erreur IA : {ai_err}")
+                    st.session_state["fp_history"] = history
+                    return
+
+                with st.spinner("Génération de l'audio de l'IA…"):
+                    ai_audio_bytes, _, _ = text_to_speech_openrouter(
+                        ai_text, voice=fp_voice_active, language_hint="en"
+                    )
+
+                ai_turn_idx = next_turn_idx + 1
+                history.append({"role": "ai", "text": ai_text})
+                st.session_state[f"fp_audio_{ai_turn_idx}"] = ai_audio_bytes
+                st.session_state["fp_history"] = history
+                # Clear transcript for next user turn
+                st.session_state.pop(transcript_key, None)
+                st.session_state.pop(marker_key, None)
+                st.rerun()
+
+
+# ── Main entry point ──────────────────────────────────────────────────────────
+
+
 def render_michel_thomas_page():
     profile = get_active_profile()
     profile_id = profile.get("id", "default")
@@ -1067,10 +1324,15 @@ def render_michel_thomas_page():
     st.header("🎓 Anglais avec l'IA — Leçons & Dialogues")
     st.caption(f"Profil actif : {profile.get('name', 'Profil principal')}")
 
-    tab_lesson, tab_dialogue = st.tabs(["📖 Leçon & Pratique", "💬 Dialogues"])
+    tab_lesson, tab_dialogue, tab_free = st.tabs(
+        ["📖 Leçon & Pratique", "💬 Dialogues", "🎙️ Pratique libre"]
+    )
 
     with tab_lesson:
         _render_lesson_tab(profile, profile_id)
 
     with tab_dialogue:
         _render_dialogue_tab(profile, profile_id)
+
+    with tab_free:
+        _render_free_practice_tab(profile, profile_id)

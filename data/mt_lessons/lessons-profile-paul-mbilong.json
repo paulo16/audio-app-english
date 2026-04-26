@@ -1,352 +1,118 @@
 [
   {
-    "id": "mt-lesson-202604251627-88d274",
+    "id": "mt-lesson-202604252153-d35617",
     "profile_id": "profile-paul-mbilong",
     "level": "B1",
-    "concept": "Present Perfect — ever/never (Have you ever been to...?)",
-    "created_at": "2026-04-25T16:27:45Z",
+    "concept": "Past Continuous (I was working when...)",
+    "created_at": "2026-04-25T21:53:40Z",
     "lesson": {
-      "title_fr": "Le Present Perfect — ever/never (Have you ever been to...?)",
-      "what_is_it_fr": "Le Present Perfect — ever/never (Have you ever been to...?) s'utilise pour parler d'expériences de vie sans préciser quand elles ont eu lieu. En français, cela correspond souvent à l'utilisation du passé composé. Cette structure permet de poser des questions sur des expériences passées ou de dire si on a fait quelque chose ou non.",
-      "when_to_use_fr": "• Pour poser des questions sur des expériences de vie. \n• Pour dire que l'on a fait quelque chose à un moment indéfini dans le passé. \n• Pour exprimer que l'on n'a jamais fait quelque chose.",
+      "title_fr": "Le Past Continuous (I was working when...)",
+      "what_is_it_fr": "Le Past Continuous (I was working when...) s'utilise pour décrire une action qui était en cours à un moment spécifique dans le passé. Il correspond souvent à des phrases en français utilisant l'imparfait. En général, il permet de mettre l'accent sur la durée d'une action passée.",
+      "when_to_use_fr": "• Pour décrire une action qui était en cours à un moment précis dans le passé.\n• Pour parler d'une action interrompue par une autre action au passé.\n• Pour décrire des circonstances ou des situations passées.",
       "structure": {
-        "affirmative": "Sujet + have/has + verbe au participe passé",
-        "negative": "Sujet + have/has + not + verbe au participe passé",
-        "question": "Have/Has + sujet + verbe au participe passé ?"
+        "affirmative": "sujet + was/were + verbe en -ing",
+        "negative": "sujet + was/were + not + verbe en -ing",
+        "question": "Was/Were + sujet + verbe en -ing ?"
       },
-      "analogy_fr": "C'est exactement comme en français : 'As-tu déjà été à... ?' = 'Have you ever been to... ?'",
+      "analogy_fr": "C'est exactement comme en français : J'étais en train de travailler quand... = I was working when...",
       "key_points_fr": [
-        "N'oubliez pas que 'ever' est utilisé dans les questions et 'never' dans les phrases négatives.",
-        "Le participe passé des verbes irréguliers doit être mémorisé.",
-        "La forme correcte de 'have' dépend du sujet : 'I/you/we/they have' et 'he/she/it has'."
+        "Attention à l'utilisation de 'was' pour les sujets singuliers et 'were' pour les sujets pluriels.",
+        "Ne pas oublier d'ajouter '-ing' à la base du verbe.",
+        "Le Past Continuous est souvent utilisé avec des expressions de temps comme 'when' ou 'while'."
       ],
       "examples": [
         {
-          "english": "Have you ever been to Paris?",
-          "french": "Es-tu déjà allé à Paris ?",
+          "english": "I was reading a book when the phone rang.",
+          "french": "Je lisais un livre quand le téléphone a sonné.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "I have never seen a lion.",
-          "french": "Je n'ai jamais vu de lion.",
+          "english": "They were playing soccer when it started to rain.",
+          "french": "Ils jouaient au football quand il a commencé à pleuvoir.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "She has been to London three times.",
-          "french": "Elle est allée à Londres trois fois.",
+          "english": "She was cooking dinner while he was setting the table.",
+          "french": "Elle préparait le dîner pendant qu'il mettait la table.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "Have they ever tried sushi?",
-          "french": "Ont-ils déjà essayé des sushis ?",
+          "english": "We were watching a movie when the power went out.",
+          "french": "Nous regardions un film quand le courant est coupé.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "We have never traveled outside the country.",
-          "french": "Nous n'avons jamais voyagé à l'étranger.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        }
-      ]
-    },
-    "practice_pairs": [
-      {
-        "direction": "fr_to_en",
-        "prompt": "As-tu déjà mangé des escargots ?",
-        "answer": "Have you ever eaten snails?",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Je n'ai jamais visité l'Italie.",
-        "answer": "I have never visited Italy.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Avez-vous déjà pris le train ?",
-        "answer": "Have you ever taken the train?",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Il n'a jamais joué au football.",
-        "answer": "He has never played football.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Nous avons déjà vu ce film.",
-        "answer": "We have already seen this movie.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Elle a déjà visité le musée.",
-        "answer": "She has already visited the museum.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "Have you ever been to New York?",
-        "answer": "Es-tu déjà allé à New York ?",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "They have never eaten sushi.",
-        "answer": "Ils n'ont jamais mangé de sushi.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "I have been to France twice.",
-        "answer": "Je suis allé en France deux fois.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "Has she ever traveled abroad?",
-        "answer": "A-t-elle déjà voyagé à l'étranger ?",
-        "hint": ""
-      }
-    ]
-  },
-  {
-    "id": "mt-lesson-202604251112-72b7ff",
-    "profile_id": "profile-paul-mbilong",
-    "level": "B1",
-    "concept": "Present Perfect — ever/never (Have you ever been to...?)",
-    "created_at": "2026-04-25T11:12:40Z",
-    "lesson": {
-      "title_fr": "Le Present Perfect — ever/never (Have you ever been to...?)",
-      "what_is_it_fr": "Le Present Perfect — ever/never (Have you ever been to...?) s'utilise pour parler d'expériences passées sans préciser quand elles ont eu lieu. Il correspond à l'idée d'avoir fait quelque chose au cours de sa vie. En français, cela se traduit souvent par 'avoir déjà' ou 'jamais'.",
-      "when_to_use_fr": "• Pour poser des questions sur des expériences de vie.\n• Pour parler de quelque chose que l'on a fait au moins une fois.\n• Pour exprimer des expériences négatives avec 'never'.\n• Pour indiquer que quelque chose n'est pas arrivé jusqu'à présent.",
-      "structure": {
-        "affirmative": "Sujet + have/has + participe passé",
-        "negative": "Sujet + haven't/hasn't + participe passé",
-        "question": "Have/Has + sujet + participe passé ?"
-      },
-      "analogy_fr": "C'est exactement comme en français : 'As-tu déjà été à... ?' = 'Have you ever been to... ?' et 'Je n'ai jamais été à...' = 'I have never been to...'.",
-      "key_points_fr": [
-        "Attention à l'utilisation de 'ever' dans les questions et 'never' dans les phrases négatives.",
-        "Le participe passé des verbes irréguliers doit être mémorisé.",
-        "N'oubliez pas que 'have' s'accorde avec le sujet (have pour 'I', 'you', 'we', 'they' et has pour 'he', 'she', 'it')."
-      ],
-      "examples": [
-        {
-          "english": "Have you ever been to Paris?",
-          "french": "Es-tu déjà allé à Paris ?",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "I have never seen a lion.",
-          "french": "Je n'ai jamais vu de lion.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "She has been to London three times.",
-          "french": "Elle est allée à Londres trois fois.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "Have they ever tried sushi?",
-          "french": "Ont-ils déjà essayé le sushi ?",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "We have never visited a museum in this city.",
-          "french": "Nous n'avons jamais visité de musée dans cette ville.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        }
-      ]
-    },
-    "practice_pairs": [
-      {
-        "direction": "fr_to_en",
-        "prompt": "As-tu déjà mangé des escargots ?",
-        "answer": "Have you ever eaten snails?",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Je n'ai jamais voyagé en Afrique.",
-        "answer": "I have never traveled to Africa.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Elle a déjà vu ce film.",
-        "answer": "She has already seen this movie.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Ils n'ont jamais pris le train.",
-        "answer": "They have never taken the train.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Avez-vous déjà lu ce livre ?",
-        "answer": "Have you ever read this book?",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Nous n'avons jamais été en Espagne.",
-        "answer": "We have never been to Spain.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "Have you ever played football?",
-        "answer": "As-tu déjà joué au football ?",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "I have never eaten sushi.",
-        "answer": "Je n'ai jamais mangé de sushi.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "They have been to New York.",
-        "answer": "Ils sont allés à New York.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "Has she ever visited France?",
-        "answer": "Est-elle déjà allée en France ?",
-        "hint": ""
-      }
-    ]
-  },
-  {
-    "id": "mt-lesson-202604251104-890511",
-    "profile_id": "profile-paul-mbilong",
-    "level": "B1",
-    "concept": "Present Perfect — ever/never (Have you ever been to...?)",
-    "created_at": "2026-04-25T11:04:56Z",
-    "lesson": {
-      "title_fr": "Le Present Perfect — ever/never (Have you ever been to...?)",
-      "what_is_it_fr": "Le Present Perfect — ever/never (Have you ever been to...?) s'utilise pour parler d'expériences de vie sans préciser quand elles se sont produites. En français, cela correspond souvent à l'utilisation du passé composé ou à des phrases comme 'Tu as déjà...'. Ce temps permet de relier le passé au présent.",
-      "when_to_use_fr": "• Pour poser des questions sur des expériences de vie\n• Pour exprimer des expériences que l'on n'a jamais vécues\n• Pour parler de choses qui se sont produites à un moment indéfini dans le passé",
-      "structure": {
-        "affirmative": "Sujet + have/has + participe passé",
-        "negative": "Sujet + have/has + not + participe passé",
-        "question": "Have/Has + sujet + participe passé ?"
-      },
-      "analogy_fr": "C'est exactement comme en français : 'As-tu déjà été à... ?' = 'Have you ever been to... ?'",
-      "key_points_fr": [
-        "N'oubliez pas d'utiliser 'ever' dans les questions et 'never' dans les phrases négatives.",
-        "Le participe passé des verbes irréguliers doit être mémorisé.",
-        "Attention à la contraction : 'I've' pour 'I have', 'you've' pour 'you have', etc."
-      ],
-      "examples": [
-        {
-          "english": "Have you ever been to Paris?",
-          "french": "Es-tu déjà allé à Paris ?",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "I have never seen a lion.",
-          "french": "Je n'ai jamais vu de lion.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "She has been to Italy three times.",
-          "french": "Elle est allée en Italie trois fois.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "Have they ever tried sushi?",
-          "french": "Ont-ils déjà essayé des sushis ?",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "We have never traveled by plane.",
-          "french": "Nous n'avons jamais voyagé en avion.",
+          "english": "I wasn't studying when you called me.",
+          "french": "Je n'étais pas en train d'étudier quand tu m'as appelé.",
           "audio_path_en": null,
           "audio_path_fr": null
         }
       ],
-      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604251104-890511_course.wav"
+      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604252153-d35617_course.wav"
     },
     "practice_pairs": [
       {
         "direction": "fr_to_en",
-        "prompt": "As-tu déjà mangé des escargots ?",
-        "answer": "Have you ever eaten snails?",
+        "prompt": "Je regardais la télévision quand tu es arrivé.",
+        "answer": "I was watching TV when you arrived.",
         "hint": ""
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Je n'ai jamais visité Londres.",
-        "answer": "I have never visited London.",
+        "prompt": "Ils n'étaient pas en train de jouer.",
+        "answer": "They weren't playing.",
         "hint": ""
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Elle a déjà pris le train ?",
-        "answer": "Has she ever taken the train?",
+        "prompt": "Tu étais en train de travailler quand il a appelé.",
+        "answer": "You were working when he called.",
         "hint": ""
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Nous n'avons jamais vu ce film.",
-        "answer": "We have never seen this movie.",
+        "prompt": "Nous étions en train de marcher quand il a commencé à pleuvoir.",
+        "answer": "We were walking when it started to rain.",
         "hint": ""
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Ils ont déjà été en Espagne ?",
-        "answer": "Have they ever been to Spain?",
+        "prompt": "Elle ne regardait pas le film.",
+        "answer": "She wasn't watching the movie.",
         "hint": ""
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Tu n'as jamais essayé le surf ?",
-        "answer": "Have you never tried surfing?",
+        "prompt": "Ils étaient en train de discuter quand le professeur est entré.",
+        "answer": "They were discussing when the teacher entered.",
         "hint": ""
       },
       {
         "direction": "en_to_fr",
-        "prompt": "Have you ever been to a concert?",
-        "answer": "Es-tu déjà allé à un concert ?",
+        "prompt": "Was he studying when you called?",
+        "answer": "Était-il en train d'étudier quand tu as appelé ?",
         "hint": ""
       },
       {
         "direction": "en_to_fr",
-        "prompt": "I have never eaten sushi.",
-        "answer": "Je n'ai jamais mangé de sushi.",
+        "prompt": "They were not playing outside.",
+        "answer": "Ils n'étaient pas en train de jouer dehors.",
         "hint": ""
       },
       {
         "direction": "en_to_fr",
-        "prompt": "Has he ever traveled abroad?",
-        "answer": "A-t-il déjà voyagé à l'étranger ?",
+        "prompt": "What were you doing when I arrived?",
+        "answer": "Que faisais-tu quand je suis arrivé ?",
         "hint": ""
       },
       {
         "direction": "en_to_fr",
-        "prompt": "We have been to the museum.",
-        "answer": "Nous sommes allés au musée.",
+        "prompt": "I was not sleeping when you knocked.",
+        "answer": "Je n'étais pas en train de dormir quand tu as frappé.",
         "hint": ""
       }
     ]
