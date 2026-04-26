@@ -1,32 +1,50 @@
 import hashlib
+import io
 import os
+import time as _time
+import wave
 
 import streamlit as st
+import streamlit.components.v1 as _components
 
-from modules.ai_client import (openrouter_chat, text_to_speech_openrouter,
-                               transcribe_audio_with_openrouter)
-from modules.config import (CEFR_LEVELS, CHAT_MODEL, MT_DIALOGUE_THEMES,
-                            MT_GRAMMAR_CONCEPTS, STORY_NARRATOR_VOICES)
-from modules.michel_thomas import (_save_dialogue_full_audio,
-                                   _save_lesson_course_audio,
-                                   _save_lesson_example_audio,
-                                   _save_lesson_practice_audio,
-                                   _save_themed_dialogue_line_audio,
-                                   _update_dialogue_full_audio,
-                                   _update_lesson_course_audio_path,
-                                   _update_lesson_example_audio,
-                                   _update_lesson_practice_audio,
-                                   _update_themed_dialogue_line_audio,
-                                   build_lesson_narration_script,
-                                   evaluate_practice_pair,
-                                   generate_lesson_session,
-                                   generate_themed_dialogue,
-                                   load_mt_lesson_sessions,
-                                   load_mt_themed_dialogues,
-                                   save_mt_lesson_sessions,
-                                   save_mt_themed_dialogues)
-from modules.profiles import (get_active_profile, get_profile_module_level,
-                              set_profile_module_level)
+from modules.ai_client import (
+    openrouter_chat,
+    text_to_speech_openrouter,
+    transcribe_audio_with_openrouter,
+)
+from modules.config import (
+    CEFR_LEVELS,
+    CHAT_MODEL,
+    MT_DIALOGUE_THEMES,
+    MT_GRAMMAR_CONCEPTS,
+    STORY_NARRATOR_VOICES,
+)
+from modules.michel_thomas import (
+    _save_dialogue_full_audio,
+    _save_lesson_course_audio,
+    _save_lesson_example_audio,
+    _save_lesson_practice_audio,
+    _save_themed_dialogue_line_audio,
+    _update_dialogue_full_audio,
+    _update_lesson_course_audio_path,
+    _update_lesson_example_audio,
+    _update_lesson_practice_audio,
+    _update_themed_dialogue_line_audio,
+    build_lesson_narration_script,
+    evaluate_practice_pair,
+    generate_lesson_session,
+    generate_themed_dialogue,
+    load_mt_lesson_sessions,
+    load_mt_themed_dialogues,
+    save_mt_lesson_sessions,
+    save_mt_themed_dialogues,
+)
+from modules.profiles import (
+    get_active_profile,
+    get_profile_module_level,
+    set_profile_module_level,
+)
+from modules.utils import extract_json_from_text
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +77,35 @@ def _concat_wav_files(paths):
         return buf.getvalue()
     except Exception:
         return None
+
+
+def _generate_dialogue_full_audio(session, sid, profile_id, voice):
+    """Generate all missing line audios, merge them, and persist a single dialogue file."""
+    lines = session.get("lines", [])
+    if not lines:
+        return False, "Aucune ligne de dialogue disponible."
+
+    for li, line in enumerate(lines):
+        if line.get("audio_path_en") and os.path.exists(line.get("audio_path_en", "")):
+            continue
+
+        ab, _, tts_err = text_to_speech_openrouter(
+            line.get("line_en", ""), voice=voice, language_hint="en"
+        )
+        if tts_err or not ab:
+            return False, tts_err or f"Audio indisponible pour la ligne {li + 1}."
+
+        path = _save_themed_dialogue_line_audio(sid, li, ab)
+        _update_themed_dialogue_line_audio(profile_id, sid, li, path)
+        lines[li]["audio_path_en"] = path
+
+    merged = _concat_wav_files([line.get("audio_path_en", "") for line in lines])
+    if not merged:
+        return False, "Impossible de générer l'audio complet du dialogue."
+
+    full_path = _save_dialogue_full_audio(sid, merged)
+    _update_dialogue_full_audio(profile_id, sid, full_path)
+    return True, None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -816,6 +863,11 @@ def _render_dialogue_tab(profile, profile_id):
                 sessions = load_mt_themed_dialogues(profile_id)
                 sessions.insert(0, session)
                 save_mt_themed_dialogues(sessions, profile_id)
+                audio_ok, audio_err = _generate_dialogue_full_audio(
+                    session, session["id"], profile_id, voice
+                )
+                if not audio_ok and audio_err:
+                    errors.append(f"Audio dialogue {i + 1}: {audio_err}")
                 last_sid = session["id"]
             if prog:
                 prog.progress((i + 1) / qty)
@@ -882,11 +934,6 @@ def _render_dialogue_session(session, sid, profile_id, voice):
     fresh = next((s for s in fresh_sessions if s["id"] == sid), session)
     lines = fresh.get("lines", [])
 
-    all_have_audio = lines and all(
-        l.get("audio_path_en") and os.path.exists(l.get("audio_path_en", ""))
-        for l in lines
-    )
-
     # ── Full audio (single player) ─────────────────────────────────────────────
     full_audio_path = fresh.get("full_audio_path", "")
     full_audio_bytes = _load_audio(full_audio_path) if full_audio_path else None
@@ -895,38 +942,16 @@ def _render_dialogue_session(session, sid, profile_id, voice):
         st.markdown("#### 🎧 Dialogue complet")
         st.audio(full_audio_bytes, format="audio/wav")
         if st.button("🔄 Regénérer l'audio complet", key=f"regen_full_{sid}"):
-            prog = st.progress(0)
             for li, line in enumerate(lines):
-                ab, _, tts_err = text_to_speech_openrouter(
-                    line.get("line_en", ""), voice=voice, language_hint="en"
-                )
-                if not tts_err and ab:
-                    p = _save_themed_dialogue_line_audio(sid, li, ab)
-                    _update_themed_dialogue_line_audio(profile_id, sid, li, p)
-                    lines[li]["audio_path_en"] = p
-                prog.progress((li + 1) / len(lines))
-            merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
-            if merged:
-                fp = _save_dialogue_full_audio(sid, merged)
-                _update_dialogue_full_audio(profile_id, sid, fp)
-            st.rerun()
+                line["audio_path_en"] = None
+                _update_themed_dialogue_line_audio(profile_id, sid, li, None)
+            with st.spinner("Régénération de l'audio complet…"):
+                ok, err = _generate_dialogue_full_audio(fresh, sid, profile_id, voice)
+            if ok:
+                st.rerun()
+            else:
+                st.error(err)
         st.markdown("---")
-    elif all_have_audio:
-        gen_col, _ = st.columns([2, 3])
-        with gen_col:
-            if st.button(
-                "🔗 Fusionner en un seul audio",
-                key=f"merge_audio_{sid}",
-                type="primary",
-                use_container_width=True,
-            ):
-                merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
-                if merged:
-                    fp = _save_dialogue_full_audio(sid, merged)
-                    _update_dialogue_full_audio(profile_id, sid, fp)
-                    st.rerun()
-                else:
-                    st.error("Impossible de fusionner les audios.")
     else:
         gen_col, _ = st.columns([2, 3])
         with gen_col:
@@ -936,25 +961,14 @@ def _render_dialogue_session(session, sid, profile_id, voice):
                 type="primary",
                 use_container_width=True,
             ):
-                prog = st.progress(0)
-                for li, line in enumerate(lines):
-                    if not (
-                        line.get("audio_path_en")
-                        and os.path.exists(line.get("audio_path_en", ""))
-                    ):
-                        ab, _, tts_err = text_to_speech_openrouter(
-                            line.get("line_en", ""), voice=voice, language_hint="en"
-                        )
-                        if not tts_err and ab:
-                            p = _save_themed_dialogue_line_audio(sid, li, ab)
-                            _update_themed_dialogue_line_audio(profile_id, sid, li, p)
-                            lines[li]["audio_path_en"] = p
-                    prog.progress((li + 1) / len(lines))
-                merged = _concat_wav_files([l.get("audio_path_en", "") for l in lines])
-                if merged:
-                    fp = _save_dialogue_full_audio(sid, merged)
-                    _update_dialogue_full_audio(profile_id, sid, fp)
-                st.rerun()
+                with st.spinner("Génération de l'audio complet du dialogue…"):
+                    ok, err = _generate_dialogue_full_audio(
+                        fresh, sid, profile_id, voice
+                    )
+                if ok:
+                    st.rerun()
+                else:
+                    st.error(err)
 
     imm_key = f"dial_immersion_{sid}"
     if imm_key not in st.session_state:
@@ -1054,6 +1068,593 @@ def _render_dialogue_session(session, sid, profile_id, voice):
 """,
                     unsafe_allow_html=True,
                 )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 4 — Quiz Chrono
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _estimate_quiz_time(sentence: str, level: str) -> int:
+    """Estimate fair response time in seconds (recording overhead included)."""
+    words = len(sentence.split())
+    # level bonus: more time for beginners
+    bonus = {"A1": 6, "A2": 4, "B1": 2, "B2": 1, "C1": 0, "C2": 0}.get(level, 2)
+    # base 10s + 0.9s per word + recording overhead 3s + level bonus
+    t = 10 + words * 0.9 + 3 + bonus
+    return min(30, max(10, round(t)))
+
+
+def _generate_quiz_questions(
+    level: str, concepts: list, themes: list, count: int, direction: str
+):
+    """Generate quiz questions via AI. Returns (questions_list, error_str)."""
+    concepts_str = ", ".join(concepts) if concepts else "any grammar structures"
+    themes_str = ", ".join(themes) if themes else "everyday life"
+
+    if direction == "both":
+        dir_note = f"Mix both directions: roughly half fr_to_en, half en_to_fr."
+    elif direction == "fr_to_en":
+        dir_note = (
+            'All direction must be "fr_to_en" (prompt in French, answer in English).'
+        )
+    else:
+        dir_note = (
+            'All direction must be "en_to_fr" (prompt in English, answer in French).'
+        )
+
+    prompt = f"""You are a bilingual English-French quiz generator.
+Generate exactly {count} translation quiz questions for a French native speaker at CEFR level {level}.
+Grammar focus: {concepts_str}
+Themes: {themes_str}
+{dir_note}
+
+Return ONLY a valid JSON array, no markdown, no commentary:
+[
+  {{"direction": "fr_to_en", "prompt": "phrase française à traduire", "answer": "expected English answer"}},
+  {{"direction": "en_to_fr", "prompt": "English sentence to translate", "answer": "traduction française attendue"}}
+]
+
+Rules:
+- Natural sentences fitting {level} level.
+- Weave grammar concepts and themes naturally into each sentence.
+- Vary sentence length and complexity across questions.
+- Provide the most idiomatic correct translation as the answer.
+- Return exactly {count} items in the array.
+""".strip()
+
+    text, err = openrouter_chat(
+        [{"role": "user", "content": prompt}],
+        CHAT_MODEL,
+        temperature=0.5,
+        max_tokens=2500,
+    )
+    if err:
+        return None, err
+
+    data = extract_json_from_text(text)
+    if not isinstance(data, list):
+        return None, "L'IA n'a pas retourné un tableau JSON valide."
+
+    questions = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        d = item.get("direction", "fr_to_en")
+        p = str(item.get("prompt", "")).strip()
+        a = str(item.get("answer", "")).strip()
+        if not p or not a:
+            continue
+        questions.append(
+            {
+                "direction": d,
+                "prompt": p,
+                "answer": a,
+                "allowed_time": _estimate_quiz_time(p, level),
+                "audio_bytes": None,
+            }
+        )
+    if not questions:
+        return None, "Aucune question générée, réessaie."
+    return questions, None
+
+
+def _quiz_countdown_html(remaining_sec: float, total_sec: int) -> str:
+    """Return an HTML/JS circular countdown timer component."""
+    pct = max(0.0, min(1.0, remaining_sec / total_sec))
+    color = "#4caf50" if pct > 0.5 else "#ff9800" if pct > 0.25 else "#f44336"
+    remaining_ms = max(0, int(remaining_sec * 1000))
+    return f"""
+<div style="display:flex;align-items:center;gap:18px;padding:8px 0">
+  <div style="position:relative;width:72px;height:72px;flex-shrink:0">
+    <svg width="72" height="72" viewBox="0 0 72 72">
+      <circle cx="36" cy="36" r="30" fill="none" stroke="#2a2a3e" stroke-width="7"/>
+      <circle id="qz-ring" cx="36" cy="36" r="30" fill="none"
+        stroke="{color}" stroke-width="7"
+        stroke-dasharray="188.5" stroke-dashoffset="{188.5 * (1 - pct):.1f}"
+        stroke-linecap="round" transform="rotate(-90 36 36)"
+        style="transition:stroke 0.3s"/>
+    </svg>
+    <div id="qz-text" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      font-size:17px;font-weight:800;color:#fff;font-family:monospace">
+      {int(remaining_sec)}s
+    </div>
+  </div>
+  <div>
+    <div style="font-size:13px;color:#aaa">⏱ Temps restant</div>
+    <div style="font-size:11px;color:#666">Temps alloué : {total_sec}s</div>
+  </div>
+</div>
+<script>
+(function() {{
+  const totalMs = {total_sec * 1000};
+  const remainMs = {remaining_ms};
+  const circ = 188.5;
+  const ring = document.getElementById('qz-ring');
+  const txt  = document.getElementById('qz-text');
+  const startTs = Date.now();
+  function tick() {{
+    const elapsed = Date.now() - startTs;
+    const left = Math.max(0, remainMs - elapsed);
+    const pct = left / totalMs;
+    const offset = circ * (1 - pct);
+    if (ring) ring.setAttribute('stroke-dashoffset', offset.toFixed(1));
+    if (ring) ring.setAttribute('stroke', pct > 0.5 ? '#4caf50' : pct > 0.25 ? '#ff9800' : '#f44336');
+    if (txt) txt.textContent = Math.ceil(left / 1000) + 's';
+    if (left > 0) requestAnimationFrame(tick);
+    else {{
+      if (txt) txt.textContent = '0s';
+      // Auto-click the timeout button in the parent Streamlit frame
+      try {{
+        const frame = window.parent.document;
+        const btns = frame.querySelectorAll('button');
+        for (let b of btns) {{
+          if (b.getAttribute('data-qz-timeout') === 'true') {{ b.click(); break; }}
+        }}
+        // Fallback: find by aria-label
+        for (let b of btns) {{
+          if (b.getAttribute('aria-label') === '__qz_timeout__') {{ b.click(); break; }}
+        }}
+      }} catch(e) {{}}
+    }}
+  }}
+  requestAnimationFrame(tick);
+}})();
+</script>
+"""
+
+
+def _render_quiz_tab(profile, profile_id):
+    st.subheader("⚡ Quiz Chrono — Traduction Express")
+    st.caption(
+        "L'IA te donne une phrase en audio. Traduis-la avant la fin du chrono. "
+        "Réponds à l'oral : ta réponse est transcrite et évaluée automatiquement."
+    )
+
+    is_active = st.session_state.get("quiz_active", False)
+
+    with st.expander("⚙️ Paramètres du quiz", expanded=not is_active):
+        r1c1, r1c2 = st.columns([1, 3])
+        with r1c1:
+            saved_level = get_profile_module_level(profile, "michel_thomas") or "B1"
+            if saved_level not in CEFR_LEVELS:
+                saved_level = "B1"
+            quiz_level = st.selectbox(
+                "Niveau CEFR",
+                CEFR_LEVELS,
+                index=CEFR_LEVELS.index(saved_level),
+                key="quiz_level_sel",
+                disabled=is_active,
+            )
+        with r1c2:
+            quiz_concepts = st.multiselect(
+                "Concept(s) grammatical(aux)",
+                MT_GRAMMAR_CONCEPTS.get(quiz_level, []),
+                key="quiz_concepts_sel",
+                placeholder="Tous les concepts du niveau…",
+                disabled=is_active,
+            )
+
+        quiz_themes = st.multiselect(
+            "Thème(s) de conversation",
+            MT_DIALOGUE_THEMES,
+            key="quiz_themes_sel",
+            placeholder="Tous les thèmes…",
+            disabled=is_active,
+        )
+
+        r2c1, r2c2, r2c3 = st.columns(3)
+        with r2c1:
+            quiz_count = st.number_input(
+                "Nombre de questions",
+                min_value=3,
+                max_value=20,
+                value=8,
+                step=1,
+                key="quiz_count_sel",
+                disabled=is_active,
+            )
+        with r2c2:
+            quiz_direction = st.selectbox(
+                "Sens de traduction",
+                ["Les deux", "Français → Anglais", "Anglais → Français"],
+                key="quiz_dir_sel",
+                disabled=is_active,
+            )
+        with r2c3:
+            voices = list(STORY_NARRATOR_VOICES.values())
+            voice_labels = list(STORY_NARRATOR_VOICES.keys())
+            quiz_voice_idx = st.selectbox(
+                "Voix IA",
+                range(len(voice_labels)),
+                format_func=lambda i: voice_labels[i],
+                key="quiz_voice_sel",
+                disabled=is_active,
+            )
+            quiz_voice = voices[quiz_voice_idx]
+
+        ctrl1, ctrl2 = st.columns(2)
+        with ctrl1:
+            start_btn = st.button(
+                "▶️ Lancer le quiz",
+                key="quiz_start_btn",
+                type="primary",
+                use_container_width=True,
+                disabled=is_active,
+            )
+        with ctrl2:
+            stop_btn = st.button(
+                "⏹️ Abandonner / Réinitialiser",
+                key="quiz_stop_btn",
+                use_container_width=True,
+                disabled=not is_active,
+            )
+
+    if stop_btn:
+        for k in list(st.session_state.keys()):
+            if k.startswith("quiz_") and k not in (
+                "quiz_level_sel",
+                "quiz_concepts_sel",
+                "quiz_themes_sel",
+                "quiz_count_sel",
+                "quiz_dir_sel",
+                "quiz_voice_sel",
+            ):
+                del st.session_state[k]
+        st.rerun()
+
+    if start_btn:
+        dir_map = {
+            "Les deux": "both",
+            "Français → Anglais": "fr_to_en",
+            "Anglais → Français": "en_to_fr",
+        }
+        direction_code = dir_map.get(
+            st.session_state.get("quiz_dir_sel", "Les deux"), "both"
+        )
+        with st.spinner("Génération des questions…"):
+            questions, err = _generate_quiz_questions(
+                quiz_level,
+                st.session_state.get("quiz_concepts_sel", []),
+                st.session_state.get("quiz_themes_sel", []),
+                int(st.session_state.get("quiz_count_sel", 8)),
+                direction_code,
+            )
+        if err:
+            st.error(f"Erreur : {err}")
+            return
+
+        # Pre-generate TTS for all prompts
+        prog = st.progress(0, text="Génération des audios…")
+        for i, q in enumerate(questions):
+            lang = "fr" if q["direction"] == "fr_to_en" else "en"
+            voice_for_prompt = "shimmer" if lang == "fr" else quiz_voice
+            ab, _, _ = text_to_speech_openrouter(
+                q["prompt"], voice=voice_for_prompt, language_hint=lang
+            )
+            questions[i]["audio_bytes"] = ab
+            prog.progress(
+                (i + 1) / len(questions), text=f"Audio {i+1}/{len(questions)}…"
+            )
+
+        st.session_state["quiz_active"] = True
+        st.session_state["quiz_questions"] = questions
+        st.session_state["quiz_current_idx"] = 0
+        st.session_state["quiz_score"] = {"correct": 0, "wrong": 0, "skipped": 0}
+        st.session_state["quiz_level"] = quiz_level
+        st.session_state["quiz_voice"] = quiz_voice
+        st.rerun()
+
+    if not is_active:
+        st.info(
+            "Configure les paramètres et clique sur **▶️ Lancer le quiz** pour commencer."
+        )
+        return
+
+    # ── Active quiz ────────────────────────────────────────────────────────────
+    questions = st.session_state.get("quiz_questions", [])
+    idx = st.session_state.get("quiz_current_idx", 0)
+    score = st.session_state.get("quiz_score", {"correct": 0, "wrong": 0, "skipped": 0})
+    total_q = len(questions)
+    quiz_voice_active = st.session_state.get("quiz_voice", "alloy")
+    quiz_level_active = st.session_state.get("quiz_level", "B1")
+
+    # ── Scoreboard ─────────────────────────────────────────────────────────────
+    s_col1, s_col2, s_col3, s_col4 = st.columns(4)
+    with s_col1:
+        st.metric("Question", f"{min(idx + 1, total_q)} / {total_q}")
+    with s_col2:
+        st.metric("✅ Correct", score["correct"])
+    with s_col3:
+        st.metric("❌ Raté", score["wrong"])
+    with s_col4:
+        st.metric("⏩ Passé", score["skipped"])
+
+    st.markdown("---")
+
+    # ── Quiz finished ──────────────────────────────────────────────────────────
+    if idx >= total_q:
+        total_answered = score["correct"] + score["wrong"] + score["skipped"]
+        pct = round(score["correct"] / total_answered * 100) if total_answered else 0
+        icon = "🏆" if pct >= 80 else "👍" if pct >= 50 else "💪"
+        st.markdown(
+            f"""
+<div style="background:linear-gradient(135deg,#1e3a5f,#0d2137);padding:28px 32px;
+            border-radius:16px;text-align:center;margin:20px 0">
+  <div style="font-size:48px">{icon}</div>
+  <div style="font-size:28px;font-weight:800;color:#fff;margin:8px 0">Quiz terminé !</div>
+  <div style="font-size:20px;color:#8ab4e8">{score['correct']} / {total_answered} correctes — {pct}%</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            "🔄 Nouveau quiz",
+            key="quiz_restart_btn",
+            type="primary",
+            use_container_width=True,
+        ):
+            for k in list(st.session_state.keys()):
+                if k.startswith("quiz_") and k not in (
+                    "quiz_level_sel",
+                    "quiz_concepts_sel",
+                    "quiz_themes_sel",
+                    "quiz_count_sel",
+                    "quiz_dir_sel",
+                    "quiz_voice_sel",
+                ):
+                    del st.session_state[k]
+            st.rerun()
+        return
+
+    question = questions[idx]
+    direction = question["direction"]
+    prompt_text = question["prompt"]
+    answer_text = question["answer"]
+    allowed_time = question["allowed_time"]
+
+    # Keys for this question
+    result_key = f"quiz_result_{idx}"
+    eval_key = f"quiz_eval_{idx}"
+    transcript_key = f"quiz_transcript_{idx}"
+    marker_key = f"quiz_marker_{idx}"
+    start_key = f"quiz_start_{idx}"
+
+    # Record start time once per question
+    if start_key not in st.session_state:
+        st.session_state[start_key] = _time.time()
+
+    start_time = st.session_state[start_key]
+    elapsed = _time.time() - start_time
+    remaining = max(0.0, allowed_time - elapsed)
+    result = st.session_state.get(result_key)
+
+    # Auto-expire: if time is up and user hasn't submitted
+    if result is None and remaining <= 0:
+        st.session_state[result_key] = "timeout"
+        result = "timeout"
+
+    # ── Question card ──────────────────────────────────────────────────────────
+    if direction == "fr_to_en":
+        badge = "🇫🇷 → 🇬🇧  Comment dit-on ça en <b>ANGLAIS</b> ?"
+        badge_bg = "#1e3a5f"
+    else:
+        badge = "🇬🇧 → 🇫🇷  Comment dit-on ça en <b>FRANÇAIS</b> ?"
+        badge_bg = "#1a3320"
+
+    st.markdown(
+        f"<div style='background:{badge_bg};padding:10px 16px;border-radius:10px;"
+        f"font-size:14px;font-weight:700;color:#fff;margin-bottom:12px'>{badge}</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
+<div style="background:#2a2a3e;padding:22px 28px;border-radius:14px;
+            text-align:center;margin-bottom:14px">
+  <span style="font-size:24px;font-weight:800;color:#ffffff">{prompt_text}</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # Play prompt audio
+    audio_bytes = question.get("audio_bytes")
+    if audio_bytes:
+        st.audio(audio_bytes, format="audio/wav")
+
+    if result is None:
+        # ── Countdown timer ────────────────────────────────────────────────────
+        _components.html(_quiz_countdown_html(remaining, allowed_time), height=90)
+
+        # Hidden auto-timeout button (clicked by JS when timer hits 0)
+        # We render it with an aria-label that the JS targets
+        timeout_col = st.columns([1, 4])[0]
+        with timeout_col:
+            timeout_btn = st.button(
+                "⏰",
+                key=f"quiz_auto_timeout_{idx}",
+                help="Temps écoulé — cliquer pour passer à la réponse",
+            )
+        if timeout_btn:
+            st.session_state[result_key] = "timeout"
+            score["skipped"] += 1
+            st.session_state["quiz_score"] = score
+            st.rerun()
+
+        # ── Audio input ────────────────────────────────────────────────────────
+        st.markdown("**🎙️ Enregistre ta traduction :**")
+        user_audio = st.audio_input(
+            "Parle maintenant, puis arrête l'enregistrement",
+            key=f"quiz_audio_input_{idx}",
+        )
+
+        if user_audio:
+            candidate = user_audio.getvalue()
+            fp = hashlib.sha1(candidate).hexdigest()
+            if st.session_state.get(marker_key) != fp:
+                st.session_state[marker_key] = fp
+                with st.spinner("Transcription en cours…"):
+                    transcript, t_err = transcribe_audio_with_openrouter(
+                        candidate, audio_format="wav"
+                    )
+                if t_err:
+                    st.warning(f"Transcription échouée : {t_err}")
+                elif transcript:
+                    st.session_state[transcript_key] = transcript
+                    # Check time AFTER transcription
+                    elapsed_now = _time.time() - start_time
+                    if elapsed_now > allowed_time:
+                        st.session_state[result_key] = "timeout"
+                        score["wrong"] += 1
+                        st.session_state["quiz_score"] = score
+                    else:
+                        # Evaluate answer
+                        with st.spinner("Évaluation…"):
+                            eval_result, eval_err = evaluate_practice_pair(
+                                {
+                                    "direction": direction,
+                                    "prompt": prompt_text,
+                                    "answer": answer_text,
+                                },
+                                transcript,
+                            )
+                        if eval_err or not eval_result:
+                            st.session_state[result_key] = "timeout"
+                        else:
+                            st.session_state[eval_key] = eval_result
+                            if (
+                                eval_result.get("correct")
+                                or eval_result.get("score", 0) >= 60
+                            ):
+                                st.session_state[result_key] = "correct"
+                                score["correct"] += 1
+                            else:
+                                st.session_state[result_key] = "wrong"
+                                score["wrong"] += 1
+                            st.session_state["quiz_score"] = score
+                    st.rerun()
+
+        # Manual skip
+        skip_col = st.columns([3, 1])[1]
+        with skip_col:
+            if st.button(
+                "⏩ Passer", key=f"quiz_manual_skip_{idx}", use_container_width=True
+            ):
+                st.session_state[result_key] = "timeout"
+                score["skipped"] += 1
+                st.session_state["quiz_score"] = score
+                st.rerun()
+
+    else:
+        # ── Result display ─────────────────────────────────────────────────────
+        transcript = st.session_state.get(transcript_key, "")
+        eval_result = st.session_state.get(eval_key, {})
+
+        if result == "correct":
+            elapsed_display = int(_time.time() - start_time)
+            feedback = eval_result.get("feedback_fr", "")
+            improved = eval_result.get("improved_answer", "")
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#1a3320,#0d2210);padding:18px 22px;
+            border-radius:14px;border-left:6px solid #4caf50;margin-bottom:10px">
+  <div style="font-size:28px;font-weight:800;color:#4caf50">✅ Bravo ! — {elapsed_display}s</div>
+  <div style="color:#c8e6c9;font-size:15px;margin-top:4px">{feedback}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            if transcript:
+                st.caption(f"📝 Tu as dit : *{transcript}*")
+            if improved:
+                st.info(f"💡 Version améliorée : **{improved}**")
+
+        elif result == "wrong":
+            elapsed_display = int(_time.time() - start_time)
+            feedback = eval_result.get("feedback_fr", "")
+            score_val = eval_result.get("score", 0)
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#3a1a1a,#210d0d);padding:18px 22px;
+            border-radius:14px;border-left:6px solid #f44336;margin-bottom:10px">
+  <div style="font-size:24px;font-weight:800;color:#f44336">❌ Pas tout à fait — {score_val}/100</div>
+  <div style="color:#ffcdd2;font-size:15px;margin-top:4px">{feedback}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            if transcript:
+                st.caption(f"📝 Tu as dit : *{transcript}*")
+
+        else:  # timeout or skipped
+            timed_out_by_time = elapsed > allowed_time + 1
+            msg = "⏰ Temps écoulé !" if timed_out_by_time else "⏩ Passé !"
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#33220a,#201500);padding:18px 22px;
+            border-radius:14px;border-left:6px solid #ff9800;margin-bottom:10px">
+  <div style="font-size:24px;font-weight:800;color:#ff9800">{msg}</div>
+  <div style="color:#ffe0b2;font-size:15px;margin-top:4px">
+    Ne t'inquiète pas, continue à t'entraîner !
+  </div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        # ── Correct answer ─────────────────────────────────────────────────────
+        answer_lang = "en" if direction == "fr_to_en" else "fr"
+        st.markdown(
+            f"""
+<div style="background:#1e3a5f;padding:12px 18px;border-radius:10px;margin:10px 0">
+  <span style="font-size:11px;color:#8ab4e8;font-weight:700">✔️ IL FALLAIT DIRE</span><br/>
+  <span style="font-size:20px;color:#fff;font-weight:700">{answer_text}</span>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        # TTS for the correct answer
+        answer_audio_key = f"quiz_answer_audio_{idx}"
+        if answer_audio_key not in st.session_state:
+            voice_ans = quiz_voice_active if answer_lang == "en" else "shimmer"
+            ab, _, _ = text_to_speech_openrouter(
+                answer_text, voice=voice_ans, language_hint=answer_lang
+            )
+            st.session_state[answer_audio_key] = ab
+        ans_audio = st.session_state.get(answer_audio_key)
+        if ans_audio:
+            st.audio(ans_audio, format="audio/wav")
+
+        # ── Next question ──────────────────────────────────────────────────────
+        is_last = idx >= total_q - 1
+        next_label = "🎉 Voir les résultats" if is_last else "➡️ Question suivante"
+        if st.button(
+            next_label, key=f"quiz_next_{idx}", type="primary", use_container_width=True
+        ):
+            st.session_state["quiz_current_idx"] = idx + 1
+            st.rerun()
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
@@ -1193,7 +1794,9 @@ def _render_free_practice_tab(profile, profile_id):
 
     # ── Render conversation history ────────────────────────────────────────────
     history = st.session_state.get("fp_history", [])
-    fp_voice_active = st.session_state.get("fp_voice", fp_voice if not is_active else "shimmer")
+    fp_voice_active = st.session_state.get(
+        "fp_voice", fp_voice if not is_active else "shimmer"
+    )
 
     st.markdown("### 🗣️ Conversation")
 
@@ -1324,8 +1927,8 @@ def render_michel_thomas_page():
     st.header("🎓 Anglais avec l'IA — Leçons & Dialogues")
     st.caption(f"Profil actif : {profile.get('name', 'Profil principal')}")
 
-    tab_lesson, tab_dialogue, tab_free = st.tabs(
-        ["📖 Leçon & Pratique", "💬 Dialogues", "🎙️ Pratique libre"]
+    tab_lesson, tab_dialogue, tab_free, tab_quiz = st.tabs(
+        ["📖 Leçon & Pratique", "💬 Dialogues", "🎙️ Pratique libre", "⚡ Quiz Chrono"]
     )
 
     with tab_lesson:
@@ -1336,3 +1939,6 @@ def render_michel_thomas_page():
 
     with tab_free:
         _render_free_practice_tab(profile, profile_id)
+
+    with tab_quiz:
+        _render_quiz_tab(profile, profile_id)
