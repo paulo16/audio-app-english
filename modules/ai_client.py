@@ -15,14 +15,35 @@ from modules.config import *
 
 STT_PROVIDER_AUTO = "auto"
 STT_PROVIDER_OPENROUTER = "openrouter"
+STT_PROVIDER_ELEVENLABS = "elevenlabs"
 STT_PROVIDER_GOOGLE = "google_free"
 STT_PROVIDER_WHISPER = "whisper_local"
+WHISPER_DEFAULT_MODEL = "medium"
+
+
+def get_whisper_model_options():
+    return ["tiny", "base", "small", "medium", "large-v3"]
+
+
+def get_whisper_model_name():
+    selected = st.session_state.get("whisper_model_name", WHISPER_DEFAULT_MODEL)
+    return (
+        selected if selected in get_whisper_model_options() else WHISPER_DEFAULT_MODEL
+    )
+
+
+def set_whisper_model_name(model_name):
+    options = set(get_whisper_model_options())
+    st.session_state["whisper_model_name"] = (
+        model_name if model_name in options else WHISPER_DEFAULT_MODEL
+    )
 
 
 def get_stt_provider_options():
     return [
-        (STT_PROVIDER_AUTO, "Auto (OpenRouter -> Google -> Whisper)"),
+        (STT_PROVIDER_AUTO, "Auto (OpenRouter -> ElevenLabs -> Google -> Whisper)"),
         (STT_PROVIDER_OPENROUTER, "OpenRouter"),
+        (STT_PROVIDER_ELEVENLABS, "ElevenLabs STT"),
         (STT_PROVIDER_GOOGLE, "Google gratuit"),
         (STT_PROVIDER_WHISPER, "Whisper local"),
     ]
@@ -161,6 +182,46 @@ def _transcribe_audio_google_free(audio_bytes):
         return None, f"Google STT gratuit: {exc}"
 
 
+def _transcribe_audio_elevenlabs(audio_bytes, audio_format="wav"):
+    if not ELEVENLABS_API_KEY:
+        return None, "Cle API ElevenLabs manquante."
+
+    ext = (audio_format or "wav").lower()
+    mime = {
+        "wav": "audio/wav",
+        "mp3": "audio/mpeg",
+        "flac": "audio/flac",
+        "ogg": "audio/ogg",
+        "m4a": "audio/mp4",
+    }.get(ext, "audio/wav")
+
+    try:
+        resp = requests.post(
+            f"{ELEVENLABS_BASE_URL}/speech-to-text",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+            files={"file": (f"input.{ext}", audio_bytes, mime)},
+            data={"model_id": "scribe_v1"},
+            timeout=120,
+        )
+        if resp.status_code == 401:
+            return None, "Cle API ElevenLabs invalide pour STT."
+        if resp.status_code == 429:
+            return None, "Quota/rate limit ElevenLabs atteint (STT)."
+        if resp.status_code != 200:
+            return (
+                None,
+                f"Erreur ElevenLabs STT ({resp.status_code}): {resp.text[:200]}",
+            )
+
+        payload = resp.json()
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            return None, "ElevenLabs STT: transcription vide."
+        return text, None
+    except Exception as exc:
+        return None, f"Erreur ElevenLabs STT: {exc}"
+
+
 def _transcribe_audio_whisper_last_resort(audio_bytes):
     try:
         from faster_whisper import WhisperModel
@@ -171,12 +232,11 @@ def _transcribe_audio_whisper_last_resort(audio_bytes):
         )
 
     @st.cache_resource(show_spinner=False)
-    def _get_whisper_model_cached():
-        # Lightweight default model for acceptable speed on CPU.
-        return WhisperModel("small", device="cpu", compute_type="int8")
+    def _get_whisper_model_cached(model_name):
+        return WhisperModel(model_name, device="cpu", compute_type="int8")
 
     try:
-        model = _get_whisper_model_cached()
+        model = _get_whisper_model_cached(get_whisper_model_name())
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp.write(audio_bytes)
@@ -222,6 +282,13 @@ def transcribe_audio_with_openrouter(
         _mark_used(STT_PROVIDER_OPENROUTER)
         return text, None
 
+    if selected == STT_PROVIDER_ELEVENLABS:
+        text, err = _transcribe_audio_elevenlabs(audio_bytes, audio_format)
+        if err:
+            return None, f"ElevenLabs STT: {err}"
+        _mark_used(STT_PROVIDER_ELEVENLABS)
+        return text, None
+
     if selected == STT_PROVIDER_GOOGLE:
         text, err = _transcribe_audio_google_free(audio_bytes)
         if err:
@@ -249,7 +316,12 @@ def transcribe_audio_with_openrouter(
         if _is_openrouter_quota_error(err):
             _mark_openrouter_stt_unavailable(seconds=900)
 
-        # Fallback order requested by user: Google free first, Whisper last.
+        # Auto order: OpenRouter -> ElevenLabs -> Google -> Whisper.
+        el_text, el_err = _transcribe_audio_elevenlabs(audio_bytes, audio_format)
+        if not el_err:
+            _mark_used(STT_PROVIDER_ELEVENLABS)
+            return el_text, None
+
         google_text, google_err = _transcribe_audio_google_free(audio_bytes)
         if not google_err:
             _mark_used(STT_PROVIDER_GOOGLE)
@@ -262,7 +334,7 @@ def transcribe_audio_with_openrouter(
 
         return (
             None,
-            f"OpenRouter: {err} | Google gratuit: {google_err} | Whisper local: {whisper_err}",
+            f"OpenRouter: {err} | ElevenLabs STT: {el_err} | Google gratuit: {google_err} | Whisper local: {whisper_err}",
         )
 
     # No key or temporary cooldown: Google free first, Whisper local last.

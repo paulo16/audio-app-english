@@ -13,7 +13,10 @@ from modules.ai_client import (
     get_stt_mode,
     get_stt_provider_options,
     get_tts_engine,
+    get_whisper_model_name,
+    get_whisper_model_options,
     set_stt_mode,
+    set_whisper_model_name,
     transcribe_audio_with_openrouter,
 )
 from modules.config import *
@@ -32,6 +35,103 @@ from views.real_english_page import render_real_english_page
 from views.shadowing_page import render_shadowing_daily_page
 from views.stories_page import render_stories_page
 from views.vocabulary_page import render_vocabulary_page
+
+
+def _render_stt_test_panel():
+    with st.expander("Laboratoire STT", expanded=False):
+        st.caption(
+            "Teste le micro sur un vrai widget de page. Le choix du moteur reste dans la sidebar."
+        )
+
+        stt_options = get_stt_provider_options()
+        stt_test_audio = st.audio_input(
+            "Enregistre un court message",
+            key="stt_test_audio_input_main",
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            run_test = st.button(
+                "Tester la transcription",
+                key="stt_test_btn_main",
+                use_container_width=True,
+            )
+        with col2:
+            run_compare = st.button(
+                "Comparer tous les moteurs",
+                key="stt_compare_btn_main",
+                use_container_width=True,
+            )
+
+        if run_test:
+            if not stt_test_audio:
+                st.warning("Enregistre d'abord un audio de test.")
+            else:
+                try:
+                    with st.spinner("Test de transcription en cours..."):
+                        test_text, test_err = transcribe_audio_with_openrouter(
+                            stt_test_audio.getvalue(),
+                            audio_format="wav",
+                        )
+                    if test_err:
+                        st.error(f"STT: {test_err}")
+                    else:
+                        provider_now = get_last_stt_provider_used() or "inconnu"
+                        st.success(f"Moteur actif: {provider_now}")
+                        st.caption(f"Transcription: {test_text}")
+                except Exception as exc:
+                    st.error(f"Erreur test STT: {exc}")
+
+        if run_compare:
+            if not stt_test_audio:
+                st.warning("Enregistre d'abord un audio de test.")
+            else:
+                audio_bytes = stt_test_audio.getvalue()
+                providers_to_test = [key for key, _ in stt_options if key != "auto"]
+                rows = []
+
+                with st.spinner(
+                    "Comparaison STT en cours (OpenRouter / Google / Whisper)..."
+                ):
+                    for provider_key in providers_to_test:
+                        t0 = time.perf_counter()
+                        try:
+                            txt, err = transcribe_audio_with_openrouter(
+                                audio_bytes,
+                                audio_format="wav",
+                                preferred_provider=provider_key,
+                            )
+                        except Exception as exc:
+                            txt, err = None, f"Exception: {exc}"
+                        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                        transcript = (txt or "").strip()
+                        words = len(transcript.split()) if transcript else 0
+
+                        rows.append(
+                            {
+                                "moteur": provider_key,
+                                "statut": "OK" if not err else "Erreur",
+                                "latence_ms": elapsed_ms,
+                                "mots": words,
+                                "transcription": transcript if transcript else "-",
+                                "erreur": err or "-",
+                            }
+                        )
+
+                st.markdown("**Résultats comparatifs**")
+                st.dataframe(rows, use_container_width=True)
+
+                ok_rows = [r for r in rows if r["statut"] == "OK"]
+                if ok_rows:
+                    best = sorted(ok_rows, key=lambda r: (-r["mots"], r["latence_ms"]))[
+                        0
+                    ]
+                    st.success(
+                        f"Recommandé pour cet audio: {best['moteur']} "
+                        f"({best['mots']} mots, {best['latence_ms']} ms)"
+                    )
+                else:
+                    st.error("Aucun moteur n'a réussi la transcription sur cet audio.")
 
 
 def main():
@@ -191,7 +291,7 @@ def main():
 
     with st.sidebar.expander("Transcription (STT)"):
         st.caption(
-            "Mode Auto par défaut: OpenRouter, puis Google gratuit, puis Whisper local."
+            "Mode Auto par défaut: OpenRouter, puis ElevenLabs STT, puis Google gratuit, puis Whisper local."
         )
         stt_options = get_stt_provider_options()
         stt_labels = [label for _, label in stt_options]
@@ -211,88 +311,26 @@ def main():
         if selected_stt_key != current_stt_mode:
             set_stt_mode(selected_stt_key)
 
+        whisper_models = get_whisper_model_options()
+        current_whisper = get_whisper_model_name()
+        selected_whisper = st.selectbox(
+            "Modèle Whisper local",
+            whisper_models,
+            index=whisper_models.index(current_whisper),
+            key="whisper_model_select",
+            help="Par défaut: medium",
+        )
+        if selected_whisper != current_whisper:
+            set_whisper_model_name(selected_whisper)
+
         last_provider = get_last_stt_provider_used()
         if last_provider:
             st.caption(f"Dernier moteur utilise: {last_provider}")
-
-        st.markdown("**Test rapide STT**")
-        stt_test_audio = st.audio_input(
-            "Enregistre un court message",
-            key="stt_test_audio_input",
+        st.info(
+            "Le test micro STT est disponible dans le panneau principal 'Laboratoire STT'."
         )
 
-        if st.button("Tester la transcription", key="stt_test_btn", width="stretch"):
-            if not stt_test_audio:
-                st.warning("Enregistre d'abord un audio de test.")
-            else:
-                try:
-                    with st.spinner("Test de transcription en cours..."):
-                        test_text, test_err = transcribe_audio_with_openrouter(
-                            stt_test_audio.getvalue(),
-                            audio_format="wav",
-                        )
-                    if test_err:
-                        st.error(f"STT: {test_err}")
-                    else:
-                        provider_now = get_last_stt_provider_used() or "inconnu"
-                        st.success(f"Moteur actif: {provider_now}")
-                        st.caption(f"Transcription: {test_text}")
-                except Exception as exc:
-                    st.error(f"Erreur test STT: {exc}")
-
-        if st.button(
-            "Comparer tous les moteurs", key="stt_compare_btn", width="stretch"
-        ):
-            if not stt_test_audio:
-                st.warning("Enregistre d'abord un audio de test.")
-            else:
-                audio_bytes = stt_test_audio.getvalue()
-                providers_to_test = [key for key, _ in stt_options if key != "auto"]
-                rows = []
-
-                with st.spinner(
-                    "Comparaison STT en cours (OpenRouter / Google / Whisper)..."
-                ):
-                    for provider_key in providers_to_test:
-                        t0 = time.perf_counter()
-                        try:
-                            txt, err = transcribe_audio_with_openrouter(
-                                audio_bytes,
-                                audio_format="wav",
-                                preferred_provider=provider_key,
-                            )
-                        except Exception as exc:
-                            txt, err = None, f"Exception: {exc}"
-                        elapsed_ms = int((time.perf_counter() - t0) * 1000)
-                        transcript = (txt or "").strip()
-                        words = len(transcript.split()) if transcript else 0
-
-                        rows.append(
-                            {
-                                "moteur": provider_key,
-                                "statut": "OK" if not err else "Erreur",
-                                "latence_ms": elapsed_ms,
-                                "mots": words,
-                                "transcription": transcript if transcript else "-",
-                                "erreur": err or "-",
-                            }
-                        )
-
-                st.markdown("**Résultats comparatifs**")
-                st.dataframe(rows, use_container_width=True)
-
-                ok_rows = [r for r in rows if r["statut"] == "OK"]
-                if ok_rows:
-                    # Heuristic: prefer richer transcript first, then faster response.
-                    best = sorted(ok_rows, key=lambda r: (-r["mots"], r["latence_ms"]))[
-                        0
-                    ]
-                    st.success(
-                        f"Recommandé pour cet audio: {best['moteur']} "
-                        f"({best['mots']} mots, {best['latence_ms']} ms)"
-                    )
-                else:
-                    st.error("Aucun moteur n'a réussi la transcription sur cet audio.")
+    _render_stt_test_panel()
 
     if page == "Accueil":
         render_home()
