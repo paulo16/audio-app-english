@@ -170,12 +170,13 @@ def _transcribe_audio_whisper_last_resort(audio_bytes):
             "Whisper local indisponible. Installe faster-whisper: pip install faster-whisper",
         )
 
+    @st.cache_resource(show_spinner=False)
+    def _get_whisper_model_cached():
+        # Lightweight default model for acceptable speed on CPU.
+        return WhisperModel("small", device="cpu", compute_type="int8")
+
     try:
-        model = st.session_state.get("_whisper_model_instance")
-        if model is None:
-            # Lightweight default model for acceptable speed on CPU.
-            model = WhisperModel("small", device="cpu", compute_type="int8")
-            st.session_state["_whisper_model_instance"] = model
+        model = _get_whisper_model_cached()
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp.write(audio_bytes)

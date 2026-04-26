@@ -225,17 +225,20 @@ def main():
             if not stt_test_audio:
                 st.warning("Enregistre d'abord un audio de test.")
             else:
-                with st.spinner("Test de transcription en cours..."):
-                    test_text, test_err = transcribe_audio_with_openrouter(
-                        stt_test_audio.getvalue(),
-                        audio_format="wav",
-                    )
-                if test_err:
-                    st.error(f"STT: {test_err}")
-                else:
-                    provider_now = get_last_stt_provider_used() or "inconnu"
-                    st.success(f"Moteur actif: {provider_now}")
-                    st.caption(f"Transcription: {test_text}")
+                try:
+                    with st.spinner("Test de transcription en cours..."):
+                        test_text, test_err = transcribe_audio_with_openrouter(
+                            stt_test_audio.getvalue(),
+                            audio_format="wav",
+                        )
+                    if test_err:
+                        st.error(f"STT: {test_err}")
+                    else:
+                        provider_now = get_last_stt_provider_used() or "inconnu"
+                        st.success(f"Moteur actif: {provider_now}")
+                        st.caption(f"Transcription: {test_text}")
+                except Exception as exc:
+                    st.error(f"Erreur test STT: {exc}")
 
         if st.button(
             "Comparer tous les moteurs", key="stt_compare_btn", width="stretch"
@@ -252,11 +255,14 @@ def main():
                 ):
                     for provider_key in providers_to_test:
                         t0 = time.perf_counter()
-                        txt, err = transcribe_audio_with_openrouter(
-                            audio_bytes,
-                            audio_format="wav",
-                            preferred_provider=provider_key,
-                        )
+                        try:
+                            txt, err = transcribe_audio_with_openrouter(
+                                audio_bytes,
+                                audio_format="wav",
+                                preferred_provider=provider_key,
+                            )
+                        except Exception as exc:
+                            txt, err = None, f"Exception: {exc}"
                         elapsed_ms = int((time.perf_counter() - t0) * 1000)
                         transcript = (txt or "").strip()
                         words = len(transcript.split()) if transcript else 0
