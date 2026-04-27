@@ -514,6 +514,7 @@ MT_GRAMMAR_CONCEPTS = {
     "B1": [
         "Present Perfect — ever/never (Have you ever been to...?)",
         "Present Perfect — for/since (I have lived here for 3 years)",
+        "Present Perfect Continuous (I have been working)",
         "Past Continuous (I was working when...)",
         "First Conditional (If I have time, I will...)",
         "Modaux — should, must, have to",
@@ -522,6 +523,8 @@ MT_GRAMMAR_CONCEPTS = {
     "B2": [
         "Second Conditional (If I had..., I would...)",
         "Past Perfect (I had already finished when...)",
+        "Future Perfect (I will have finished)",
+        "Future Perfect Continuous (I will have been working)",
         "Passive Voice — présent & passé",
         "Reported Speech (She said that...)",
         "Modaux avancés — might, ought to, would rather",

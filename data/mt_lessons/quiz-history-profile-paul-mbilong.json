@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-04-27T07:15:39",
+    "question_count": 20,
+    "correct": 18,
+    "wrong": 2,
+    "skipped": 0,
+    "score_pct": 90,
+    "total_time_sec": 459.5
+  },
+  {
+    "timestamp": "2026-04-27T07:05:53",
+    "question_count": 20,
+    "correct": 19,
+    "wrong": 1,
+    "skipped": 0,
+    "score_pct": 95,
+    "total_time_sec": 490.8
+  }
+]

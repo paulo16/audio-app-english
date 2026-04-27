@@ -225,11 +225,41 @@ def _render_lesson_tab(profile, profile_id):
         )
         return
 
+    selected_concept_signature = " & ".join(concepts_selected)
+    concept_signature_key = "lesson_last_concept_signature"
+    if concepts_selected:
+        previous_signature = st.session_state.get(concept_signature_key)
+        if previous_signature != selected_concept_signature:
+            concept_tokens = [
+                c.strip().casefold() for c in concepts_selected if c.strip()
+            ]
+            level_sessions = [
+                s for s in sessions if s.get("level") == level
+            ] or sessions
+
+            matched_session = None
+            for s in level_sessions:
+                session_concept = str(s.get("concept", "")).casefold()
+                if concept_tokens and all(
+                    tok in session_concept for tok in concept_tokens
+                ):
+                    matched_session = s
+                    break
+
+            if matched_session:
+                st.session_state["lesson_active_sid"] = matched_session["id"]
+
+        st.session_state[concept_signature_key] = selected_concept_signature
+    else:
+        st.session_state.pop(concept_signature_key, None)
+
     session_labels = [
         f"{s.get('lesson', {}).get('title_fr', s.get('concept', '?'))} ({s.get('level', '?')}) — {s.get('created_at', '')[:10]}"
         for s in sessions
     ]
     active_sid = st.session_state.get("lesson_active_sid", sessions[0]["id"])
+    if not any(s.get("id") == active_sid for s in sessions):
+        active_sid = sessions[0]["id"]
     active_idx = next((i for i, s in enumerate(sessions) if s["id"] == active_sid), 0)
 
     sel_col, del_col = st.columns([5, 1])
