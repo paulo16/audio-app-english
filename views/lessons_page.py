@@ -235,7 +235,7 @@ def render_lessons_page():
                                     f"Régénération ({voice_a} / {voice_b})..."
                                 ):
                                     audio_bytes, mime_type, err = (
-                                        generate_dual_voice_tts(
+                                        dual_voice_tts_smart(
                                             item["dialogue"],
                                             voice_a,
                                             voice_b,
@@ -333,7 +333,7 @@ def render_lessons_page():
                             with st.spinner(
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
                             ):
-                                audio_bytes, mime_type, err = generate_dual_voice_tts(
+                                audio_bytes, mime_type, err = dual_voice_tts_smart(
                                     item["dialogue"],
                                     voice_a,
                                     voice_b,
@@ -490,7 +490,7 @@ def render_lessons_page():
                                     f"Régénération ({voice_a} / {voice_b})..."
                                 ):
                                     audio_bytes, mime_type, err = (
-                                        generate_dual_voice_tts(
+                                        dual_voice_tts_smart(
                                             lesson.get("dialogue", ""),
                                             voice_a,
                                             voice_b,
@@ -588,7 +588,7 @@ def render_lessons_page():
                             with st.spinner(
                                 f"Generation audio 2 voix ({voice_a} / {voice_b})..."
                             ):
-                                audio_bytes, mime_type, err = generate_dual_voice_tts(
+                                audio_bytes, mime_type, err = dual_voice_tts_smart(
                                     lesson.get("dialogue", ""),
                                     voice_a,
                                     voice_b,

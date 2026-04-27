@@ -74,9 +74,15 @@ def generate_narrator_tts(text, voice=TTS_VOICE):
     chunks = split_text_for_tts(text, max_chars=900)
     wav_parts = []
     for chunk in chunks:
-        audio_bytes, _mime, err = text_to_speech_openrouter(chunk, voice=voice)
+        audio_bytes, mime, err = tts_smart(chunk, voice=voice)
         if err:
             return None, None, err
+        if mime != "audio/wav":
+            # ElevenLabs fallback can return non-WAV formats; in that case return one full clip.
+            full_audio, full_mime, full_err = tts_smart(text, voice=voice)
+            if full_err:
+                return None, None, full_err
+            return full_audio, full_mime, None
         if audio_bytes:
             wav_parts.append(audio_bytes)
     if not wav_parts:

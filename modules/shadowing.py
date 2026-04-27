@@ -742,7 +742,7 @@ def ensure_shadowing_chunk_audio(profile_id, source_id, chunk_idx, chunk_text, v
     path = shadowing_chunk_audio_path(profile_id, source_id, chunk_idx, chunk_text)
     if os.path.exists(path):
         return path, None
-    audio_bytes, _, err = text_to_speech_openrouter(chunk_text, voice=voice)
+    audio_bytes, _, err = tts_smart(chunk_text, voice=voice)
     if err:
         return None, err
     os.makedirs(SHADOWING_AUDIO_DIR, exist_ok=True)

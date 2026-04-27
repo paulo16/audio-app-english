@@ -746,6 +746,36 @@ def _is_openrouter_audio_balance_error(err_text):
     return any(p in txt for p in patterns)
 
 
+def _is_openrouter_audio_unavailable_error(err_text):
+    txt = str(err_text or "").lower()
+    patterns = [
+        "balance for audio output",
+        "requires at least",
+        "insufficient balance",
+        "insufficient credits",
+        "payment required",
+        "quota",
+        "billing",
+        "connexion interrompue",
+        "timeout",
+        "temporarily unavailable",
+        "service unavailable",
+        "rate limit",
+    ]
+    return any(p in txt for p in patterns)
+
+
+def _default_elevenlabs_voice_pair():
+    if ELEVENLABS_VOICE_PAIRS:
+        return next(iter(ELEVENLABS_VOICE_PAIRS.values()))
+    voices = list(ELEVENLABS_VOICES.values())
+    if not voices:
+        return None, None
+    if len(voices) == 1:
+        return voices[0], voices[0]
+    return voices[0], voices[1]
+
+
 def tts_smart(
     text, voice=TTS_VOICE, voice_elevenlabs_id=None, tone_hint=None, language_hint=None
 ):
@@ -762,14 +792,18 @@ def tts_smart(
     if not err:
         return audio_bytes, mime_type, None
 
-    # If OpenRouter blocks audio for balance reasons, transparently fallback to ElevenLabs.
-    if ELEVENLABS_API_KEY and _is_openrouter_audio_balance_error(err):
+    # If OpenRouter audio is unavailable, transparently fallback to ElevenLabs.
+    if ELEVENLABS_API_KEY and _is_openrouter_audio_unavailable_error(err):
         el_bytes, el_mime, el_err = text_to_speech_elevenlabs(
             text, voice_id=voice_elevenlabs_id, language_hint=language_hint
         )
         if not el_err:
             return el_bytes, el_mime, None
-        return None, None, f"{err} | ElevenLabs fallback: {el_err}"
+        return (
+            None,
+            None,
+            f"{err} | ElevenLabs fallback: {el_err} | Whisper est reserve a la transcription (STT).",
+        )
 
     return audio_bytes, mime_type, err
 
@@ -782,13 +816,36 @@ def dual_voice_tts_smart(
     el_voice_b=None,
     language_hint=None,
 ):
-    """Unified dual-voice TTS: routes to ElevenLabs or default."""
+    """Unified dual-voice TTS with automatic OpenRouter -> ElevenLabs fallback."""
     engine = get_tts_engine()
     if engine == "elevenlabs":
+        if not el_voice_a or not el_voice_b:
+            el_voice_a, el_voice_b = _default_elevenlabs_voice_pair()
         return generate_dual_voice_elevenlabs(
             dialogue_text, el_voice_a, el_voice_b, language_hint=language_hint
         )
-    return generate_dual_voice_tts(dialogue_text, voice_a, voice_b)
+
+    audio_bytes, mime_type, err = generate_dual_voice_tts(
+        dialogue_text, voice_a, voice_b, language_hint=language_hint
+    )
+    if not err:
+        return audio_bytes, mime_type, None
+
+    if ELEVENLABS_API_KEY and _is_openrouter_audio_unavailable_error(err):
+        if not el_voice_a or not el_voice_b:
+            el_voice_a, el_voice_b = _default_elevenlabs_voice_pair()
+        el_bytes, el_mime, el_err = generate_dual_voice_elevenlabs(
+            dialogue_text, el_voice_a, el_voice_b, language_hint=language_hint
+        )
+        if not el_err:
+            return el_bytes, el_mime, None
+        return (
+            None,
+            None,
+            f"{err} | ElevenLabs fallback: {el_err} | Whisper est reserve a la transcription (STT).",
+        )
+
+    return audio_bytes, mime_type, err
 
 
 def concatenate_wav_bytes(wav_bytes_list):

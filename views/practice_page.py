@@ -479,7 +479,7 @@ def render_practice_page():
                                 )
                             else:
                                 audio_bytes, audio_mime, err = (
-                                    text_to_speech_openrouter(
+                                    tts_smart(
                                         speech_text,
                                         language_hint=starter_lang_hint,
                                     )
@@ -743,7 +743,7 @@ def render_practice_page():
                                 )
                             else:
                                 ai_audio_bytes, ai_audio_mime, err = (
-                                    text_to_speech_openrouter(
+                                    tts_smart(
                                         tts_text,
                                         language_hint=tts_lang_hint,
                                     )

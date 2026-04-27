@@ -164,7 +164,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     if st.button(f"🔊 Ecouter la prononciation", key=f"cs-tts-{idx}"):
                         with st.spinner("Generation audio..."):
                             tts_text = f"{rule['example']}"
-                            audio_bytes, mime, err = text_to_speech_openrouter(
+                            audio_bytes, mime, err = tts_smart(
                                 tts_text, voice="echo", language_hint="en"
                             )
                             if err:
@@ -256,7 +256,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                 else:
                     if st.button("🔊 Ecouter", key=f"slang-tts-{si}"):
                         with st.spinner("Generation audio..."):
-                            audio_bytes, mime, err = text_to_speech_openrouter(
+                            audio_bytes, mime, err = tts_smart(
                                 item["example"], voice="nova", language_hint="en"
                             )
                             if err:
@@ -484,7 +484,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
             if dict_audio_key not in st.session_state:
                 if st.button("🔊 Ecouter le dialogue", key="dict_listen"):
                     with st.spinner("Generation audio du dialogue..."):
-                        audio_bytes, mime, err = generate_dual_voice_tts(
+                        audio_bytes, mime, err = dual_voice_tts_smart(
                             exercise["full_dialogue"],
                             "echo",
                             "nova",
@@ -806,7 +806,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
             if "quiz_audio" not in st.session_state:
                 if st.button("🔊 Ecouter le dialogue", key="quiz_listen"):
                     with st.spinner("Generation audio..."):
-                        audio_bytes, mime, err = generate_dual_voice_tts(
+                        audio_bytes, mime, err = dual_voice_tts_smart(
                             quiz["dialogue"], "echo", "nova", language_hint="en"
                         )
                         if err:
@@ -1208,7 +1208,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     f"🔊 Ecouter ({voice_choice})", key=f"sitcom_listen_{var_idx}"
                 ):
                     with st.spinner("Generation audio 2 voix..."):
-                        audio_bytes, mime, err = generate_dual_voice_tts(
+                        audio_bytes, mime, err = dual_voice_tts_smart(
                             sitcom["text"], voice_a, voice_b, language_hint="en"
                         )
                         if err:
@@ -1399,7 +1399,7 @@ maitrise au moins 50% du contenu de l'onglet en cours.
                     # We use standard TTS and note that OpenAI TTS has a speed parameter
                     # but OpenRouter may not support it directly, so we generate normally
                     # and inform the user about the speed concept
-                    audio_bytes, mime, err = text_to_speech_openrouter(
+                    audio_bytes, mime, err = tts_smart(
                         speed_text, voice=speed_voice, language_hint="en"
                     )
                     if err:

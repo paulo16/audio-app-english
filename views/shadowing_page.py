@@ -36,6 +36,16 @@ from modules.utils import _audio_player_with_repeat
 from modules.vocabulary import *
 
 
+def _detect_audio_mime(audio_bytes):
+    if not audio_bytes:
+        return "audio/wav"
+    if audio_bytes[:4] == b"RIFF":
+        return "audio/wav"
+    if audio_bytes[:3] == b"ID3" or audio_bytes[:2] == b"\xff\xfb":
+        return "audio/mpeg"
+    return "audio/wav"
+
+
 def render_shadowing_daily_page():
     profile = get_active_profile()
     profile_id = profile.get("id", "default")
@@ -259,14 +269,26 @@ def render_shadowing_daily_page():
         elif chunk_audio_path and os.path.exists(chunk_audio_path):
             autoplay_chunk_marker = f"{profile_id}:{day_key}:{source_id}:{next_idx}"
             autoplay_state_key = "shadow_last_autoplay_chunk"
+            chunk_audio_bytes = None
+            chunk_audio_mime = "audio/wav"
+            try:
+                with open(chunk_audio_path, "rb") as _af:
+                    chunk_audio_bytes = _af.read()
+                chunk_audio_mime = _detect_audio_mime(chunk_audio_bytes)
+            except Exception:
+                chunk_audio_bytes = None
+
             if st.session_state.get(autoplay_state_key) != autoplay_chunk_marker:
                 try:
-                    with open(chunk_audio_path, "rb") as _af:
-                        _ab64 = base64.b64encode(_af.read()).decode("utf-8")
+                    if not chunk_audio_bytes:
+                        with open(chunk_audio_path, "rb") as _af:
+                            chunk_audio_bytes = _af.read()
+                        chunk_audio_mime = _detect_audio_mime(chunk_audio_bytes)
+                    _ab64 = base64.b64encode(chunk_audio_bytes).decode("utf-8")
                     st.html(
                         (
                             '<audio id="shadow_autoplay" autoplay style="display:none">'
-                            f'<source src="data:audio/wav;base64,{_ab64}">'
+                            f'<source src="data:{chunk_audio_mime};base64,{_ab64}">'
                             "</audio>"
                             "<script>"
                             "(function(){"
@@ -285,9 +307,11 @@ def render_shadowing_daily_page():
                     st.session_state[autoplay_state_key] = autoplay_chunk_marker
                 except Exception:
                     pass
-            with open(chunk_audio_path, "rb") as _af:
+            if chunk_audio_bytes:
                 _audio_player_with_repeat(
-                    _af.read(), "audio/wav", key=f"shd_{source_slug}_{next_idx}"
+                    chunk_audio_bytes,
+                    chunk_audio_mime,
+                    key=f"shd_{source_slug}_{next_idx}",
                 )
 
         run_key = f"shadow-{profile_id}-{day_key}-{source_slug}-{next_idx}"

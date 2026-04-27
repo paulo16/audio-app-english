@@ -189,7 +189,7 @@ def render_podcast_page():
                         script_norm = re.sub(r"\bHost A\s*:", "A:", script)
                         script_norm = re.sub(r"\bHost B\s*:", "B:", script_norm)
                         with st.spinner("Régénération audio podcast (2 voix)..."):
-                            ab, mime, err = generate_dual_voice_tts(
+                            ab, mime, err = dual_voice_tts_smart(
                                 script_norm,
                                 podcast_voice_a,
                                 podcast_voice_b,
@@ -226,7 +226,7 @@ def render_podcast_page():
                     script_norm = re.sub(r"\bHost A\s*:", "A:", script)
                     script_norm = re.sub(r"\bHost B\s*:", "B:", script_norm)
                     with st.spinner("Synthèse vocale du podcast (2 voix)..."):
-                        ab, mime, err = generate_dual_voice_tts(
+                        ab, mime, err = dual_voice_tts_smart(
                             script_norm,
                             podcast_voice_a,
                             podcast_voice_b,

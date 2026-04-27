@@ -370,7 +370,7 @@ def render_real_english_page():
                             if os.path.exists(ep["audio_path"]):
                                 os.remove(ep["audio_path"])
                             with st.spinner("Regeneration audio..."):
-                                ab, mime, err = generate_dual_voice_tts(
+                                ab, mime, err = dual_voice_tts_smart(
                                     ep["dialogue"], va, vb, language_hint="en"
                                 )
                                 if not err:

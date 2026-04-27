@@ -149,7 +149,7 @@ def render_ai_lessons_page():
                             )
                             if not text.strip():
                                 continue
-                            ab, _, tts_err = text_to_speech_openrouter(
+                            ab, _, tts_err = tts_smart(
                                 text,
                                 voice=lesson_voice,
                                 language_hint="en",
@@ -184,7 +184,7 @@ def render_ai_lessons_page():
                             width="stretch",
                         ):
                             with st.spinner("Generation audio..."):
-                                ab, _, tts_err = text_to_speech_openrouter(
+                                ab, _, tts_err = tts_smart(
                                     text,
                                     voice=lesson_voice,
                                     language_hint="en",
@@ -228,7 +228,7 @@ def render_ai_lessons_page():
                         width="stretch",
                     ):
                         with st.spinner("Generation audio..."):
-                            ab, _, tts_err = text_to_speech_openrouter(
+                            ab, _, tts_err = tts_smart(
                                 text,
                                 voice=lesson_voice,
                                 language_hint="en",

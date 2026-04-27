@@ -91,7 +91,7 @@ def _generate_dialogue_full_audio(session, sid, profile_id, voice):
         if line.get("audio_path_en") and os.path.exists(line.get("audio_path_en", "")):
             continue
 
-        ab, _, tts_err = text_to_speech_openrouter(
+        ab, _, tts_err = tts_smart(
             line.get("line_en", ""), voice=voice, language_hint="en"
         )
         if tts_err or not ab:
@@ -348,7 +348,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
         if st.button("🔄 Regénérer l'audio du cours", key=f"regen_course_audio_{sid}"):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours…"):
-                ab, _, tts_err = text_to_speech_openrouter(
+                ab, _, tts_err = tts_smart(
                     script, voice=voice, language_hint="fr"
                 )
             if not tts_err:
@@ -367,7 +367,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
         ):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours (quelques secondes)…"):
-                ab, _, tts_err = text_to_speech_openrouter(
+                ab, _, tts_err = tts_smart(
                     script, voice=voice, language_hint="fr"
                 )
             if not tts_err:
@@ -454,7 +454,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
                 else:
                     if st.button(f"🔊 EN", key=f"ex-en-gen-{sid}-{i}"):
                         with st.spinner("TTS..."):
-                            ab, _, tts_err = text_to_speech_openrouter(
+                            ab, _, tts_err = tts_smart(
                                 en, voice=voice, language_hint="en"
                             )
                         if not tts_err:
@@ -471,7 +471,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
                 else:
                     if st.button(f"🔊 FR", key=f"ex-fr-gen-{sid}-{i}"):
                         with st.spinner("TTS..."):
-                            ab, _, tts_err = text_to_speech_openrouter(
+                            ab, _, tts_err = tts_smart(
                                 fr_txt, voice="shimmer", language_hint="fr"
                             )
                         if not tts_err:
@@ -569,7 +569,7 @@ def _render_lesson_practice(session, sid, profile_id):
     else:
         if st.button("🔊 Écouter la phrase", key=f"practice_prompt_audio_{sid}_{idx}"):
             with st.spinner("Génération de l'audio…"):
-                ab, _, tts_err = text_to_speech_openrouter(
+                ab, _, tts_err = tts_smart(
                     prompt_text, language_hint=prompt_lang
                 )
             if not tts_err and ab:
@@ -638,7 +638,7 @@ def _render_lesson_practice(session, sid, profile_id):
                     _improved = eval_result.get("improved_answer", "")
                     if _feedback_text:
                         with st.spinner("Audio de la correction…"):
-                            _fb_ab, _, _fb_err = text_to_speech_openrouter(
+                            _fb_ab, _, _fb_err = tts_smart(
                                 _feedback_text, language_hint="fr"
                             )
                         if not _fb_err and _fb_ab:
@@ -651,7 +651,7 @@ def _render_lesson_practice(session, sid, profile_id):
                             pairs[idx]["audio_path_feedback"] = _fb_path
                     if _improved and _improved != pair.get("answer", ""):
                         with st.spinner("Audio de la version améliorée…"):
-                            _imp_ab, _, _imp_err = text_to_speech_openrouter(
+                            _imp_ab, _, _imp_err = tts_smart(
                                 _improved, language_hint=answer_lang
                             )
                         if not _imp_err and _imp_ab:
@@ -723,7 +723,7 @@ def _render_lesson_practice(session, sid, profile_id):
                 "🔊 Écouter la correction", key=f"practice_feedback_audio_{sid}_{idx}"
             ):
                 with st.spinner("Génération de l'audio…"):
-                    ab, _, tts_err = text_to_speech_openrouter(
+                    ab, _, tts_err = tts_smart(
                         feedback, language_hint="fr"
                     )
                 if not tts_err and ab:
@@ -759,7 +759,7 @@ def _render_lesson_practice(session, sid, profile_id):
                 "🔊 Écouter la réponse", key=f"practice_answer_audio_{sid}_{idx}"
             ):
                 with st.spinner("Génération de l'audio…"):
-                    ab, _, tts_err = text_to_speech_openrouter(
+                    ab, _, tts_err = tts_smart(
                         expected, language_hint=answer_lang
                     )
                 if not tts_err and ab:
@@ -795,7 +795,7 @@ def _render_lesson_practice(session, sid, profile_id):
                     key=f"practice_improved_audio_{sid}_{idx}",
                 ):
                     with st.spinner("Génération de l'audio…"):
-                        ab, _, tts_err = text_to_speech_openrouter(
+                        ab, _, tts_err = tts_smart(
                             improved, language_hint=answer_lang
                         )
                     if not tts_err and ab:
@@ -2020,7 +2020,7 @@ def _render_free_practice_tab(profile, profile_id):
             return
 
         with st.spinner("Génération de l'audio de l'IA…"):
-            ai_audio_bytes, _, tts_err = text_to_speech_openrouter(
+            ai_audio_bytes, _, tts_err = tts_smart(
                 ai_text, voice=fp_voice, language_hint="en"
             )
 
@@ -2208,7 +2208,7 @@ def _render_free_practice_tab(profile, profile_id):
                     return
 
                 with st.spinner("Génération de l'audio de l'IA…"):
-                    ai_audio_bytes, _, _ = text_to_speech_openrouter(
+                    ai_audio_bytes, _, _ = tts_smart(
                         ai_text, voice=fp_voice_active, language_hint="en"
                     )
 

@@ -174,7 +174,7 @@ def render_vocabulary_page():
                 with c2:
                     if st.button(f"🔊 Audio", key=f"vocab-ex-audio-{i}"):
                         with st.spinner("Génération audio…"):
-                            audio_bytes, _, tts_err = text_to_speech_openrouter(
+                            audio_bytes, _, tts_err = tts_smart(
                                 ex, voice=voice, language_hint="en"
                             )
                         if tts_err:
@@ -517,7 +517,7 @@ def render_vocabulary_page():
                                     width="stretch",
                                 ):
                                     with st.spinner("Génération audio…"):
-                                        _ab, _, _err = text_to_speech_openrouter(
+                                        _ab, _, _err = tts_smart(
                                             txt, voice=hist_voice, language_hint="en"
                                         )
                                     if _err:
@@ -547,7 +547,7 @@ def render_vocabulary_page():
                                 width="stretch",
                             ):
                                 with st.spinner("Génération audio…"):
-                                    _ab, _, _err = text_to_speech_openrouter(
+                                    _ab, _, _err = tts_smart(
                                         txt, voice=hist_voice, language_hint="en"
                                     )
                                 if _err:
