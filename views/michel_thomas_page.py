@@ -156,8 +156,8 @@ def _force_play_latest_audio_js(tag: str):
 def _render_lesson_tab(profile, profile_id):
     st.subheader("📖 Leçon & Pratique — Anglais / Français")
     st.caption(
-        "Choisis un concept grammatical. L'IA génère un cours bilingue complet "
-        "avec exemples audio et une séquence de pratique alternée FR→EN / EN→FR."
+        "Choisis un concept grammatical. L'IA génère surtout des usages américains réels "
+        "(situations concrètes, intention du locuteur, comparaison avec le français naturel)."
     )
 
     saved_level = get_profile_module_level(profile, "michel_thomas") or "B1"
@@ -348,9 +348,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
         if st.button("🔄 Regénérer l'audio du cours", key=f"regen_course_audio_{sid}"):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours…"):
-                ab, _, tts_err = tts_smart(
-                    script, voice=voice, language_hint="fr"
-                )
+                ab, _, tts_err = tts_smart(script, voice=voice, language_hint="fr")
             if not tts_err:
                 path = _save_lesson_course_audio(sid, ab)
                 _update_lesson_course_audio_path(profile_id, sid, path)
@@ -367,9 +365,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
         ):
             script = build_lesson_narration_script(fresh_lesson)
             with st.spinner("Génération de l'audio du cours (quelques secondes)…"):
-                ab, _, tts_err = tts_smart(
-                    script, voice=voice, language_hint="fr"
-                )
+                ab, _, tts_err = tts_smart(script, voice=voice, language_hint="fr")
             if not tts_err:
                 path = _save_lesson_course_audio(sid, ab)
                 _update_lesson_course_audio_path(profile_id, sid, path)
@@ -383,7 +379,7 @@ def _render_lesson_course(session, sid, profile_id, voice):
     with st.expander("📖 Voir le cours écrit", expanded=False):
         what = fresh_lesson.get("what_is_it_fr", "")
         if what:
-            st.markdown("**💡 C'est quoi ?**")
+            st.markdown("**💡 Ce que les Américains veulent exprimer**")
             st.info(what)
 
         when_raw = fresh_lesson.get("when_to_use_fr", "")
@@ -430,6 +426,9 @@ def _render_lesson_course(session, sid, profile_id, voice):
         for i, ex in enumerate(examples):
             en = ex.get("english", "")
             fr_txt = ex.get("french", "")
+            us_context = ex.get("us_context_fr", "")
+            intention = ex.get("intention_fr", "")
+            compare_fr = ex.get("compare_fr", "")
             audio_en = _load_audio(ex.get("audio_path_en"))
             audio_fr = _load_audio(ex.get("audio_path_fr"))
 
@@ -446,6 +445,13 @@ def _render_lesson_course(session, sid, profile_id, voice):
 """,
                 unsafe_allow_html=True,
             )
+
+            if us_context:
+                st.caption(f"🇺🇸 Contexte typique: {us_context}")
+            if intention:
+                st.caption(f"🎯 Nuance voulue: {intention}")
+            if compare_fr:
+                st.caption(f"🇫🇷 Comparaison FR naturelle: {compare_fr}")
 
             col_en, col_fr, col_cnt = st.columns([1, 1, 2])
             with col_en:
@@ -534,6 +540,7 @@ def _render_lesson_practice(session, sid, profile_id):
     direction = pair.get("direction", "fr_to_en")
     prompt_text = pair.get("prompt", "")
     hint = pair.get("hint", "")
+    usage_note = pair.get("usage_note_fr", "")
 
     if direction == "fr_to_en":
         badge = "🇫🇷 → 🇬🇧  Traduis en **ANGLAIS**"
@@ -569,9 +576,7 @@ def _render_lesson_practice(session, sid, profile_id):
     else:
         if st.button("🔊 Écouter la phrase", key=f"practice_prompt_audio_{sid}_{idx}"):
             with st.spinner("Génération de l'audio…"):
-                ab, _, tts_err = tts_smart(
-                    prompt_text, language_hint=prompt_lang
-                )
+                ab, _, tts_err = tts_smart(prompt_text, language_hint=prompt_lang)
             if not tts_err and ab:
                 path = _save_lesson_practice_audio(sid, idx, "prompt", ab)
                 _update_lesson_practice_audio(
@@ -585,6 +590,8 @@ def _render_lesson_practice(session, sid, profile_id):
 
     if hint:
         st.caption(f"💡 Indice : {hint}")
+    if usage_note:
+        st.caption(f"🇺🇸 Pourquoi cette forme ici : {usage_note}")
 
     audio_key = f"mt_practice_audio_{sid}_{idx}"
     transcript_key = f"mt_practice_transcript_{sid}_{idx}"
@@ -723,9 +730,7 @@ def _render_lesson_practice(session, sid, profile_id):
                 "🔊 Écouter la correction", key=f"practice_feedback_audio_{sid}_{idx}"
             ):
                 with st.spinner("Génération de l'audio…"):
-                    ab, _, tts_err = tts_smart(
-                        feedback, language_hint="fr"
-                    )
+                    ab, _, tts_err = tts_smart(feedback, language_hint="fr")
                 if not tts_err and ab:
                     path = _save_lesson_practice_audio(sid, idx, "feedback", ab)
                     _update_lesson_practice_audio(
@@ -759,9 +764,7 @@ def _render_lesson_practice(session, sid, profile_id):
                 "🔊 Écouter la réponse", key=f"practice_answer_audio_{sid}_{idx}"
             ):
                 with st.spinner("Génération de l'audio…"):
-                    ab, _, tts_err = tts_smart(
-                        expected, language_hint=answer_lang
-                    )
+                    ab, _, tts_err = tts_smart(expected, language_hint=answer_lang)
                 if not tts_err and ab:
                     path = _save_lesson_practice_audio(sid, idx, "answer", ab)
                     _update_lesson_practice_audio(
@@ -795,9 +798,7 @@ def _render_lesson_practice(session, sid, profile_id):
                     key=f"practice_improved_audio_{sid}_{idx}",
                 ):
                     with st.spinner("Génération de l'audio…"):
-                        ab, _, tts_err = tts_smart(
-                            improved, language_hint=answer_lang
-                        )
+                        ab, _, tts_err = tts_smart(improved, language_hint=answer_lang)
                     if not tts_err and ab:
                         path = _save_lesson_practice_audio(sid, idx, "improved", ab)
                         _update_lesson_practice_audio(
@@ -1173,7 +1174,7 @@ def _generate_quiz_questions(
             'All direction must be "en_to_fr" (prompt in English, answer in French).'
         )
 
-    prompt = f"""You are a bilingual English-French quiz generator.
+        prompt = f"""You are a bilingual English-French quiz generator focused on real American usage.
 Generate exactly {count} translation quiz questions for a French native speaker at CEFR level {level}.
 Grammar focus: {concepts_str}
 Themes: {themes_str}
@@ -1181,8 +1182,18 @@ Themes: {themes_str}
 
 Return ONLY a valid JSON array, no markdown, no commentary:
 [
-  {{"direction": "fr_to_en", "prompt": "phrase française à traduire", "answer": "expected English answer"}},
-  {{"direction": "en_to_fr", "prompt": "English sentence to translate", "answer": "traduction française attendue"}}
+    {{
+        "direction": "fr_to_en",
+        "prompt": "phrase française à traduire",
+        "answer": "expected English answer",
+        "usage_note_fr": "Contexte typique où un Américain utiliserait cette forme + ce qu'il veut exprimer"
+    }},
+    {{
+        "direction": "en_to_fr",
+        "prompt": "English sentence to translate",
+        "answer": "traduction française attendue",
+        "usage_note_fr": "Comparaison courte avec le français naturel"
+    }}
 ]
 
 Rules:
@@ -1190,6 +1201,8 @@ Rules:
 - Weave grammar concepts and themes naturally into each sentence.
 - Vary sentence length and complexity across questions.
 - Provide the most idiomatic correct translation as the answer.
+- Do not generate random textbook-style prompts. Use realistic US contexts (work, coffee shop, commute, texting, customer support, friends, etc.).
+- For each question, add "usage_note_fr" in French to explain why this tense/form is used in that context.
 - IMPORTANT tense mapping for duration:
     - For ongoing actions with "depuis + durée/date" in French, prefer French present (e.g. "Elle étudie le français depuis 3 ans")
         and English present perfect / present perfect continuous ("She has studied..." / "She has been studying...").
@@ -1225,6 +1238,7 @@ Rules:
                 "direction": d,
                 "prompt": p,
                 "answer": a,
+                "usage_note_fr": str(item.get("usage_note_fr", "")).strip(),
                 "allowed_time": _estimate_quiz_time(p, level),
                 "audio_bytes": None,
             }
@@ -1644,6 +1658,7 @@ def _render_quiz_tab(profile, profile_id):
     direction = question["direction"]
     prompt_text = question["prompt"]
     answer_text = question["answer"]
+    usage_note = question.get("usage_note_fr", "")
     allowed_time = question["allowed_time"]
 
     # Keys for this question
@@ -1690,6 +1705,9 @@ def _render_quiz_tab(profile, profile_id):
 """,
         unsafe_allow_html=True,
     )
+
+    if usage_note:
+        st.info(f"🇺🇸 Contexte d'usage: {usage_note}")
 
     # Play prompt audio
     audio_bytes = question.get("audio_bytes")

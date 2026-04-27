@@ -1,236 +1,144 @@
 [
   {
-    "id": "mt-lesson-202604270623-89bf03",
+    "id": "mt-lesson-202604271202-fdcc8f",
     "profile_id": "profile-paul-mbilong",
     "level": "B1",
     "concept": "Present Perfect Continuous (I have been working)",
-    "created_at": "2026-04-27T06:23:26Z",
+    "created_at": "2026-04-27T12:02:21Z",
     "lesson": {
-      "title_fr": "Le Present Perfect Continuous (I have been working)",
-      "what_is_it_fr": "Le Present Perfect Continuous (I have been working) s'utilise pour exprimer une action qui a commencé dans le passé et qui continue jusqu'au présent ou qui vient juste de se terminer. Il met l'accent sur la durée de l'action. En français, cela correspond souvent à 'je suis en train de' ou 'j'ai été en train de'.",
-      "when_to_use_fr": "• Pour parler d'une action qui a commencé dans le passé et qui continue dans le présent.\n• Pour exprimer une action récente dont les effets sont encore visibles.\n• Pour insister sur la durée d'une activité.",
+      "title_fr": "Le Présent Parfait Continu — J'ai travaillé",
+      "what_is_it_fr": "Le présent parfait continu est utilisé par les Américains pour exprimer une action qui a commencé dans le passé et qui continue jusqu'au présent ou qui a des conséquences sur le présent. Par exemple, on peut l'utiliser pour parler d'un travail en cours ou d'une habitude. En français, cela se traduit souvent par des phrases comme 'Je travaille depuis...' ou 'J'ai été en train de travailler...'.",
+      "when_to_use_fr": "• Pour parler d'une activité qui a commencé dans le passé et qui continue maintenant\n• Pour insister sur la durée d'une action\n• Pour expliquer un résultat visible d'une action\n• Pour décrire des habitudes récentes",
       "structure": {
         "affirmative": "sujet + have/has been + verbe-ing",
         "negative": "sujet + have/has not been + verbe-ing",
         "question": "Have/Has + sujet + been + verbe-ing ?"
       },
-      "analogy_fr": "C'est exactement comme en français : 'Je suis en train de travailler' = 'I am working' et 'J'ai été en train de travailler' = 'I have been working'.",
+      "analogy_fr": "C'est exactement comme en français : 'Je suis en train de travailler' = 'I have been working'.",
       "key_points_fr": [
-        "Attention à l'utilisation de 'been', qui est essentiel dans cette structure.",
-        "Ne pas oublier que le verbe principal doit être au participe présent (verbe-ing).",
-        "Utiliser 'have' pour les sujets I, you, we, they et 'has' pour he, she, it."
+        "Attention à l'utilisation de 'have' ou 'has' selon le sujet (I/you/we/they = have, he/she/it = has).",
+        "Ne pas oublier que le verbe doit être à la forme '-ing'.",
+        "Utilisé souvent pour parler de quelque chose qui a une importance dans le présent."
       ],
       "examples": [
         {
           "english": "I have been studying for three hours.",
           "french": "J'étudie depuis trois heures.",
+          "us_context_fr": "Un étudiant parle de sa préparation pour un examen.",
+          "intention_fr": "L'étudiant veut montrer qu'il a passé beaucoup de temps à étudier.",
+          "compare_fr": "On dirait simplement 'J'étudie depuis trois heures' en français.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
           "english": "She has been working here since 2019.",
           "french": "Elle travaille ici depuis 2019.",
+          "us_context_fr": "Une collègue parle de son ancienneté dans l'entreprise.",
+          "intention_fr": "Elle souligne qu'elle est employée depuis longtemps.",
+          "compare_fr": "En français, on dirait 'Elle est ici depuis 2019'.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "They have been playing soccer all afternoon.",
-          "french": "Ils jouent au football depuis tout l'après-midi.",
+          "english": "They have been waiting for the bus for 20 minutes.",
+          "french": "Ils attendent le bus depuis 20 minutes.",
+          "us_context_fr": "Des amis discutent en attendant le transport.",
+          "intention_fr": "Ils veulent montrer que l'attente est longue.",
+          "compare_fr": "En français, on dirait 'Ils sont en train d'attendre le bus depuis 20 minutes'.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "We have not been sleeping well lately.",
-          "french": "Nous ne dormons pas bien ces derniers temps.",
+          "english": "We have not been exercising lately.",
+          "french": "Nous ne faisons pas d'exercice dernièrement.",
+          "us_context_fr": "Des amis parlent de leur manque d'activité physique.",
+          "intention_fr": "Ils veulent exprimer une habitude qui a changé.",
+          "compare_fr": "On dirait 'On ne fait pas d'exercice en ce moment' en français.",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "Have you been waiting for a long time?",
-          "french": "Est-ce que tu attends depuis longtemps ?",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        }
-      ]
-    },
-    "practice_pairs": [
-      {
-        "direction": "fr_to_en",
-        "prompt": "Je suis en train de lire un livre.",
-        "answer": "I have been reading a book.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Ils n'ont pas été en train de jouer.",
-        "answer": "They have not been playing.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Nous avons été en train de regarder un film.",
-        "answer": "We have been watching a movie.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Est-ce que tu es en train de travailler sur un projet ?",
-        "answer": "Have you been working on a project?",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Elle a été en train de dessiner toute la journée.",
-        "answer": "She has been drawing all day.",
-        "hint": ""
-      },
-      {
-        "direction": "fr_to_en",
-        "prompt": "Ils sont en train de préparer le dîner.",
-        "answer": "They have been preparing dinner.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "He has been studying English for two years.",
-        "answer": "Il étudie l'anglais depuis deux ans.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "Have you been exercising regularly?",
-        "answer": "Est-ce que tu fais de l'exercice régulièrement ?",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "We have not been traveling much this year.",
-        "answer": "Nous n'avons pas beaucoup voyagé cette année.",
-        "hint": ""
-      },
-      {
-        "direction": "en_to_fr",
-        "prompt": "They have been working hard on their project.",
-        "answer": "Ils ont travaillé dur sur leur projet.",
-        "hint": ""
-      }
-    ]
-  },
-  {
-    "id": "mt-lesson-202604252153-d35617",
-    "profile_id": "profile-paul-mbilong",
-    "level": "B1",
-    "concept": "Past Continuous (I was working when...)",
-    "created_at": "2026-04-25T21:53:40Z",
-    "lesson": {
-      "title_fr": "Le Past Continuous (I was working when...)",
-      "what_is_it_fr": "Le Past Continuous (I was working when...) s'utilise pour décrire une action qui était en cours à un moment spécifique dans le passé. Il correspond souvent à des phrases en français utilisant l'imparfait. En général, il permet de mettre l'accent sur la durée d'une action passée.",
-      "when_to_use_fr": "• Pour décrire une action qui était en cours à un moment précis dans le passé.\n• Pour parler d'une action interrompue par une autre action au passé.\n• Pour décrire des circonstances ou des situations passées.",
-      "structure": {
-        "affirmative": "sujet + was/were + verbe en -ing",
-        "negative": "sujet + was/were + not + verbe en -ing",
-        "question": "Was/Were + sujet + verbe en -ing ?"
-      },
-      "analogy_fr": "C'est exactement comme en français : J'étais en train de travailler quand... = I was working when...",
-      "key_points_fr": [
-        "Attention à l'utilisation de 'was' pour les sujets singuliers et 'were' pour les sujets pluriels.",
-        "Ne pas oublier d'ajouter '-ing' à la base du verbe.",
-        "Le Past Continuous est souvent utilisé avec des expressions de temps comme 'when' ou 'while'."
-      ],
-      "examples": [
-        {
-          "english": "I was reading a book when the phone rang.",
-          "french": "Je lisais un livre quand le téléphone a sonné.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "They were playing soccer when it started to rain.",
-          "french": "Ils jouaient au football quand il a commencé à pleuvoir.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "She was cooking dinner while he was setting the table.",
-          "french": "Elle préparait le dîner pendant qu'il mettait la table.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "We were watching a movie when the power went out.",
-          "french": "Nous regardions un film quand le courant est coupé.",
-          "audio_path_en": null,
-          "audio_path_fr": null
-        },
-        {
-          "english": "I wasn't studying when you called me.",
-          "french": "Je n'étais pas en train d'étudier quand tu m'as appelé.",
+          "english": "Have you been feeling okay?",
+          "french": "Tu te sens bien ?",
+          "us_context_fr": "Un ami s'inquiète pour un autre qui semble fatigué.",
+          "intention_fr": "Il veut savoir si l'autre va bien après une période difficile.",
+          "compare_fr": "En français, on pourrait dire 'Est-ce que tu vas bien ?'.",
           "audio_path_en": null,
           "audio_path_fr": null
         }
       ],
-      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604252153-d35617_course.wav"
+      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604271202-fdcc8f_course.wav"
     },
     "practice_pairs": [
       {
         "direction": "fr_to_en",
-        "prompt": "Je regardais la télévision quand tu es arrivé.",
-        "answer": "I was watching TV when you arrived.",
-        "hint": ""
+        "prompt": "Je travaille ici depuis un an.",
+        "answer": "I have been working here for a year.",
+        "hint": "",
+        "usage_note_fr": "Cette forme montre que l'action a commencé dans le passé et continue."
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Ils n'étaient pas en train de jouer.",
-        "answer": "They weren't playing.",
-        "hint": ""
+        "prompt": "Il n'a pas été en train de dormir.",
+        "answer": "He has not been sleeping.",
+        "hint": "",
+        "usage_note_fr": "Utilisé pour indiquer qu'il n'a pas dormi récemment."
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Tu étais en train de travailler quand il a appelé.",
-        "answer": "You were working when he called.",
-        "hint": ""
+        "prompt": "Nous avons été en train de discuter.",
+        "answer": "We have been talking.",
+        "hint": "",
+        "usage_note_fr": "Montre que la discussion est encore en cours."
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Nous étions en train de marcher quand il a commencé à pleuvoir.",
-        "answer": "We were walking when it started to rain.",
-        "hint": ""
+        "prompt": "Vous attendez depuis longtemps ?",
+        "answer": "Have you been waiting for a long time?",
+        "hint": "",
+        "usage_note_fr": "Question pour vérifier la durée de l'attente."
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Elle ne regardait pas le film.",
-        "answer": "She wasn't watching the movie.",
-        "hint": ""
+        "prompt": "Ils ont été en train de jouer au foot.",
+        "answer": "They have been playing soccer.",
+        "hint": "",
+        "usage_note_fr": "Indique une activité en cours."
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Ils étaient en train de discuter quand le professeur est entré.",
-        "answer": "They were discussing when the teacher entered.",
-        "hint": ""
+        "prompt": "Elle n'a pas été en train de travailler ces jours-ci.",
+        "answer": "She has not been working these days.",
+        "hint": "",
+        "usage_note_fr": "Montre qu'elle a cessé de travailler récemment."
       },
       {
         "direction": "en_to_fr",
-        "prompt": "Was he studying when you called?",
-        "answer": "Était-il en train d'étudier quand tu as appelé ?",
-        "hint": ""
+        "prompt": "I have been cooking dinner.",
+        "answer": "Je prépare le dîner.",
+        "hint": "",
+        "usage_note_fr": "Indique une action en cours."
       },
       {
         "direction": "en_to_fr",
-        "prompt": "They were not playing outside.",
-        "answer": "Ils n'étaient pas en train de jouer dehors.",
-        "hint": ""
+        "prompt": "Have they been studying for the test?",
+        "answer": "Ont-ils étudié pour l'examen ?",
+        "hint": "",
+        "usage_note_fr": "Question sur une préparation."
       },
       {
         "direction": "en_to_fr",
-        "prompt": "What were you doing when I arrived?",
-        "answer": "Que faisais-tu quand je suis arrivé ?",
-        "hint": ""
+        "prompt": "He has been feeling tired lately.",
+        "answer": "Il se sent fatigué dernièrement.",
+        "hint": "",
+        "usage_note_fr": "Indique un état récent."
       },
       {
         "direction": "en_to_fr",
-        "prompt": "I was not sleeping when you knocked.",
-        "answer": "Je n'étais pas en train de dormir quand tu as frappé.",
-        "hint": ""
+        "prompt": "We have not been going out much.",
+        "answer": "Nous ne sortons pas beaucoup.",
+        "hint": "",
+        "usage_note_fr": "Exprime un changement d'habitude."
       }
     ]
   }

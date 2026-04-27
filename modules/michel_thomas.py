@@ -717,15 +717,15 @@ def generate_lesson_session(
     cefr = CEFR_DESCRIPTORS[target]
 
     prompt = f"""
-You are an expert bilingual English-French language teacher.
+You are an expert bilingual English-French language teacher focused on real American usage.
 Generate a complete structured lesson on: "{concept}" for CEFR level {target} ({cefr['label']}).
 The learner speaks French natively. ALL explanations MUST be in FRENCH.
 
 Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
 {{
   "title_fr": "Titre de la leçon en français (ex: Le 2ème Conditionnel — Hypothèses irréelles)",
-  "what_is_it_fr": "Explication de 3-4 phrases en français : ce que c'est, à quoi ça correspond en français, sens général. Commence par 'Le/La {concept} s'utilise pour...'",
-  "when_to_use_fr": "Quand utiliser cette structure : liste de 3-4 cas d'usage séparés par \\n, chaque ligne commençant par •",
+    "what_is_it_fr": "Explication concrète (3-4 phrases) de CE QUE LES AMÉRICAINS VEULENT EXPRIMER avec cette structure dans la vie réelle, puis lien rapide avec le français naturel.",
+    "when_to_use_fr": "Liste de 4 situations américaines concrètes (daily life, travail, amis, service client, etc.) séparées par \\n, chaque ligne commençant par •",
   "structure": {{
     "affirmative": "formule affirmative (ex: If + Past Simple, would + base verb)",
     "negative": "formule négative (ex: If ... didn't + verb, wouldn't + base verb)",
@@ -738,23 +738,29 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
     "Point clé ou erreur fréquente #3"
   ],
   "examples": [
-    {{"english": "phrase anglaise naturelle", "french": "traduction française"}},
-    {{"english": "...", "french": "..."}},
-    {{"english": "...", "french": "..."}},
-    {{"english": "...", "french": "..."}},
-    {{"english": "...", "french": "..."}}
+        {{
+            "english": "phrase anglaise naturelle",
+            "french": "traduction française naturelle",
+            "us_context_fr": "Contexte typique aux USA où cette phrase sonne naturelle",
+            "intention_fr": "Nuance voulue par le locuteur américain (insister sur la durée, résultat visible, habitude, etc.)",
+            "compare_fr": "Comparaison FR: comment on le dirait spontanément en français"
+        }},
+        {{"english": "...", "french": "...", "us_context_fr": "...", "intention_fr": "...", "compare_fr": "..."}},
+        {{"english": "...", "french": "...", "us_context_fr": "...", "intention_fr": "...", "compare_fr": "..."}},
+        {{"english": "...", "french": "...", "us_context_fr": "...", "intention_fr": "...", "compare_fr": "..."}},
+        {{"english": "...", "french": "...", "us_context_fr": "...", "intention_fr": "...", "compare_fr": "..."}}
   ],
   "practice_pairs": [
-    {{"direction": "fr_to_en", "prompt": "phrase française à traduire en anglais", "answer": "traduction anglaise attendue", "hint": ""}},
-    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "indice si nécessaire, sinon chaîne vide"}},
-    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "en_to_fr", "prompt": "English sentence to translate into French", "answer": "traduction française attendue", "hint": ""}},
-    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}},
-    {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": ""}}
+        {{"direction": "fr_to_en", "prompt": "phrase française à traduire en anglais", "answer": "traduction anglaise attendue", "hint": "", "usage_note_fr": "Pourquoi cette forme est utilisée par un Américain dans ce contexte"}},
+        {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "indice si nécessaire, sinon chaîne vide", "usage_note_fr": "..."}},
+        {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "fr_to_en", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "en_to_fr", "prompt": "English sentence to translate into French", "answer": "traduction française attendue", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}},
+        {{"direction": "en_to_fr", "prompt": "...", "answer": "...", "hint": "", "usage_note_fr": "..."}}
   ]
 }}
 
@@ -763,7 +769,9 @@ Critical rules:
 2. Exactly 10 practice pairs: first 6 FR→EN, last 4 EN→FR.
 3. Practice pairs must vary: affirmative, negative, question forms, different subjects.
 4. English sentences must be natural {cefr['label']}-level American English.
-5. Hints should be empty strings unless genuinely helpful (e.g., irregular verb warning).
+5. Avoid abstract grammar lecture tone; prioritize real situations, intention, and meaning in context.
+6. Use practical French comparisons (what French speakers naturally say) instead of literal/awkward translations.
+7. Hints should be empty strings unless genuinely helpful (e.g., irregular verb warning).
 """.strip()
 
     text, err = openrouter_chat(
@@ -788,6 +796,9 @@ Critical rules:
             {
                 "english": str(ex.get("english", "")).strip(),
                 "french": str(ex.get("french", "")).strip(),
+                "us_context_fr": str(ex.get("us_context_fr", "")).strip(),
+                "intention_fr": str(ex.get("intention_fr", "")).strip(),
+                "compare_fr": str(ex.get("compare_fr", "")).strip(),
                 "audio_path_en": None,
                 "audio_path_fr": None,
             }
@@ -804,6 +815,7 @@ Critical rules:
                 "prompt": str(pp.get("prompt", "")).strip(),
                 "answer": str(pp.get("answer", "")).strip(),
                 "hint": str(pp.get("hint", "")).strip(),
+                "usage_note_fr": str(pp.get("usage_note_fr", "")).strip(),
             }
         )
 
@@ -969,6 +981,9 @@ def build_lesson_narration_script(lesson: dict) -> str:
         for i, ex in enumerate(examples, 1):
             en = ex.get("english", "")
             fr = ex.get("french", "")
+            us_context = ex.get("us_context_fr", "")
+            intention = ex.get("intention_fr", "")
+            compare_fr = ex.get("compare_fr", "")
             if not en:
                 continue
             intro = [
@@ -982,6 +997,12 @@ def build_lesson_narration_script(lesson: dict) -> str:
             parts.append(en + ".")
             if fr:
                 parts.append(f"Ce qui veut dire en français : {fr}.")
+            if us_context:
+                parts.append(f"Contexte américain typique : {us_context}.")
+            if intention:
+                parts.append(f"Ce que ça exprime ici : {intention}.")
+            if compare_fr:
+                parts.append(f"En français naturel, on dira plutôt : {compare_fr}.")
             parts.append("")
 
     # ── Step 6 : tips & common mistakes ───────────────────────────────────
