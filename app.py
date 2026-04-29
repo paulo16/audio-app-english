@@ -265,6 +265,7 @@ def main():
     with st.sidebar.expander("Modeles OpenRouter"):
         st.caption(f"STT: {STT_MODEL}")
         st.caption(f"Chat: {CHAT_MODEL}")
+        st.caption(f"Lecons (deep): {LESSON_DEEP_MODEL}")
         st.caption(f"Evaluation: {EVAL_MODEL}")
         st.caption(f"TTS: {TTS_MODEL} ({TTS_VOICE})")
 

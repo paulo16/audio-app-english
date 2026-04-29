@@ -1,0 +1,606 @@
+[
+  {
+    "id": "mt-tdial-202604290555-9ff780",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B1",
+    "theme": "general",
+    "grammar_focus": "Present Perfect — ever/never (Have you ever been to...?) & Present Perfect — for/since (I have lived here for 3 years) & Present Perfect Continuous (I have been working)",
+    "created_at": "2026-04-29T05:55:44Z",
+    "title": "Meeting a New Neighbor",
+    "context_fr": "Cette conversation a lieu dans un parc où deux voisins se rencontrent pour la première fois. Ils parlent de leur vie, de leur expérience et de leur quartier.",
+    "speakers": [
+      {
+        "name": "Alice",
+        "role": "Neighbor"
+      },
+      {
+        "name": "Marc",
+        "role": "Neighbor"
+      }
+    ],
+    "lines": [
+      {
+        "speaker": "Alice",
+        "line_en": "Hi! Have you ever been to the new café on Main Street?",
+        "line_fr": "Salut ! Es-tu déjà allé au nouveau café sur la rue principale ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line0_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I have never been there. Is it good?",
+        "line_fr": "Non, je n'y suis jamais allé. C'est bon ?",
+        "grammar_tag": "Present Perfect — ever/never (I have never been there)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line1_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "Yes, it’s really nice! I have lived here for two years, and I love it.",
+        "line_fr": "Oui, c'est vraiment sympa ! J'habite ici depuis deux ans, et j'adore ça.",
+        "grammar_tag": "Present Perfect — for/since (I have lived here for two years)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line2_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "That’s great! I have been living in this neighborhood since last summer.",
+        "line_fr": "C'est super ! J'habite dans ce quartier depuis l'été dernier.",
+        "grammar_tag": "Present Perfect — for/since (I have been living in this neighborhood since last summer)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line3_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "Oh, really? I have been working from home, so I don’t meet many people.",
+        "line_fr": "Oh, vraiment ? Je travaille de chez moi, donc je ne rencontre pas beaucoup de gens.",
+        "grammar_tag": "Present Perfect Continuous (I have been working from home)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line4_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "I understand. I have been working at the local library for a year now.",
+        "line_fr": "Je comprends. Je travaille à la bibliothèque locale depuis un an maintenant.",
+        "grammar_tag": "Present Perfect Continuous (I have been working at the local library)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line5_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "That sounds interesting! Have you ever organized events there?",
+        "line_fr": "Ça a l'air intéressant ! As-tu déjà organisé des événements là-bas ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever organized events there?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line6_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Yes, I have! We had a book fair last month, and it was fun.",
+        "line_fr": "Oui, j'en ai organisé ! Nous avons eu une foire du livre le mois dernier, et c'était amusant.",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line7_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I would love to attend that next time! I have never been to a book fair.",
+        "line_fr": "J'aimerais beaucoup y assister la prochaine fois ! Je n'ai jamais été à une foire du livre.",
+        "grammar_tag": "Present Perfect — ever/never (I have never been to a book fair)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line8_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "You should! It’s a great experience. I have been enjoying my time here.",
+        "line_fr": "Tu devrais ! C'est une super expérience. J'apprécie mon temps ici.",
+        "grammar_tag": "Present Perfect Continuous (I have been enjoying my time here)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line9_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "Thanks for the recommendation! I have been looking for new places to explore.",
+        "line_fr": "Merci pour la recommandation ! Je cherche de nouveaux endroits à explorer.",
+        "grammar_tag": "Present Perfect Continuous (I have been looking for new places to explore)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line10_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Let’s go to the café together this weekend then!",
+        "line_fr": "Allons au café ensemble ce week-end alors !",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_line11_en.wav"
+      }
+    ],
+    "grammar_spotlight": [
+      {
+        "structure": "Present Perfect — ever/never",
+        "example_from_dialogue": "Have you ever been to the new café on Main Street?",
+        "explanation_fr": "Cette structure est utilisée pour demander si quelqu'un a déjà fait quelque chose."
+      },
+      {
+        "structure": "Present Perfect — for/since",
+        "example_from_dialogue": "I have lived here for two years.",
+        "explanation_fr": "Cette structure indique la durée d'une action qui a commencé dans le passé et continue dans le présent."
+      },
+      {
+        "structure": "Present Perfect Continuous",
+        "example_from_dialogue": "I have been working from home.",
+        "explanation_fr": "Cette structure est utilisée pour parler d'une action qui a commencé dans le passé et qui continue jusqu'à maintenant."
+      }
+    ],
+    "vocabulary_fr": [
+      {
+        "word": "café",
+        "french": "café",
+        "tip": "Un lieu où l'on peut prendre des boissons et des collations."
+      },
+      {
+        "word": "neighborhood",
+        "french": "quartier",
+        "tip": "Une zone résidentielle dans une ville."
+      },
+      {
+        "word": "event",
+        "french": "événement",
+        "tip": "Une occasion spéciale ou un rassemblement."
+      },
+      {
+        "word": "experience",
+        "french": "expérience",
+        "tip": "Le fait de vivre quelque chose."
+      },
+      {
+        "word": "library",
+        "french": "bibliothèque",
+        "tip": "Un endroit où l'on peut emprunter des livres."
+      }
+    ],
+    "full_audio_path": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290555-9ff780_full.wav"
+  },
+  {
+    "id": "mt-tdial-202604290554-bcfd59",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B1",
+    "theme": "general",
+    "grammar_focus": "Present Perfect — ever/never (Have you ever been to...?) & Present Perfect — for/since (I have lived here for 3 years) & Present Perfect Continuous (I have been working)",
+    "created_at": "2026-04-29T05:54:53Z",
+    "title": "Meeting a New Neighbor",
+    "context_fr": "Cette conversation se déroule dans un immeuble résidentiel où deux voisins se rencontrent pour la première fois. Ils parlent de leur vie et de leur expérience dans le quartier.",
+    "speakers": [
+      {
+        "name": "Alice",
+        "role": "Neighbor"
+      },
+      {
+        "name": "Marc",
+        "role": "Neighbor"
+      }
+    ],
+    "lines": [
+      {
+        "speaker": "Alice",
+        "line_en": "Hi! Have you ever lived in this neighborhood before?",
+        "line_fr": "Salut ! As-tu déjà vécu dans ce quartier auparavant ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line0_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I have never lived here before. I moved in just last month.",
+        "line_fr": "Non, je n'ai jamais vécu ici auparavant. Je viens d'emménager le mois dernier.",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line1_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "That's great! I have lived here for three years now.",
+        "line_fr": "C'est super ! Je vis ici depuis trois ans maintenant.",
+        "grammar_tag": "Present Perfect — for/since (I have lived here for 3 years)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line2_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "What do you like most about the area?",
+        "line_fr": "Qu'est-ce que tu aimes le plus dans le quartier ?",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line3_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I love the parks. I have been jogging there every morning.",
+        "line_fr": "J'adore les parcs. J'y fais du jogging tous les matins.",
+        "grammar_tag": "Present Perfect Continuous (I have been working)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line4_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "That sounds nice! I have been looking for a good running spot.",
+        "line_fr": "Ça a l'air sympa ! Je cherche un bon endroit pour courir.",
+        "grammar_tag": "Present Perfect Continuous (I have been working)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line5_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "You should definitely try the park by the lake. Have you ever been there?",
+        "line_fr": "Tu devrais vraiment essayer le parc près du lac. Y es-tu déjà allé ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line6_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I have never been there. I will check it out this weekend.",
+        "line_fr": "Non, je n'y suis jamais allé. Je vais aller le voir ce week-end.",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line7_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "You will love it! I have been going there since I moved here.",
+        "line_fr": "Tu vas adorer ! J'y vais depuis que j'ai emménagé ici.",
+        "grammar_tag": "Present Perfect — for/since (I have lived here for 3 years)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line8_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Thanks for the recommendation! What else do you enjoy doing?",
+        "line_fr": "Merci pour la recommandation ! Qu'est-ce que tu aimes faire d'autre ?",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line9_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I have been exploring new cafes too. There are so many around here!",
+        "line_fr": "J'ai aussi exploré de nouveaux cafés. Il y en a tellement ici !",
+        "grammar_tag": "Present Perfect Continuous (I have been working)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line10_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Sounds like a fun adventure! I can't wait to discover them.",
+        "line_fr": "Ça a l'air d'une aventure amusante ! J'ai hâte de les découvrir.",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_line11_en.wav"
+      }
+    ],
+    "grammar_spotlight": [
+      {
+        "structure": "Present Perfect — ever/never",
+        "example_from_dialogue": "Have you ever lived in this neighborhood before?",
+        "explanation_fr": "Cette structure est utilisée pour parler d'expériences passées dans la vie sans préciser quand cela s'est produit."
+      },
+      {
+        "structure": "Present Perfect — for/since",
+        "example_from_dialogue": "I have lived here for three years now.",
+        "explanation_fr": "Cette structure indique la durée d'une action qui a commencé dans le passé et continue jusqu'au présent."
+      },
+      {
+        "structure": "Present Perfect Continuous",
+        "example_from_dialogue": "I have been jogging there every morning.",
+        "explanation_fr": "Cette structure est utilisée pour parler d'une action qui a commencé dans le passé et qui est toujours en cours."
+      }
+    ],
+    "vocabulary_fr": [
+      {
+        "word": "neighborhood",
+        "french": "quartier",
+        "tip": "Utilisé pour décrire une zone résidentielle."
+      },
+      {
+        "word": "jogging",
+        "french": "jogging",
+        "tip": "Une activité de course à un rythme modéré."
+      },
+      {
+        "word": "recommendation",
+        "french": "recommandation",
+        "tip": "Un conseil ou une suggestion à propos de quelque chose."
+      },
+      {
+        "word": "explore",
+        "french": "explorer",
+        "tip": "Découvrir de nouveaux endroits ou activités."
+      },
+      {
+        "word": "cafe",
+        "french": "café",
+        "tip": "Un endroit où l'on peut acheter des boissons et des collations."
+      }
+    ],
+    "full_audio_path": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-bcfd59_full.wav"
+  },
+  {
+    "id": "mt-tdial-202604290554-05fc18",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B1",
+    "theme": "general",
+    "grammar_focus": "Present Perfect — ever/never (Have you ever been to...?) & Present Perfect — for/since (I have lived here for 3 years) & Present Perfect Continuous (I have been working)",
+    "created_at": "2026-04-29T05:54:11Z",
+    "title": "Meeting a New Neighbor",
+    "context_fr": "Cette conversation se déroule dans un quartier résidentiel. Alice vient de rencontrer son nouveau voisin, Marc. Ils discutent de leur vie et de leurs expériences dans le quartier.",
+    "speakers": [
+      {
+        "name": "Alice",
+        "role": "Voisine"
+      },
+      {
+        "name": "Marc",
+        "role": "Nouveau voisin"
+      }
+    ],
+    "lines": [
+      {
+        "speaker": "Alice",
+        "line_en": "Hi, I’m Alice! Have you ever lived in this neighborhood before?",
+        "line_fr": "Salut, je suis Alice ! As-tu déjà vécu dans ce quartier auparavant ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line0_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Hello, Alice! No, I have never lived here before. I just moved in last week.",
+        "line_fr": "Bonjour, Alice ! Non, je n'ai jamais vécu ici avant. Je viens d'emménager la semaine dernière.",
+        "grammar_tag": "Present Perfect — ever/never (I have never lived here before)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line1_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "That's exciting! I have lived here for three years now.",
+        "line_fr": "C'est excitant ! J'habite ici depuis trois ans maintenant.",
+        "grammar_tag": "Present Perfect — for/since (I have lived here for 3 years)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line2_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Really? What do you like most about this place?",
+        "line_fr": "Vraiment ? Qu'est-ce que tu aimes le plus dans cet endroit ?",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line3_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I love the parks! I have been working on my garden since I moved in.",
+        "line_fr": "J'adore les parcs ! Je travaille sur mon jardin depuis que j'ai emménagé.",
+        "grammar_tag": "Present Perfect Continuous (I have been working)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line4_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "That sounds nice! I have always wanted a garden.",
+        "line_fr": "Ça a l'air sympa ! J'ai toujours voulu un jardin.",
+        "grammar_tag": "Present Perfect — ever/never (I have always wanted a garden)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line5_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "You should definitely start one! Have you ever tried gardening?",
+        "line_fr": "Tu devrais vraiment en commencer un ! As-tu déjà essayé le jardinage ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever tried gardening?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line6_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I have never tried it, but I would love to learn.",
+        "line_fr": "Non, je n'ai jamais essayé, mais j'aimerais beaucoup apprendre.",
+        "grammar_tag": "Present Perfect — ever/never (I have never tried it)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line7_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I can help you! I have been learning a lot about plants lately.",
+        "line_fr": "Je peux t'aider ! J'apprends beaucoup sur les plantes dernièrement.",
+        "grammar_tag": "Present Perfect Continuous (I have been learning)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line8_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "That would be great! I have always admired good gardens.",
+        "line_fr": "Ce serait génial ! J'ai toujours admiré les beaux jardins.",
+        "grammar_tag": "Present Perfect — ever/never (I have always admired good gardens)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line9_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "Let’s plan a gardening day this weekend!",
+        "line_fr": "Planifions une journée jardinage ce week-end !",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line10_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Sounds like a plan! I can’t wait to get started.",
+        "line_fr": "Ça sonne comme un plan ! J'ai hâte de commencer.",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_line11_en.wav"
+      }
+    ],
+    "grammar_spotlight": [
+      {
+        "structure": "Have you ever...?",
+        "example_from_dialogue": "Have you ever lived in this neighborhood before?",
+        "explanation_fr": "Cette structure est utilisée pour poser des questions sur des expériences passées."
+      },
+      {
+        "structure": "I have lived here for...",
+        "example_from_dialogue": "I have lived here for three years now.",
+        "explanation_fr": "Cette structure indique la durée d'une action qui a commencé dans le passé et continue dans le présent."
+      },
+      {
+        "structure": "I have been working...",
+        "example_from_dialogue": "I have been working on my garden since I moved in.",
+        "explanation_fr": "Cette structure est utilisée pour parler d'une action qui a commencé dans le passé et qui continue jusqu'à maintenant."
+      }
+    ],
+    "vocabulary_fr": [
+      {
+        "word": "garden",
+        "french": "jardin",
+        "tip": "Un espace extérieur pour cultiver des plantes."
+      },
+      {
+        "word": "neighborhood",
+        "french": "quartier",
+        "tip": "Une zone résidentielle où vivent des gens."
+      },
+      {
+        "word": "exciting",
+        "french": "excitant",
+        "tip": "Quand quelque chose est intéressant et agréable."
+      },
+      {
+        "word": "admire",
+        "french": "admirer",
+        "tip": "Regarder avec respect et plaisir."
+      },
+      {
+        "word": "plan",
+        "french": "plan",
+        "tip": "Une idée ou une intention pour faire quelque chose."
+      }
+    ],
+    "full_audio_path": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290554-05fc18_full.wav"
+  },
+  {
+    "id": "mt-tdial-202604290553-00144b",
+    "profile_id": "profile-paul-mbilong",
+    "level": "B1",
+    "theme": "general",
+    "grammar_focus": "Present Perfect — ever/never (Have you ever been to...?) & Present Perfect — for/since (I have lived here for 3 years) & Present Perfect Continuous (I have been working)",
+    "created_at": "2026-04-29T05:53:36Z",
+    "title": "Meeting a New Neighbor",
+    "context_fr": "La conversation se déroule dans un parc où deux voisins se rencontrent pour la première fois. Ils discutent de leur vie et de leurs expériences.",
+    "speakers": [
+      {
+        "name": "Alice",
+        "role": "Neighbor"
+      },
+      {
+        "name": "Marc",
+        "role": "Neighbor"
+      }
+    ],
+    "lines": [
+      {
+        "speaker": "Alice",
+        "line_en": "Hi! Have you ever lived in this neighborhood before?",
+        "line_fr": "Salut ! As-tu déjà vécu dans ce quartier auparavant ?",
+        "grammar_tag": "Present Perfect — ever/never (Have you ever been to...?)",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line0_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I have never lived here. I just moved in last month.",
+        "line_fr": "Non, je n'ai jamais vécu ici. Je viens juste d'emménager le mois dernier.",
+        "grammar_tag": "Present Perfect — ever/never",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line1_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "That's great! I have lived here for three years now.",
+        "line_fr": "C'est super ! J'habite ici depuis trois ans maintenant.",
+        "grammar_tag": "Present Perfect — for/since",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line2_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Oh really? What do you like most about this place?",
+        "line_fr": "Ah vraiment ? Qu'est-ce que tu aimes le plus dans cet endroit ?",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line3_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "I love the parks! I have been working nearby, so it's convenient for me.",
+        "line_fr": "J'adore les parcs ! Je travaille à proximité, donc c'est pratique pour moi.",
+        "grammar_tag": "Present Perfect Continuous",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line4_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Nice! I have been looking for a good place to eat around here.",
+        "line_fr": "Sympa ! Je cherche un bon endroit pour manger ici.",
+        "grammar_tag": "Present Perfect Continuous",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line5_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "You should try the Italian restaurant on Main Street. Have you ever been there?",
+        "line_fr": "Tu devrais essayer le restaurant italien sur Main Street. Y es-tu déjà allé ?",
+        "grammar_tag": "Present Perfect — ever/never",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line6_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "No, I haven't. But I will definitely check it out!",
+        "line_fr": "Non, je ne l'ai pas fait. Mais je vais certainement y aller !",
+        "grammar_tag": "Present Perfect — ever/never",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line7_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "You won't regret it! I have been going there for years.",
+        "line_fr": "Tu ne le regretteras pas ! J'y vais depuis des années.",
+        "grammar_tag": "Present Perfect Continuous",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line8_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Sounds good! I have never met so many friendly neighbors before.",
+        "line_fr": "Ça a l'air bien ! Je n'ai jamais rencontré autant de voisins sympathiques auparavant.",
+        "grammar_tag": "Present Perfect — ever/never",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line9_en.wav"
+      },
+      {
+        "speaker": "Alice",
+        "line_en": "We are a nice community. I hope you will enjoy living here.",
+        "line_fr": "Nous sommes une belle communauté. J'espère que tu vas aimer vivre ici.",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line10_en.wav"
+      },
+      {
+        "speaker": "Marc",
+        "line_en": "Thank you! I am looking forward to it.",
+        "line_fr": "Merci ! J'ai hâte d'y être.",
+        "grammar_tag": "",
+        "audio_path_en": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_line11_en.wav"
+      }
+    ],
+    "grammar_spotlight": [
+      {
+        "structure": "Present Perfect — ever/never",
+        "example_from_dialogue": "Have you ever lived in this neighborhood before?",
+        "explanation_fr": "Cette structure est utilisée pour poser des questions sur des expériences passées sans préciser quand elles se sont produites."
+      },
+      {
+        "structure": "Present Perfect — for/since",
+        "example_from_dialogue": "I have lived here for three years now.",
+        "explanation_fr": "Utilisé pour parler de la durée d'une action qui a commencé dans le passé et continue jusqu'au présent."
+      },
+      {
+        "structure": "Present Perfect Continuous",
+        "example_from_dialogue": "I have been working nearby, so it's convenient for me.",
+        "explanation_fr": "Cette forme met l'accent sur la durée d'une action qui a commencé dans le passé et continue dans le présent."
+      }
+    ],
+    "vocabulary_fr": [
+      {
+        "word": "neighborhood",
+        "french": "quartier",
+        "tip": "Utilisé pour parler d'une zone résidentielle."
+      },
+      {
+        "word": "convenient",
+        "french": "pratique",
+        "tip": "Utilisé pour décrire quelque chose de facile à utiliser ou d'accès."
+      },
+      {
+        "word": "definitely",
+        "french": "certainement",
+        "tip": "Utilisé pour exprimer une forte affirmation."
+      },
+      {
+        "word": "community",
+        "french": "communauté",
+        "tip": "Un groupe de personnes vivant ensemble dans un même endroit."
+      },
+      {
+        "word": "regret",
+        "french": "regretter",
+        "tip": "Utilisé pour exprimer des sentiments de tristesse concernant une décision."
+      }
+    ],
+    "full_audio_path": "data\\michel_thomas_audio\\tdial-mt-tdial-202604290553-00144b_full.wav"
+  }
+]

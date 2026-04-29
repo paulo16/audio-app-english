@@ -375,6 +375,60 @@ def _render_lesson_course(session, sid, profile_id, voice):
 
     st.markdown("---")
 
+    # ── ACTION TOOLS — situation / binary decision / chunks ────────────────────
+    situation = fresh_lesson.get("situation_fr", "")
+    decision = fresh_lesson.get("decision_binaire_fr", "")
+    chunks = fresh_lesson.get("chunks", [])
+
+    if situation or decision or chunks:
+        st.markdown("### 🎯 Outils pour ne pas réfléchir")
+
+        if situation:
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#1a2a1a,#0f1f0f);padding:16px 20px;border-radius:12px;border-left:5px solid #4caf50;margin-bottom:12px">
+  <span style="font-size:11px;color:#81c784;font-weight:700;letter-spacing:2px;text-transform:uppercase">🎬 La scène — quand est-ce qu'un Américain dit ça ?</span><br/>
+  <span style="font-size:15px;color:#e8f5e9;line-height:1.7">{situation}</span>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        if decision:
+            lines = decision.strip().split("\n")
+            decision_html = "".join(
+                f"<div style='padding:6px 0;font-size:15px;color:#fff;line-height:1.6'>{line}</div>"
+                for line in lines
+                if line.strip()
+            )
+            st.markdown(
+                f"""
+<div style="background:linear-gradient(135deg,#1e1a2e,#130f22);padding:16px 20px;border-radius:12px;border-left:5px solid #9c27b0;margin-bottom:12px">
+  <span style="font-size:11px;color:#ce93d8;font-weight:700;letter-spacing:2px;text-transform:uppercase">🔀 Décision binaire — la règle rapide</span><br/>
+  {decision_html}
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        if chunks:
+            chunks_html = "".join(
+                f"<div style='display:inline-block;background:#1e3a5f;border:1px solid #4a90d9;border-radius:8px;"
+                f"padding:8px 14px;margin:4px;font-size:15px;font-weight:600;color:#e8f0fe'>{c}</div>"
+                for c in chunks
+            )
+            st.markdown(
+                f"""
+<div style="background:#12223a;padding:16px 20px;border-radius:12px;border-left:5px solid #2196f3;margin-bottom:12px">
+  <span style="font-size:11px;color:#90caf9;font-weight:700;letter-spacing:2px;text-transform:uppercase">💬 Chunks à mémoriser — copie-colle dans ta tête</span><br/>
+  <div style="margin-top:10px">{chunks_html}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+
     # ── Written course — collapsed by default ─────────────────────────────────
     with st.expander("📖 Voir le cours écrit", expanded=False):
         what = fresh_lesson.get("what_is_it_fr", "")

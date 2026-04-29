@@ -8,6 +8,7 @@ from modules.config import (
     CEFR_LEVELS,
     CHAT_MODEL,
     EVAL_MODEL,
+    LESSON_DEEP_MODEL,
     MICHEL_THOMAS_AUDIO_DIR,
     MICHEL_THOMAS_DIR,
     MT_DIALOGUE_SESSION_DIR,
@@ -724,8 +725,18 @@ The learner speaks French natively. ALL explanations MUST be in FRENCH.
 Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
 {{
   "title_fr": "Titre de la leçon en français (ex: Le 2ème Conditionnel — Hypothèses irréelles)",
-    "what_is_it_fr": "Explication concrète (3-4 phrases) de CE QUE LES AMÉRICAINS VEULENT EXPRIMER avec cette structure dans la vie réelle, puis lien rapide avec le français naturel.",
-    "when_to_use_fr": "Liste de 4 situations américaines concrètes (daily life, travail, amis, service client, etc.) séparées par \\n, chaque ligne commençant par •",
+  "situation_fr": "Une situation TRÈS concrète et vivante (3-4 phrases) qui décrit EXACTEMENT quand un Américain utilise cette structure — comme si tu racontais une scène de film ou de vie réelle. Exemple pour le Present Perfect: 'Tu rentres chez toi, ton ami te dit: Have you seen Inception? Il ne te demande pas QUAND tu l'as vu — il veut juste savoir si tu l'as vu ou non, si cette expérience fait partie de ta vie. Répondre I saw it yesterday serait bizarre — le moment précis n'a aucune importance ici.'",
+  "decision_binaire_fr": "Une règle de décision BINAIRE ultra-simple, style arbre de décision. Format:\n✅ Utilise [STRUCTURE] si: [condition claire]\n❌ N'utilise PAS [STRUCTURE] si: [contre-condition]\nExemple pour Present Perfect vs Simple Past:\n✅ Utilise Present Perfect si: tu penses à l'expérience ou au résultat (pas au moment précis)\n❌ N'utilise PAS Present Perfect si: tu mentionnes quand c'est arrivé (yesterday, in 2020, last week...)",
+  "chunks": [
+    "chunk mémorisable 1 — phrase complète naturelle à réutiliser telle quelle",
+    "chunk mémorisable 2",
+    "chunk mémorisable 3",
+    "chunk mémorisable 4",
+    "chunk mémorisable 5",
+    "chunk mémorisable 6"
+  ],
+  "what_is_it_fr": "Explication concrète (3-4 phrases) de CE QUE LES AMÉRICAINS VEULENT EXPRIMER avec cette structure dans la vie réelle, puis lien rapide avec le français naturel.",
+  "when_to_use_fr": "Liste de 4 situations américaines concrètes (daily life, travail, amis, service client, etc.) séparées par \\n, chaque ligne commençant par •",
   "structure": {{
     "affirmative": "formule affirmative (ex: If + Past Simple, would + base verb)",
     "negative": "formule négative (ex: If ... didn't + verb, wouldn't + base verb)",
@@ -767,18 +778,22 @@ Return ONLY valid JSON (no markdown, no commentary) with this exact structure:
 Critical rules:
 1. Exactly 5 examples ordered by complexity (simple → complex).
 2. Exactly 10 practice pairs: first 6 FR→EN, last 4 EN→FR.
-3. Practice pairs must vary: affirmative, negative, question forms, different subjects.
-4. English sentences must be natural {cefr['label']}-level American English.
-5. Avoid abstract grammar lecture tone; prioritize real situations, intention, and meaning in context.
-6. Use practical French comparisons (what French speakers naturally say) instead of literal/awkward translations.
-7. Hints should be empty strings unless genuinely helpful (e.g., irregular verb warning).
+3. Exactly 6 chunks: short, complete, natural sentences an American would actually say — ready to memorize and reuse verbatim.
+4. situation_fr must be vivid and concrete — paint a real scene, not a grammar rule.
+5. decision_binaire_fr must be immediately actionable — 2 lines max, a real binary filter.
+6. Practice pairs must vary: affirmative, negative, question forms, different subjects.
+7. English sentences must be natural {cefr['label']}-level American English.
+8. Avoid abstract grammar lecture tone; prioritize real situations, intention, and meaning in context.
+9. Use practical French comparisons (what French speakers naturally say) instead of literal/awkward translations.
+10. Hints should be empty strings unless genuinely helpful (e.g., irregular verb warning).
 """.strip()
 
     text, err = openrouter_chat(
         [{"role": "user", "content": prompt}],
-        CHAT_MODEL,
-        temperature=0.4,
-        max_tokens=4000,
+        LESSON_DEEP_MODEL,
+        temperature=1,
+        max_tokens=8000,
+        reasoning=True,
     )
     if err:
         return None, err
@@ -828,6 +843,13 @@ Critical rules:
         "created_at": now_iso(),
         "lesson": {
             "title_fr": str(data.get("title_fr", concept)).strip(),
+            "situation_fr": str(data.get("situation_fr", "")).strip(),
+            "decision_binaire_fr": str(data.get("decision_binaire_fr", "")).strip(),
+            "chunks": [
+                str(c).strip()
+                for c in data.get("chunks", [])
+                if isinstance(c, str) and str(c).strip()
+            ][:6],
             "what_is_it_fr": str(data.get("what_is_it_fr", "")).strip(),
             "when_to_use_fr": str(data.get("when_to_use_fr", "")).strip(),
             "structure": {

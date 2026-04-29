@@ -1,144 +1,154 @@
 [
   {
-    "id": "mt-lesson-202604271202-fdcc8f",
+    "id": "mt-lesson-202604290541-92b95d",
     "profile_id": "profile-paul-mbilong",
     "level": "B1",
-    "concept": "Present Perfect Continuous (I have been working)",
-    "created_at": "2026-04-27T12:02:21Z",
+    "concept": "Present Perfect — ever/never (Have you ever been to...?) & Present Perfect — for/since (I have lived here for 3 years) & Present Perfect Continuous (I have been working)",
+    "created_at": "2026-04-29T05:41:45Z",
     "lesson": {
-      "title_fr": "Le Présent Parfait Continu — J'ai travaillé",
-      "what_is_it_fr": "Le présent parfait continu est utilisé par les Américains pour exprimer une action qui a commencé dans le passé et qui continue jusqu'au présent ou qui a des conséquences sur le présent. Par exemple, on peut l'utiliser pour parler d'un travail en cours ou d'une habitude. En français, cela se traduit souvent par des phrases comme 'Je travaille depuis...' ou 'J'ai été en train de travailler...'.",
-      "when_to_use_fr": "• Pour parler d'une activité qui a commencé dans le passé et qui continue maintenant\n• Pour insister sur la durée d'une action\n• Pour expliquer un résultat visible d'une action\n• Pour décrire des habitudes récentes",
+      "title_fr": "Le Present Perfect — ever/never, for/since, et forme continue",
+      "situation_fr": "Tu discutes avec un collègue américain à la pause café. Il te demande: 'Have you ever been to Japan?' — il ne veut pas savoir QUAND, juste si cette expérience fait partie de ta vie. Puis il dit: 'I've worked here for 5 years' — il a commencé il y a 5 ans et il y travaille ENCORE MAINTENANT. Enfin, il ajoute: 'I've been trying to learn Spanish' — il insiste sur l'effort continu, répété, l'action en cours dans sa vie. Ce sont trois façons différentes d'utiliser le Present Perfect pour connecter le passé au présent.",
+      "decision_binaire_fr": "✅ Utilise Present Perfect si: l'action a un lien avec MAINTENANT (expérience de vie, situation qui continue, ou action récente avec résultat visible)\n❌ N'utilise PAS Present Perfect si: tu parles d'un moment précis terminé dans le passé (yesterday, last year, in 2015, when I was young...)",
+      "chunks": [
+        "Have you ever been to New York?",
+        "I've never tried sushi before.",
+        "I've lived here for three years.",
+        "She's worked there since 2020.",
+        "I've been studying all morning.",
+        "How long have you been waiting?"
+      ],
+      "what_is_it_fr": "Le Present Perfect crée un pont entre le passé et le présent. Avec ever/never, les Américains parlent d'expériences de vie (peu importe quand). Avec for/since, ils décrivent des situations qui ont commencé dans le passé et continuent MAINTENANT. Avec la forme continue (-ing), ils insistent sur la durée ou la répétition d'une action encore pertinente. En français, on utilise souvent le présent ('J'habite ici depuis 3 ans') ou le passé composé selon le contexte, mais en anglais, le Present Perfect marque explicitement ce lien passé-présent.",
+      "when_to_use_fr": "• Poser des questions sur les expériences de vie de quelqu'un sans mentionner de moment précis\n• Décrire depuis combien de temps tu fais quelque chose que tu fais ENCORE maintenant\n• Insister sur une action répétée ou continue qui explique ton état actuel (fatigue, frustration, progrès)\n• Partager ce que tu n'as jamais fait ou toujours voulu faire (bucket list, regrets, projets)",
       "structure": {
-        "affirmative": "sujet + have/has been + verbe-ing",
-        "negative": "sujet + have/has not been + verbe-ing",
-        "question": "Have/Has + sujet + been + verbe-ing ?"
+        "affirmative": "Subject + have/has + past participle (ever/never) | Subject + have/has + past participle + for/since + durée/moment | Subject + have/has + been + verb-ing",
+        "negative": "Subject + haven't/hasn't + past participle (ever) | Subject + haven't/hasn't + past participle + for/since... | Subject + haven't/hasn't + been + verb-ing",
+        "question": "Have/Has + subject + ever + past participle? | How long + have/has + subject + past participle? | Have/Has + subject + been + verb-ing?"
       },
-      "analogy_fr": "C'est exactement comme en français : 'Je suis en train de travailler' = 'I have been working'.",
+      "analogy_fr": "Ever/never = 'dans ta vie' (implicite). For/since = comme le français 'depuis', MAIS en anglais on utilise le Present Perfect alors qu'en français on dit 'J'habite ici depuis 3 ans' au présent. La forme continue = insister sur l'aspect répétitif ou la durée de l'action, comme 'Je suis en train de...' mais étendu dans le temps.",
       "key_points_fr": [
-        "Attention à l'utilisation de 'have' ou 'has' selon le sujet (I/you/we/they = have, he/she/it = has).",
-        "Ne pas oublier que le verbe doit être à la forme '-ing'.",
-        "Utilisé souvent pour parler de quelque chose qui a une importance dans le présent."
+        "For + durée (for 3 years, for a week) vs Since + moment précis (since 2020, since Monday) — erreur fréquente de les confondre",
+        "Ever s'utilise presque toujours dans les questions; never dans les phrases affirmatives (pas 'I haven't never...' = double négation incorrecte)",
+        "Present Perfect simple (I've lived) = état, fait accompli VS Present Perfect Continuous (I've been living) = insistance sur la durée, le processus, l'action temporaire"
       ],
       "examples": [
         {
-          "english": "I have been studying for three hours.",
-          "french": "J'étudie depuis trois heures.",
-          "us_context_fr": "Un étudiant parle de sa préparation pour un examen.",
-          "intention_fr": "L'étudiant veut montrer qu'il a passé beaucoup de temps à étudier.",
-          "compare_fr": "On dirait simplement 'J'étudie depuis trois heures' en français.",
+          "english": "Have you ever been to California?",
+          "french": "Es-tu déjà allé en Californie ?",
+          "us_context_fr": "Conversation informelle entre amis qui apprennent à se connaître, ou discussion de voyage",
+          "intention_fr": "Demander si cette expérience fait partie de la vie de l'autre, sans aucun intérêt pour le moment précis",
+          "compare_fr": "En français on dit naturellement 'déjà' pour traduire 'ever', mais le sens est identique",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "She has been working here since 2019.",
-          "french": "Elle travaille ici depuis 2019.",
-          "us_context_fr": "Une collègue parle de son ancienneté dans l'entreprise.",
-          "intention_fr": "Elle souligne qu'elle est employée depuis longtemps.",
-          "compare_fr": "En français, on dirait 'Elle est ici depuis 2019'.",
+          "english": "I've never seen that movie.",
+          "french": "Je n'ai jamais vu ce film.",
+          "us_context_fr": "Réaction quand quelqu'un mentionne un film populaire que tu n'as jamais regardé",
+          "intention_fr": "Parler d'une expérience absente de ta vie jusqu'à maintenant (la porte reste ouverte pour le futur)",
+          "compare_fr": "Le français utilise aussi le passé composé avec 'jamais', la structure est très similaire",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "They have been waiting for the bus for 20 minutes.",
-          "french": "Ils attendent le bus depuis 20 minutes.",
-          "us_context_fr": "Des amis discutent en attendant le transport.",
-          "intention_fr": "Ils veulent montrer que l'attente est longue.",
-          "compare_fr": "En français, on dirait 'Ils sont en train d'attendre le bus depuis 20 minutes'.",
+          "english": "She's worked at Google for five years.",
+          "french": "Elle travaille chez Google depuis cinq ans.",
+          "us_context_fr": "Présenter l'expérience professionnelle de quelqu'un qui travaille ENCORE dans cette entreprise actuellement",
+          "intention_fr": "Insister sur la continuité : elle a commencé il y a 5 ans et y travaille TOUJOURS maintenant",
+          "compare_fr": "Le français utilise le présent + 'depuis', l'anglais utilise le Present Perfect — différence majeure entre les deux langues",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "We have not been exercising lately.",
-          "french": "Nous ne faisons pas d'exercice dernièrement.",
-          "us_context_fr": "Des amis parlent de leur manque d'activité physique.",
-          "intention_fr": "Ils veulent exprimer une habitude qui a changé.",
-          "compare_fr": "On dirait 'On ne fait pas d'exercice en ce moment' en français.",
+          "english": "I've been learning guitar since January.",
+          "french": "J'apprends la guitare depuis janvier.",
+          "us_context_fr": "Expliquer un hobby ou une compétence en développement que tu continues activement",
+          "intention_fr": "Forme continue pour insister sur l'effort répété, le processus d'apprentissage encore en cours",
+          "compare_fr": "Le français dit simplement 'j'apprends depuis', l'anglais ajoute 'been -ing' pour souligner la continuité de l'action",
           "audio_path_en": null,
           "audio_path_fr": null
         },
         {
-          "english": "Have you been feeling okay?",
-          "french": "Tu te sens bien ?",
-          "us_context_fr": "Un ami s'inquiète pour un autre qui semble fatigué.",
-          "intention_fr": "Il veut savoir si l'autre va bien après une période difficile.",
-          "compare_fr": "En français, on pourrait dire 'Est-ce que tu vas bien ?'.",
+          "english": "How long have you been waiting? I'm so sorry I'm late!",
+          "french": "Tu attends depuis combien de temps ? Je suis vraiment désolé d'être en retard !",
+          "us_context_fr": "Arriver en retard à un rendez-vous et s'excuser auprès de quelqu'un qui attendait",
+          "intention_fr": "Question sur la durée d'une action qui continue jusqu'au moment présent, souvent avec une nuance d'empathie ou d'excuse",
+          "compare_fr": "Le français utilise le présent ('tu attends depuis...') alors que l'anglais utilise le Present Perfect Continuous",
           "audio_path_en": null,
           "audio_path_fr": null
         }
       ],
-      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604271202-fdcc8f_course.wav"
+      "course_audio_path": "data\\michel_thomas_audio\\lesson-mt-lesson-202604290541-92b95d_course.wav"
     },
     "practice_pairs": [
       {
         "direction": "fr_to_en",
-        "prompt": "Je travaille ici depuis un an.",
-        "answer": "I have been working here for a year.",
+        "prompt": "As-tu déjà mangé de la cuisine mexicaine ?",
+        "answer": "Have you ever eaten Mexican food?",
         "hint": "",
-        "usage_note_fr": "Cette forme montre que l'action a commencé dans le passé et continue."
+        "usage_note_fr": "Question sur une expérience de vie avec 'ever', sans mentionner de moment précis"
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Il n'a pas été en train de dormir.",
-        "answer": "He has not been sleeping.",
+        "prompt": "Je n'ai jamais conduit de voiture manuelle.",
+        "answer": "I've never driven a manual car.",
         "hint": "",
-        "usage_note_fr": "Utilisé pour indiquer qu'il n'a pas dormi récemment."
+        "usage_note_fr": "Never exprime l'absence d'une expérience dans ta vie jusqu'à maintenant"
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Nous avons été en train de discuter.",
-        "answer": "We have been talking.",
+        "prompt": "Ils habitent à Boston depuis 2019.",
+        "answer": "They've lived in Boston since 2019.",
         "hint": "",
-        "usage_note_fr": "Montre que la discussion est encore en cours."
+        "usage_note_fr": "Since + année précise pour une situation qui continue maintenant; le français utilise le présent, l'anglais le Present Perfect"
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Vous attendez depuis longtemps ?",
-        "answer": "Have you been waiting for a long time?",
+        "prompt": "Elle étudie l'espagnol depuis deux mois.",
+        "answer": "She's been studying Spanish for two months.",
         "hint": "",
-        "usage_note_fr": "Question pour vérifier la durée de l'attente."
+        "usage_note_fr": "For + durée, forme continue pour insister sur le processus d'apprentissage répété et en cours"
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Ils ont été en train de jouer au foot.",
-        "answer": "They have been playing soccer.",
+        "prompt": "Depuis combien de temps travailles-tu ici ?",
+        "answer": "How long have you worked here?",
         "hint": "",
-        "usage_note_fr": "Indique une activité en cours."
+        "usage_note_fr": "Question 'How long' pour demander la durée d'une situation qui continue; on peut aussi utiliser 'have you been working' pour insister sur la continuité"
       },
       {
         "direction": "fr_to_en",
-        "prompt": "Elle n'a pas été en train de travailler ces jours-ci.",
-        "answer": "She has not been working these days.",
+        "prompt": "Nous essayons de te joindre toute la journée !",
+        "answer": "We've been trying to reach you all day!",
         "hint": "",
-        "usage_note_fr": "Montre qu'elle a cessé de travailler récemment."
+        "usage_note_fr": "Present Perfect Continuous pour insister sur l'effort répété pendant une période qui continue jusqu'à maintenant"
       },
       {
         "direction": "en_to_fr",
-        "prompt": "I have been cooking dinner.",
-        "answer": "Je prépare le dîner.",
+        "prompt": "Has he ever been to Europe?",
+        "answer": "Est-il déjà allé en Europe ?",
         "hint": "",
-        "usage_note_fr": "Indique une action en cours."
+        "usage_note_fr": "Question avec 'ever' sur une expérience de vie, le français traduit naturellement par 'déjà'"
       },
       {
         "direction": "en_to_fr",
-        "prompt": "Have they been studying for the test?",
-        "answer": "Ont-ils étudié pour l'examen ?",
+        "prompt": "I've known her since high school.",
+        "answer": "Je la connais depuis le lycée.",
         "hint": "",
-        "usage_note_fr": "Question sur une préparation."
+        "usage_note_fr": "Since + moment dans le passé, relation qui continue maintenant; le français utilise le présent"
       },
       {
         "direction": "en_to_fr",
-        "prompt": "He has been feeling tired lately.",
-        "answer": "Il se sent fatigué dernièrement.",
+        "prompt": "They've been arguing for an hour.",
+        "answer": "Ils se disputent depuis une heure.",
         "hint": "",
-        "usage_note_fr": "Indique un état récent."
+        "usage_note_fr": "Present Perfect Continuous pour une action en cours avec durée précise; le français utilise le présent + depuis"
       },
       {
         "direction": "en_to_fr",
-        "prompt": "We have not been going out much.",
-        "answer": "Nous ne sortons pas beaucoup.",
+        "prompt": "I've never tried skydiving, but I'd love to.",
+        "answer": "Je n'ai jamais fait de parachutisme, mais j'aimerais beaucoup.",
         "hint": "",
-        "usage_note_fr": "Exprime un changement d'habitude."
+        "usage_note_fr": "Never pour une expérience absente, souvent suivi d'une intention future — structure courante en anglais américain"
       }
     ]
   }

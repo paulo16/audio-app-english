@@ -70,20 +70,24 @@ def openrouter_headers(title="English Audio Coach"):
     }
 
 
-def openrouter_chat(messages, model, temperature=0.4, max_tokens=1200):
+def openrouter_chat(messages, model, temperature=0.4, max_tokens=1200, reasoning=False):
     if not OPENROUTER_API_KEY:
         return None, "OPENROUTER_API_KEY manquante."
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if reasoning:
+        payload["reasoning"] = {"enabled": True}
 
     response = requests.post(
         f"{OPENROUTER_BASE_URL}/chat/completions",
         headers=openrouter_headers(),
-        json={
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        },
-        timeout=120,
+        json=payload,
+        timeout=180,
     )
 
     if response.status_code != 200:
