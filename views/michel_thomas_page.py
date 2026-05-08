@@ -1228,7 +1228,7 @@ def _generate_quiz_questions(
             'All direction must be "en_to_fr" (prompt in English, answer in French).'
         )
 
-        prompt = f"""You are a bilingual English-French quiz generator focused on real American usage.
+    prompt = f"""You are a bilingual English-French quiz generator focused on real American usage.
 Generate exactly {count} translation quiz questions for a French native speaker at CEFR level {level}.
 Grammar focus: {concepts_str}
 Themes: {themes_str}
